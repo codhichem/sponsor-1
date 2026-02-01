@@ -2105,7 +2105,7 @@ function renderClientsTable() {
         contactHtml += '</div>';
     }
 
-    row.innerHTML = `<td class="p-4"><div class="font-bold">${client.name}</div><div class="text-sm text-gray-500">Inscrit le ${joinDate}</div></td><td class="p-4">${contactHtml}<div class="text-xs text-gray-500 mt-1">Dernière: ${lastActivity}</div></td><td class="p-4 font-bold text-green-600">${formatCurrency(totalSpent)}</td><td class="p-4"><span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${transactionCount} transaction${transactionCount > 1 ? 's' : ''}</span></td><td class="p-4"><button onclick="openClientModal(${client.id})" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 mr-2" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteClient(${client.id})" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    row.innerHTML = `<td class="p-4"><div class="font-bold">${client.name}</div><div class="text-sm text-gray-500">Inscrit le ${joinDate}</div></td><td class="p-4">${contactHtml}<div class="text-xs text-gray-500 mt-1">Dernière: ${lastActivity}</div></td><td class="p-4 font-bold text-green-600">${formatCurrency(totalSpent)}</td><td class="p-4"><span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${transactionCount} transaction${transactionCount > 1 ? 's' : ''}</span></td><td class="p-4"><button onclick="openClientModal('${client.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 mr-2" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteClient('${client.id}')" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
 }
@@ -2124,7 +2124,7 @@ function renderTransactionsTable() {
     const time = new Date(trans.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     const row = document.createElement('tr');
     row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4">${trans.clientName}</td><td class="p-4"><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${trans.offerName}</span></td><td class="p-4 font-bold">$${trans.dollarAmount.toFixed(2)}</td><td class="p-4">${trans.sellRate} DZD</td><td class="p-4 font-bold">${formatCurrency(trans.totalDzd)}</td><td class="p-4"><span class="profit-badge font-bold px-2.5 py-0.5 rounded-full">+${formatCurrency(trans.profit)}</span></td><td class="p-4"><button onclick="deleteTransaction(${trans.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4">${trans.clientName}</td><td class="p-4"><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${trans.offerName}</span></td><td class="p-4 font-bold">$${trans.dollarAmount.toFixed(2)}</td><td class="p-4">${trans.sellRate} DZD</td><td class="p-4 font-bold">${formatCurrency(trans.totalDzd)}</td><td class="p-4"><span class="profit-badge font-bold px-2.5 py-0.5 rounded-full">+${formatCurrency(trans.profit)}</span></td><td class="p-4"><button onclick="deleteTransaction('${trans.id}')" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
 }
@@ -2179,7 +2179,7 @@ function renderOffersGrid() {
     if (marginPercentage < 10) marginColor = 'text-red-600';
     else if (marginPercentage < 20) marginColor = 'text-yellow-600';
     
-    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div><h3 class="text-xl font-bold text-gray-800">${offer.name}</h3><p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i>${offer.duration || 'Non spécifiée'}</p></div><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">${usageCount} vente${usageCount > 1 ? 's' : ''}</span></div><p class="text-gray-600 mb-4 min-h-[50px] text-sm">${offer.description || 'Pas de description'}</p><div class="grid grid-cols-2 gap-3 mb-4 text-sm border-t border-b border-gray-100 py-3"><div><span class="text-gray-600 text-xs block">Montant ($):</span><span class="font-bold text-blue-600">$${offerCostUSD.toFixed(2)}</span></div><div><span class="text-gray-600 text-xs block">Prix Vente (DZD):</span><span class="font-bold text-purple-600">${formatCurrency(offerPrice)}</span></div><div><span class="text-gray-600 text-xs block">Coût @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(costDzd)}</span></div><div><span class="text-gray-600 text-xs block">Marge:</span><span class="font-bold ${marginColor}">${marginPercentage}%</span></div></div><div class="flex justify-between items-center"><div><p class="text-xs text-gray-500">Bénéfice estimé</p><span class="text-lg font-black text-green-600">${formatCurrency(marginDzd)}</span></div><div class="flex gap-2"><button onclick="openOfferModal(${offer.id})" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteOffer(${offer.id})" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></div></div>`;
+    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div><h3 class="text-xl font-bold text-gray-800">${offer.name}</h3><p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i>${offer.duration || 'Non spécifiée'}</p></div><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">${usageCount} vente${usageCount > 1 ? 's' : ''}</span></div><p class="text-gray-600 mb-4 min-h-[50px] text-sm">${offer.description || 'Pas de description'}</p><div class="grid grid-cols-2 gap-3 mb-4 text-sm border-t border-b border-gray-100 py-3"><div><span class="text-gray-600 text-xs block">Montant ($):</span><span class="font-bold text-blue-600">$${offerCostUSD.toFixed(2)}</span></div><div><span class="text-gray-600 text-xs block">Prix Vente (DZD):</span><span class="font-bold text-purple-600">${formatCurrency(offerPrice)}</span></div><div><span class="text-gray-600 text-xs block">Coût @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(costDzd)}</span></div><div><span class="text-gray-600 text-xs block">Marge:</span><span class="font-bold ${marginColor}">${marginPercentage}%</span></div></div><div class="flex justify-between items-center"><div><p class="text-xs text-gray-500">Bénéfice estimé</p><span class="text-lg font-black text-green-600">${formatCurrency(marginDzd)}</span></div><div class="flex gap-2"><button onclick="openOfferModal('${offer.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteOffer('${offer.id}')" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></div></div>`;
     grid.appendChild(card);
   });
 }
@@ -2222,7 +2222,7 @@ function renderUsdPurchasesTable() {
     const time = new Date(purchase.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     const row = document.createElement('tr');
     row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4 font-bold">$${purchase.amount.toFixed(2)}</td><td class="p-4">${purchase.rate} DZD</td><td class="p-4 font-bold text-red-600">${formatCurrency(purchase.totalDzd)}</td><td class="p-4 text-gray-700">${purchase.source || '-'}</td><td class="p-4"><button onclick="deleteUsdPurchase(${purchase.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4 font-bold">$${purchase.amount.toFixed(2)}</td><td class="p-4">${purchase.rate} DZD</td><td class="p-4 font-bold text-red-600">${formatCurrency(purchase.totalDzd)}</td><td class="p-4 text-gray-700">${purchase.source || '-'}</td><td class="p-4"><button onclick="deleteUsdPurchase('${purchase.id}')" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
 }
@@ -3354,7 +3354,7 @@ async function handleOrderSubmit(e) {
           // Fix: Sync to Cloud Collection
           await syncClientRequest(orderData);
           
-          if(appState.settings.storageMode === 'cloud' && auth.currentUser) {
+          if(appState.settings.storageMode === 'cloud' && (auth && auth.currentUser)) {
              saveToCloud(); 
           } else {
              saveToLocalStorage();
@@ -3410,7 +3410,7 @@ async function syncClientAccount(clientData) {
 
 async function saveToCloud() {
       try {
-        const user = auth.currentUser;
+        const user = auth && auth.currentUser;
         if (!user) { console.warn('Pas dâ€™utilisateur connecté'); saveToLocalStorage(); return; }
         const uid = user.uid;
         appState.lastUpdated = Date.now();
@@ -3432,7 +3432,7 @@ async function saveToCloud() {
 
 async function loadFromCloud() {
       try {
-        const user = auth.currentUser;
+        const user = auth && auth.currentUser;
         if (!user) { console.warn('Pas dâ€™utilisateur connecté'); loadFromLocalStorage(); showToast('Non connecté: chargement des données locales.', 'info'); return; }
         const uid = user.uid;
         const doc = await getDb().collection('users').doc(uid).get();
@@ -3839,7 +3839,7 @@ async function loginWithEmailPassword(email, password) {
       showToast('Connexion réussie', 'success');
       
       // Force UI switch immediately
-      updateAuthUI(auth.currentUser);
+      updateAuthUI(auth && auth.currentUser);
       forceAdminView();
       const loginContainer = document.getElementById('loginContainer');
       const appContainer = document.getElementById('appContainer');
@@ -4170,7 +4170,7 @@ function renderTablesAsync() {
 // === isAdminSession ===
 
 function isAdminSession() {
-      return !!auth.currentUser || (appState.session && appState.session.type === 'employee');
+      return !!(auth && auth.currentUser) || (appState.session && appState.session.type === 'employee');
     }
 
 // === requireAdmin ===
@@ -4243,7 +4243,7 @@ async function removeClientInstagram(idx) {
     c.social.instagram.splice(idx, 1);
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud' && auth && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
 
@@ -4255,7 +4255,7 @@ async function removeClientFacebook(idx) {
     c.social.facebook.splice(idx, 1);
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud' && (auth && auth.currentUser)) { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
 
@@ -4339,7 +4339,7 @@ async function saveClientIdentifiers() {
     c.contact = email || phone || user || c.contact;
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud' && (auth && auth.currentUser)) { try { saveToCloud(); } catch (e) {} }
     showToast('Profil mis à jour', 'success');
     renderClientAccountInfo();
   }
@@ -4357,7 +4357,7 @@ async function addClientInstagram() {
     document.getElementById('clientAddInstagram').value = '';
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud' && (auth && auth.currentUser)) { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
 
@@ -4374,7 +4374,7 @@ async function addClientFacebook() {
     document.getElementById('clientAddFacebook').value = '';
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud' && (auth && auth.currentUser)) { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
 
@@ -4492,7 +4492,7 @@ async function syncClientRequest(orderData) {
     appState.clientRequests.push(orderData);
     saveToLocalStorage();
     
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser) {
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && (auth && auth.currentUser)) {
         try {
              await db.collection('requests').doc(orderData.id).set(orderData);
         } catch(e) {
