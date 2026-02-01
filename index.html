@@ -92,7 +92,7 @@
         </div>
         <div class="bg-gray-50 border rounded-2xl p-4 space-y-3 mt-3">
           <div class="text-center font-bold text-gray-800">Connexion Client</div>
-          <input id="clientQuickId" type="text" placeholder="Téléphone ou Nom dâ€™utilisateur ou Email" class="w-full p-3 border rounded-xl">
+          <input id="clientQuickId" type="text" placeholder="Téléphone, Nom ou Email" class="w-full p-3 border rounded-xl">
           <button type="button" onclick="loginClientQuick()"
                   class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow hover:bg-blue-700 transition-all">
             Se connecter
@@ -3139,7 +3139,7 @@ async function loginClientQuick() {
     
     ensureInitialData();
     let c = (appState.clients || []).find(x => {
-      return (x.phone || '').toLowerCase() === ident || (x.username || '').toLowerCase() === ident || (x.email || '').toLowerCase() === ident;
+      return (x.phone || '').toLowerCase() === ident || (x.username || '').toLowerCase() === ident || (x.email || '').toLowerCase() === ident || (x.name || '').toLowerCase() === ident;
     });
     
     // === TRY CLOUD FETCH ===
@@ -3148,6 +3148,7 @@ async function loginClientQuick() {
              let q = await db.collection('clients').where('email', '==', ident).limit(1).get();
              if (q.empty) q = await db.collection('clients').where('username', '==', ident).limit(1).get();
              if (q.empty) q = await db.collection('clients').where('phone', '==', ident).limit(1).get();
+             if (q.empty) q = await db.collection('clients').where('name', '==', ident).limit(1).get();
              
              if (!q.empty) {
                  c = q.docs[0].data();
