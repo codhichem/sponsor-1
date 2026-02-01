@@ -1234,9 +1234,10 @@
 
     <!-- MODALS -->
     <div id="clientModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
-      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show max-h-[90vh] overflow-y-auto">
+        <input type="hidden" id="clientId">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold flex items-center gap-2">
+          <h3 class="text-xl font-bold flex items-center gap-2" id="clientModalTitle">
             <i class="fas fa-user-plus text-blue-600"></i>
             Ajouter un Client
           </h3>
@@ -1244,17 +1245,49 @@
             <i class="fas fa-times text-xl"></i>
           </button>
         </div>
-        <input id="newClientName" type="text" placeholder="Nom complet du client" 
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-        <input id="newClientContact" type="text" placeholder="Contact (Téléphone, Facebook, etc.)" 
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-        <textarea id="newClientNotes" placeholder="Notes supplémentaires (optionnel)" 
-                  class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" rows="3"></textarea>
-        <div class="flex justify-end gap-3">
+        <div class="space-y-3">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nom du Client</label>
+                <input id="newClientName" type="text" placeholder="Nom complet" 
+                       class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                <input id="newClientPhone" type="tel" placeholder="055..." 
+                       class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Page Facebook 1</label>
+                <input id="newClientFbPage" type="text" placeholder="Nom de la page" 
+                       class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Page Facebook 2 (Optionnel)</label>
+                <input id="newClientFbPage2" type="text" placeholder="Nom de la 2ème page" 
+                       class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Instagram / Autre Contact</label>
+                <input id="newClientContact" type="text" placeholder="Contact (ex: @pseudo)" 
+                       class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea id="newClientNotes" placeholder="Notes supplémentaires..." 
+                          class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" rows="2"></textarea>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-6">
           <button onclick="closeModal('clientModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
             Annuler
           </button>
-          <button onclick="addClient()" class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+          <button onclick="saveClient()" class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
             Enregistrer
           </button>
         </div>
@@ -1263,8 +1296,9 @@
 
     <div id="offerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
       <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+        <input type="hidden" id="offerId">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold flex items-center gap-2">
+          <h3 class="text-xl font-bold flex items-center gap-2" id="offerModalTitle">
             <i class="fas fa-gift text-purple-600"></i>
             Ajouter une Offre
           </h3>
@@ -1286,7 +1320,7 @@
           <button onclick="closeModal('offerModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
             Annuler
           </button>
-          <button onclick="addOffer()" class="px-5 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+          <button onclick="saveOffer()" class="px-5 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
             Enregistrer
           </button>
         </div>
@@ -1738,73 +1772,171 @@ function addTransaction() {
   showTab('dashboard');
 }
 
-function addClient() {
+function openClientModal(clientId = null) {
+  const modal = document.getElementById('clientModal');
+  const title = document.getElementById('clientModalTitle');
+  
+  // Reset fields
+  document.getElementById('clientId').value = '';
+  document.getElementById('newClientName').value = '';
+  document.getElementById('newClientPhone').value = '';
+  document.getElementById('newClientFbPage').value = '';
+  document.getElementById('newClientFbPage2').value = '';
+  document.getElementById('newClientContact').value = '';
+  document.getElementById('newClientNotes').value = '';
+
+  if (clientId) {
+    const client = appState.clients.find(c => c.id == clientId);
+    if (client) {
+        document.getElementById('clientId').value = client.id;
+        document.getElementById('newClientName').value = client.name;
+        document.getElementById('newClientPhone').value = client.phone || '';
+        document.getElementById('newClientFbPage').value = client.fbPage1 || '';
+        document.getElementById('newClientFbPage2').value = client.fbPage2 || '';
+        document.getElementById('newClientContact').value = client.contact || '';
+        document.getElementById('newClientNotes').value = client.notes || '';
+        if(title) title.innerHTML = '<i class="fas fa-user-edit text-blue-600"></i> Modifier Client';
+    }
+  } else {
+      if(title) title.innerHTML = '<i class="fas fa-user-plus text-blue-600"></i> Ajouter un Client';
+  }
+  openModal('clientModal');
+}
+
+function saveClient() {
+  const id = document.getElementById('clientId').value;
   const name = document.getElementById('newClientName').value.trim();
+  const phone = document.getElementById('newClientPhone').value.trim();
+  const fbPage1 = document.getElementById('newClientFbPage').value.trim();
+  const fbPage2 = document.getElementById('newClientFbPage2').value.trim();
   const contact = document.getElementById('newClientContact').value.trim();
   const notes = document.getElementById('newClientNotes').value.trim();
+
   if (!name) {
     showToast('Le nom du client est requis', 'error');
     return;
   }
-  const client = {
-    id: Date.now(),
-    name: name,
-    contact: contact,
-    notes: notes,
-    totalSpent: 0,
-    joinDate: new Date().toISOString(),
-    lastActivity: new Date().toISOString()
-  };
-  appState.clients.push(client);
+
+  if (id) {
+      // Edit
+      const index = appState.clients.findIndex(c => c.id == id);
+      if (index !== -1) {
+          appState.clients[index] = {
+              ...appState.clients[index],
+              name,
+              phone,
+              fbPage1,
+              fbPage2,
+              contact,
+              notes
+          };
+          showToast('Client mis à jour', 'success');
+      }
+  } else {
+      // Create
+      const client = {
+        id: Date.now(),
+        name,
+        phone,
+        fbPage1,
+        fbPage2,
+        contact,
+        notes,
+        totalSpent: 0,
+        joinDate: new Date().toISOString(),
+        lastActivity: new Date().toISOString()
+      };
+      appState.clients.push(client);
+      showToast(`Client "${name}" ajouté avec succès`, 'success');
+  }
+  
   saveToLocalStorage();
   closeModal('clientModal');
   renderTables();
-  populatePaymentClientSelect();
-  document.getElementById('newClientName').value = '';
-  document.getElementById('newClientContact').value = '';
-  document.getElementById('newClientNotes').value = '';
-  showToast(`Client "${name}" ajouté avec succès`, 'success');
+  if(typeof populatePaymentClientSelect === 'function') populatePaymentClientSelect();
 }
 
-function addOffer() {
-  const name = document.getElementById('newOfferName').value.trim();
-  const desc = document.getElementById('newOfferDesc').value.trim();
-  const price = parseFloat(document.getElementById('newOfferPrice').value);
-  const costPerUnit = parseFloat(document.getElementById('newOfferCostPerUnit').value);
+function openOfferModal(offerId = null) {
+  const modal = document.getElementById('offerModal');
+  const title = document.getElementById('offerModalTitle');
   
-  console.log('DEBUG addOffer:', { name, desc, price, costPerUnit });
-  
-  if (!name || isNaN(price) || isNaN(costPerUnit)) {
-    showToast('Nom, prix de vente et montant à dépenser sont requis et doivent être des nombres', 'error');
-    return;
-  }
-  if (price <= 0 || costPerUnit <= 0) {
-    showToast('Les montants doivent être supérieurs à 0', 'error');
-    return;
-  }
-  const offer = {
-    id: Date.now(),
-    name: name,
-    description: desc,
-    price: price,
-    costPerUnit: costPerUnit,
-    duration: document.getElementById('newOfferDuration').value.trim(),
-    createdAt: new Date().toISOString(),
-    isActive: true
-  };
-  appState.offers.push(offer);
-  console.log('Offre ajoutée:', offer);
-  console.log('Total offres:', appState.offers.length);
-  saveToLocalStorage();
-  closeModal('offerModal');
-  renderTables();
-  populateOfferSelect();
+  // Reset
+  document.getElementById('offerId').value = '';
   document.getElementById('newOfferName').value = '';
   document.getElementById('newOfferDesc').value = '';
   document.getElementById('newOfferPrice').value = '';
   document.getElementById('newOfferCostPerUnit').value = '';
   document.getElementById('newOfferDuration').value = '';
-  showToast(`Offre "${name}" créée avec succès`, 'success');
+
+  if (offerId) {
+    const offer = appState.offers.find(o => o.id == offerId);
+    if (offer) {
+        document.getElementById('offerId').value = offer.id;
+        document.getElementById('newOfferName').value = offer.name;
+        document.getElementById('newOfferDesc').value = offer.description || '';
+        document.getElementById('newOfferPrice').value = offer.price;
+        document.getElementById('newOfferCostPerUnit').value = offer.costPerUnit;
+        document.getElementById('newOfferDuration').value = offer.duration || '';
+        if(title) title.innerHTML = '<i class="fas fa-edit text-purple-600"></i> Modifier l\'Offre';
+    }
+  } else {
+      if(title) title.innerHTML = '<i class="fas fa-gift text-purple-600"></i> Ajouter une Offre';
+  }
+  openModal('offerModal');
+}
+
+function saveOffer() {
+  const id = document.getElementById('offerId').value;
+  const name = document.getElementById('newOfferName').value.trim();
+  const desc = document.getElementById('newOfferDesc').value.trim();
+  const price = parseFloat(document.getElementById('newOfferPrice').value);
+  const costPerUnit = parseFloat(document.getElementById('newOfferCostPerUnit').value);
+  const duration = document.getElementById('newOfferDuration').value.trim();
+  
+  if (!name || isNaN(price) || isNaN(costPerUnit)) {
+    showToast('Nom, prix et coût sont requis', 'error');
+    return;
+  }
+  
+  if (price <= 0 || costPerUnit <= 0) {
+    showToast('Les montants doivent être supérieurs à 0', 'error');
+    return;
+  }
+
+  if (id) {
+      // Edit
+      const index = appState.offers.findIndex(o => o.id == id);
+      if (index !== -1) {
+          appState.offers[index] = {
+              ...appState.offers[index],
+              name,
+              description: desc,
+              price,
+              costPerUnit,
+              duration
+          };
+          showToast('Offre mise à jour', 'success');
+      }
+  } else {
+      // Create
+      const offer = {
+        id: Date.now(),
+        name,
+        description: desc,
+        price,
+        costPerUnit,
+        duration,
+        createdAt: new Date().toISOString(),
+        isActive: true
+      };
+      appState.offers.push(offer);
+      showToast(`Offre "${name}" créée avec succès`, 'success');
+  }
+
+  saveToLocalStorage();
+  closeModal('offerModal');
+  renderTables();
+  if(typeof populateOfferSelect === 'function') populateOfferSelect();
 }
 
 function addPayment() {
@@ -1964,23 +2096,16 @@ function renderClientsTable() {
     row.className = 'hover:bg-gray-50 transition-colors';
     
     let contactHtml = '-';
-    if (client.contact) {
-        contactHtml = `
-            <div class="flex flex-col">
-                <span class="font-medium">${client.contact}</span>
-                <div class="flex space-x-2 mt-1">
-                    <a href="https://instagram.com/${client.contact}" target="_blank" class="text-pink-500 hover:text-pink-700" title="Ouvrir Instagram">
-                        <i class="fab fa-instagram"></i>
-                    </a>
-                    <a href="https://wa.me/${client.contact}" target="_blank" class="text-green-500 hover:text-green-700" title="Ouvrir WhatsApp">
-                        <i class="fab fa-whatsapp"></i>
-                    </a>
-                </div>
-            </div>
-        `;
+    if (client.contact || client.phone || client.fbPage1) {
+        contactHtml = '<div class="flex flex-col gap-1">';
+        if (client.phone) contactHtml += `<div class="text-sm"><i class="fas fa-phone text-gray-400 mr-1"></i>${client.phone}</div>`;
+        if (client.contact) contactHtml += `<div class="text-sm"><i class="fab fa-instagram text-pink-500 mr-1"></i>${client.contact}</div>`;
+        if (client.fbPage1) contactHtml += `<div class="text-sm"><i class="fab fa-facebook text-blue-600 mr-1"></i>${client.fbPage1}</div>`;
+        if (client.fbPage2) contactHtml += `<div class="text-sm"><i class="fab fa-facebook text-blue-600 mr-1"></i>${client.fbPage2}</div>`;
+        contactHtml += '</div>';
     }
 
-    row.innerHTML = `<td class="p-4"><div class="font-bold">${client.name}</div><div class="text-sm text-gray-500">Inscrit le ${joinDate}</div></td><td class="p-4">${contactHtml}<div class="text-xs text-gray-500 mt-1">Dernière: ${lastActivity}</div></td><td class="p-4 font-bold text-green-600">${formatCurrency(totalSpent)}</td><td class="p-4"><span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${transactionCount} transaction${transactionCount > 1 ? 's' : ''}</span></td><td class="p-4"><button onclick="deleteClient(${client.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    row.innerHTML = `<td class="p-4"><div class="font-bold">${client.name}</div><div class="text-sm text-gray-500">Inscrit le ${joinDate}</div></td><td class="p-4">${contactHtml}<div class="text-xs text-gray-500 mt-1">Dernière: ${lastActivity}</div></td><td class="p-4 font-bold text-green-600">${formatCurrency(totalSpent)}</td><td class="p-4"><span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${transactionCount} transaction${transactionCount > 1 ? 's' : ''}</span></td><td class="p-4"><button onclick="openClientModal(${client.id})" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 mr-2" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteClient(${client.id})" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
 }
@@ -2054,7 +2179,7 @@ function renderOffersGrid() {
     if (marginPercentage < 10) marginColor = 'text-red-600';
     else if (marginPercentage < 20) marginColor = 'text-yellow-600';
     
-    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div><h3 class="text-xl font-bold text-gray-800">${offer.name}</h3><p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i>${offer.duration || 'Non spécifiée'}</p></div><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">${usageCount} vente${usageCount > 1 ? 's' : ''}</span></div><p class="text-gray-600 mb-4 min-h-[50px] text-sm">${offer.description || 'Pas de description'}</p><div class="grid grid-cols-2 gap-3 mb-4 text-sm border-t border-b border-gray-100 py-3"><div><span class="text-gray-600 text-xs block">Montant ($):</span><span class="font-bold text-blue-600">$${offerCostUSD.toFixed(2)}</span></div><div><span class="text-gray-600 text-xs block">Prix Vente (DZD):</span><span class="font-bold text-purple-600">${formatCurrency(offerPrice)}</span></div><div><span class="text-gray-600 text-xs block">Coût @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(costDzd)}</span></div><div><span class="text-gray-600 text-xs block">Marge:</span><span class="font-bold ${marginColor}">${marginPercentage}%</span></div></div><div class="flex justify-between items-center"><div><p class="text-xs text-gray-500">Bénéfice estimé</p><span class="text-lg font-black text-green-600">${formatCurrency(marginDzd)}</span></div><button onclick="deleteOffer(${offer.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></div>`;
+    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div><h3 class="text-xl font-bold text-gray-800">${offer.name}</h3><p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i>${offer.duration || 'Non spécifiée'}</p></div><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">${usageCount} vente${usageCount > 1 ? 's' : ''}</span></div><p class="text-gray-600 mb-4 min-h-[50px] text-sm">${offer.description || 'Pas de description'}</p><div class="grid grid-cols-2 gap-3 mb-4 text-sm border-t border-b border-gray-100 py-3"><div><span class="text-gray-600 text-xs block">Montant ($):</span><span class="font-bold text-blue-600">$${offerCostUSD.toFixed(2)}</span></div><div><span class="text-gray-600 text-xs block">Prix Vente (DZD):</span><span class="font-bold text-purple-600">${formatCurrency(offerPrice)}</span></div><div><span class="text-gray-600 text-xs block">Coût @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(costDzd)}</span></div><div><span class="text-gray-600 text-xs block">Marge:</span><span class="font-bold ${marginColor}">${marginPercentage}%</span></div></div><div class="flex justify-between items-center"><div><p class="text-xs text-gray-500">Bénéfice estimé</p><span class="text-lg font-black text-green-600">${formatCurrency(marginDzd)}</span></div><div class="flex gap-2"><button onclick="openOfferModal(${offer.id})" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteOffer(${offer.id})" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></div></div>`;
     grid.appendChild(card);
   });
 }
