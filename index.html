@@ -97,6 +97,15 @@
                   class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow hover:bg-blue-700 transition-all">
             Se connecter
           </button>
+          <div class="flex items-center gap-2 my-2 text-sm text-gray-400"><div class="h-px bg-gray-200 flex-1"></div>ou<div class="h-px bg-gray-200 flex-1"></div></div>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="loginWithGoogle()" type="button" class="py-2 px-2 border rounded-xl flex items-center justify-center gap-1 hover:bg-gray-100 text-sm font-semibold transition-colors">
+              <i class="fab fa-google text-red-500"></i> Google
+            </button>
+            <button onclick="loginWithFacebook()" type="button" class="py-2 px-2 border rounded-xl flex items-center justify-center gap-1 hover:bg-gray-100 text-sm font-semibold transition-colors">
+              <i class="fab fa-facebook text-blue-600"></i> Facebook
+            </button>
+          </div>
         </div>
         <button onclick="showClientSpace()" type="button"
                 class="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 font-bold rounded-xl shadow hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
@@ -810,6 +819,21 @@
                           onchange="selectOfferInTransaction()">
                     <option value="">Sélectionner une offre...</option>
                   </select>
+                  
+                  <div id="transactionCustomOfferFields" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 bg-purple-50 p-4 rounded-xl border border-purple-100 animate-fade-in">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-purple-700">Coût ($)</label>
+                        <input id="customCost" type="number" step="0.01" placeholder="ex: 10" class="w-full p-2 border rounded-lg" oninput="calculatePreview()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-purple-700">Prix Vente (DZD)</label>
+                        <input id="customPrice" type="number" step="100" placeholder="ex: 3500" class="w-full p-2 border rounded-lg" oninput="calculatePreview()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-purple-700">Durée</label>
+                        <input id="customDuration" type="text" placeholder="ex: 30 jours" class="w-full p-2 border rounded-lg">
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -830,12 +854,28 @@
                 </div>
                 <div>
                   <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-info-circle text-blue-600"></i>
-                    Détails Offre
+                    <i class="fas fa-money-bill-wave text-green-600"></i>
+                    Statut Paiement
                   </label>
-                  <div class="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <p id="offerDetails" class="text-sm text-gray-600">Sélectionnez une offre</p>
+                  <select id="transactionStatus" onchange="togglePartialInput()" class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all">
+                    <option value="completed" selected>Payé (Complété)</option>
+                    <option value="pending">Impayé (Crédit)</option>
+                    <option value="partial">Partiel (Reste)</option>
+                  </select>
+                  <div id="partialInputContainer" class="hidden mt-2">
+                    <label class="block text-sm font-semibold mb-1 text-gray-600">Reste à payer (DZD)</label>
+                    <input id="transactionRest" type="number" min="0" placeholder="Montant restant..." class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 outline-none">
                   </div>
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
+                  <i class="fas fa-info-circle text-blue-600"></i>
+                  Détails Offre
+                </label>
+                <div class="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                  <p id="offerDetails" class="text-sm text-gray-600">Sélectionnez une offre</p>
                 </div>
               </div>
 
@@ -884,6 +924,22 @@
                 <p class="text-sm text-gray-500 mt-2">Les transactions apparaîtront ici</p>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- DASHBOARD OFFERS SECTION -->
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border fade-in card-hover mb-8">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+              <i class="fas fa-gift text-pink-600"></i>
+              Mes Offres Actives
+            </h2>
+            <button onclick="showTab('offers')" class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+              Voir tout <i class="fas fa-arrow-right ml-1"></i>
+            </button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="dashboardOffersGrid">
+            <!-- Populated by JavaScript -->
           </div>
         </div>
       </section>
@@ -962,6 +1018,12 @@
               <p class="text-gray-600 text-sm mt-1">Gérez vos clients et suivez leur activité</p>
             </div>
             <div class="flex gap-2">
+              <div class="relative">
+                <input id="clientSearchInput" type="text" placeholder="Rechercher un client..." 
+                       class="pl-10 pr-4 py-2 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none w-64"
+                       oninput="renderClientsTable()">
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+              </div>
               <button onclick="openModal('clientModal')"
                       class="px-4 md:px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center gap-2">
                 <i class="fas fa-plus"></i>
@@ -981,6 +1043,7 @@
                   <th class="p-4 rounded-l-lg font-semibold text-gray-700">Nom</th>
                   <th class="p-4 font-semibold text-gray-700">Contact</th>
                   <th class="p-4 font-semibold text-gray-700">Total Dépensé</th>
+                  <th class="p-4 font-semibold text-gray-700">Solde</th>
                   <th class="p-4 font-semibold text-gray-700">Transactions</th>
                   <th class="p-4 rounded-r-lg font-semibold text-gray-700">Actions</th>
                 </tr>
@@ -1044,9 +1107,20 @@
             </h2>
             <div class="flex flex-col md:flex-row gap-4">
               <input id="transactionSearch" type="text" placeholder="Rechercher..." 
-                     class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none">
+                     class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+                     oninput="renderTransactionsTable()">
+              
+              <select id="transactionStatusFilter"
+                      class="p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+                      onchange="renderTransactionsTable()">
+                <option value="all">Tous les statuts</option>
+                <option value="paid">Payé</option>
+                <option value="unpaid">Impayé (Dû)</option>
+              </select>
+
               <select id="transactionFilter"
-                      class="p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none">
+                      class="p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
+                      onchange="renderTransactionsTable()">
                 <option value="all">Toutes les périodes</option>
                 <option value="today">Aujourd'hui</option>
                 <option value="week">Cette semaine</option>
@@ -1062,9 +1136,7 @@
                   <th class="p-4 font-semibold text-gray-700">Client</th>
                   <th class="p-4 font-semibold text-gray-700">Offre</th>
                   <th class="p-4 font-semibold text-gray-700">Montant</th>
-                  <th class="p-4 font-semibold text-gray-700">Prix Vente</th>
-                  <th class="p-4 font-semibold text-gray-700">Total</th>
-                  <th class="p-4 font-semibold text-gray-700">Profit</th>
+                  <th class="p-4 font-semibold text-gray-700">Statut</th>
                   <th class="p-4 rounded-r-lg font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
@@ -1075,7 +1147,6 @@
           </div>
           <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
             <span id="transactionsSummary">0 transactions</span>
-            <span id="transactionsTotalProfit">Profit total: 0 DZD</span>
           </div>
         </div>
       </section>
@@ -1459,8 +1530,8 @@
     </div>
 
     <!-- CONFIRMATION MODAL -->
-    <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
-      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show text-center">
+    <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[9999] p-4 modal-backdrop" style="z-index: 9999;">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show text-center relative">
         <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <i class="fas fa-check text-green-600 text-3xl"></i>
         </div>
@@ -1517,19 +1588,92 @@ let appState = {
     currency: 'DZD'
   }
 };
+// Ensure global access for debugging and external scripts
+window.appState = appState;
 
-document.addEventListener('DOMContentLoaded', function() {
+// Helper to format WhatsApp numbers (Algeria specific)
+function formatWhatsApp(phone) {
+  if (!phone) return '';
+  let clean = phone.replace(/\D/g, '');
+  // Assuming Algerian numbers start with 05, 06, 07 and are 10 digits long
+  if (clean.length === 10 && (clean.startsWith('05') || clean.startsWith('06') || clean.startsWith('07'))) {
+    return '213' + clean.substring(1);
+  }
+  return clean;
+}
+window.formatWhatsApp = formatWhatsApp;
+
+document.addEventListener('DOMContentLoaded', async function() {
   console.log('🚀 Sponsoring Manager PRO - Initialisation');
+  
+  // 1. Load Local Data Immediately
   loadFromLocalStorage();
-  showTab('dashboard');
-  updateDashboard();
+  
+  // 2. Initial UI Render (with local data)
   populatePaymentClientSelect();
   populateOfferSelect();
+  populateOrderOfferSelect();
   renderTables();
   setupEventListeners();
   setupClientSearchListeners();
+  
+  // 3. Session Restoration (Local)
+  if (appState.session) {
+      if (appState.session.type === 'client') {
+          showClientSpace();
+          updateAuthUI(null);
+      } else {
+          showTab(appState.currentTab || 'dashboard', false);
+          updateAuthUI(null);
+      }
+  } else {
+      showTab('dashboard', false);
+      updateAuthUI(null);
+  }
+
+  // History Management
+  setupHistoryManagement();
+
+  // 4. Cloud Sync & Auth Check
+  if (window.auth) {
+    window.auth.onAuthStateChanged(async (user) => {
+        if (user) {
+            console.log('🔄 Utilisateur détecté, chargement Cloud...');
+            try {
+                // If we are in cloud mode or just want to sync
+                if (appState.settings.storageMode === 'cloud') {
+                     await loadFromCloud();
+                     
+                     // Re-populate UI with Cloud Data
+                     populatePaymentClientSelect();
+                     populateOfferSelect();
+                     populateOrderOfferSelect();
+                     renderTables();
+                     
+                     // Ensure UI is visible if logged in
+                     updateAuthUI(user);
+                }
+            } catch (e) {
+                console.warn('Cloud load error:', e);
+            }
+        }
+    });
+  }
+  
   showToast('Bienvenue dans Sponsoring Manager PRO!', 'success');
 });
+
+function populateOrderOfferSelect() {
+  const select = document.getElementById('orderOfferSelect');
+  if (!select) return;
+  select.innerHTML = '<option value="">-- Choisir une offre --</option>';
+  (appState.offers || []).forEach(offer => {
+    const option = document.createElement('option');
+    option.value = offer.name;
+    option.textContent = `${offer.name} - ${formatCurrency(offer.price)}`;
+    select.appendChild(option);
+  });
+}
 
 function setupClientSearchListeners() {
   const clientSearch = document.getElementById('clientSearch');
@@ -1548,8 +1692,19 @@ function setupClientSearchListeners() {
   });
 }
 
-function showTab(tabId) {
+function setupHistoryManagement() {
+  window.addEventListener('popstate', (event) => {
+    if (event.state && event.state.tab) {
+      showTab(event.state.tab, false);
+    }
+  });
+}
+
+function showTab(tabId, pushState = true) {
   console.log('📌 Changement d\'onglet vers:', tabId);
+  if (pushState) {
+    history.pushState({ tab: tabId }, '', `#${tabId}`);
+  }
   appState.currentTab = tabId;
   document.querySelectorAll('.tab-content').forEach(tab => { tab.classList.add('hidden'); });
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1608,8 +1763,10 @@ function saveSettings() {
 }
 
 function showConfirmationModal(orderData) {
-  const insta = (appState.settings && appState.settings.instagram) ? appState.settings.instagram : '';
-  const whatsapp = (appState.settings && appState.settings.whatsapp) ? appState.settings.whatsapp : '';
+  console.log("showConfirmationModal called with:", orderData);
+  const settings = appState.settings || {};
+  const insta = settings.instagram || '';
+  const whatsapp = settings.whatsapp || '';
   
   let message = "Bonjour, je viens de passer une commande.";
   if (orderData) {
@@ -1619,7 +1776,7 @@ function showConfirmationModal(orderData) {
   const encodedMsg = encodeURIComponent(message);
 
   const instaLink = insta ? `https://instagram.com/${insta}` : '#';
-  const whatsappLink = whatsapp ? `https://wa.me/${whatsapp}?text=${encodedMsg}` : '#';
+  const whatsappLink = whatsapp ? `https://wa.me/${formatWhatsApp(whatsapp)}?text=${encodedMsg}` : '#';
   
   const instaBtn = document.getElementById('confirmInstagram');
   const whatsappBtn = document.getElementById('confirmWhatsapp');
@@ -1646,14 +1803,23 @@ function showConfirmationModal(orderData) {
     }
   }
   
+  // UX Improvement: Show warning if no contacts configured
+  const container = document.querySelector('#confirmationModal .space-y-3');
+  const existingWarn = document.getElementById('confModalWarning');
+  if (existingWarn) existingWarn.remove();
+  
+  if (!insta && !whatsapp && container) {
+      const warn = document.createElement('div');
+      warn.id = 'confModalWarning';
+      warn.className = 'bg-yellow-50 text-yellow-800 p-3 rounded-lg text-sm mb-3 border border-yellow-200';
+      warn.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i><strong>Attention:</strong> Configurez vos liens (Instagram/WhatsApp) dans l\'onglet Paramètres pour activer ces boutons.';
+      container.prepend(warn);
+  }
+  
   openModal('confirmationModal');
 }
 
 function setupEventListeners() {
-  const searchInput = document.getElementById('transactionSearch');
-  const filterSelect = document.getElementById('transactionFilter');
-  if (searchInput) { searchInput.addEventListener('input', filterTransactions); }
-  if (filterSelect) { filterSelect.addEventListener('change', filterTransactions); }
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { closeAllModals(); }
   });
@@ -1665,13 +1831,50 @@ function setupEventListeners() {
 function selectOfferInTransaction() {
   const offerId = document.getElementById('offerSelect').value;
   const buyRate = parseFloat(document.getElementById('buyRate').value) || 0;
+  const customFields = document.getElementById('transactionCustomOfferFields');
+  const offerDetails = document.getElementById('offerDetails');
+  
+  // Reset preview defaults
+  const resetPreview = () => {
+      document.getElementById('previewCost').textContent = '0 DZD';
+      document.getElementById('previewRevenue').textContent = '0 DZD';
+      document.getElementById('previewProfit').textContent = '0 DZD';
+      document.getElementById('profitPercentage').textContent = 'Marge: 0.00%';
+      document.getElementById('profitPercentage').className = 'text-center text-sm font-medium text-gray-600';
+  };
+
+  if (offerId === 'custom') {
+    if(customFields) customFields.classList.remove('hidden');
+    if(offerDetails) offerDetails.innerHTML = '<div class="text-purple-600 font-bold bg-purple-50 p-2 rounded-lg text-center"><i class="fas fa-magic"></i> Mode Offre Personnalisée</div>';
+    
+    const customCostUSD = parseFloat(document.getElementById('customCost').value) || 0;
+    const customPriceDZD = parseFloat(document.getElementById('customPrice').value) || 0;
+    
+    if (customCostUSD > 0 || customPriceDZD > 0) {
+        const cost = customCostUSD * buyRate;
+        const profit = customPriceDZD - cost;
+        const profitPercentage = cost > 0 ? ((profit / cost) * 100).toFixed(2) : 0;
+        
+        let marginColor = 'text-green-600';
+        if (profitPercentage < 10) marginColor = 'text-red-600';
+        else if (profitPercentage < 20) marginColor = 'text-yellow-600';
+
+        document.getElementById('previewCost').textContent = formatCurrency(cost);
+        document.getElementById('previewRevenue').textContent = formatCurrency(customPriceDZD);
+        document.getElementById('previewProfit').textContent = formatCurrency(profit);
+        document.getElementById('profitPercentage').textContent = `Marge: ${profitPercentage}%`;
+        document.getElementById('profitPercentage').className = 'text-center text-sm font-medium ' + marginColor;
+    } else {
+        resetPreview();
+    }
+    return;
+  } 
+
+  if(customFields) customFields.classList.add('hidden');
   
   if (!offerId) {
-    document.getElementById('offerDetails').textContent = 'Sélectionnez une offre';
-    document.getElementById('previewCost').textContent = '0 DZD';
-    document.getElementById('previewRevenue').textContent = '0 DZD';
-    document.getElementById('previewProfit').textContent = '0 DZD';
-    document.getElementById('profitPercentage').textContent = 'Marge: 0.00%';
+    if(offerDetails) offerDetails.textContent = 'Sélectionnez une offre';
+    resetPreview();
     return;
   }
   
@@ -1686,7 +1889,7 @@ function selectOfferInTransaction() {
   if (profitPercentage < 10) marginColor = 'text-red-600';
   else if (profitPercentage < 20) marginColor = 'text-yellow-600';
   
-  document.getElementById('offerDetails').innerHTML = `
+  if(offerDetails) offerDetails.innerHTML = `
     <div class="space-y-2">
       <div class="flex justify-between"><span class="text-gray-600">Montant $:</span><span class="font-bold text-blue-600">$${offer.costPerUnit.toFixed(2)}</span></div>
       <div class="flex justify-between"><span class="text-gray-600">Taux @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(cost)}</span></div>
@@ -1718,26 +1921,81 @@ function resetCalculator() {
   document.getElementById('offerSelect').value = '';
   document.getElementById('clientDropdown').classList.add('hidden');
   document.getElementById('offerDetails').textContent = 'Sélectionnez une offre';
+  
+  // Reset Custom Fields
+  document.getElementById('customCost').value = '';
+  document.getElementById('customPrice').value = '';
+  document.getElementById('customDuration').value = '';
+  const customFields = document.getElementById('transactionCustomOfferFields');
+  if(customFields) customFields.classList.add('hidden');
+
   calculatePreview();
   showToast('Calculatrice réinitialisée', 'info');
+}
+
+function togglePartialInput() {
+  const status = document.getElementById('transactionStatus').value;
+  const partialContainer = document.getElementById('partialInputContainer');
+  if (status === 'partial') {
+    partialContainer.classList.remove('hidden');
+  } else {
+    partialContainer.classList.add('hidden');
+  }
 }
 
 function addTransaction() {
   const buyRate = parseFloat(document.getElementById('buyRate').value);
   const clientId = document.getElementById('clientSelect').value;
   const offerId = document.getElementById('offerSelect').value;
+  const status = document.getElementById('transactionStatus').value || 'completed';
   
   if (!clientId || !offerId) {
     showToast('Veuillez sélectionner un client et une offre', 'error');
     return;
   }
+
+  // Validation pour paiement partiel
+  let remaining = 0;
+  if (status === 'partial') {
+    remaining = parseFloat(document.getElementById('transactionRest').value);
+    if (isNaN(remaining) || remaining < 0) {
+        showToast('Veuillez entrer un montant restant valide', 'error');
+        return;
+    }
+  }
   
   const client = appState.clients.find(c => c.id == clientId);
-  const offer = appState.offers.find(o => o.id == offerId);
+  let offer;
+
+  if (offerId === 'custom') {
+      const customCost = parseFloat(document.getElementById('customCost').value);
+      const customPrice = parseFloat(document.getElementById('customPrice').value);
+      const customDuration = document.getElementById('customDuration').value;
+      
+      if (isNaN(customCost) || isNaN(customPrice) || customCost <= 0 || customPrice <= 0) {
+          showToast('Veuillez remplir un coût et un prix valides pour l\'offre personnalisée', 'error');
+          return;
+      }
+      
+      offer = {
+          id: 'custom_' + Date.now(),
+          name: 'Offre Personnalisée',
+          costPerUnit: customCost,
+          price: customPrice,
+          duration: customDuration || 'N/A'
+      };
+  } else {
+      offer = appState.offers.find(o => o.id == offerId);
+  }
   
   if (!offer) {
     showToast('Offre invalide', 'error');
     return;
+  }
+
+  if (status === 'partial' && remaining > offer.price) {
+      showToast('Le reste ne peut pas être supérieur au prix de l\'offre', 'error');
+      return;
   }
   
   const cost = offer.costPerUnit * buyRate;
@@ -1754,9 +2012,41 @@ function addTransaction() {
     sellRate: offer.price / offer.costPerUnit,
     totalDzd: offer.price,
     profit: profit,
-    status: 'completed'
+    status: status
   };
+  
   appState.transactions.unshift(transaction);
+
+  // Auto-create payment logic
+  if (status === 'completed') {
+      const payment = {
+        id: Date.now() + 1,
+        date: new Date().toISOString(),
+        clientId: clientId,
+        clientName: client ? client.name : 'Inconnu',
+        amount: offer.price,
+        method: 'Espèces',
+        status: 'completed',
+        note: `Paiement auto pour transaction #${transaction.id}`
+      };
+      appState.payments.push(payment);
+  } else if (status === 'partial') {
+      const paidAmount = offer.price - remaining;
+      if (paidAmount > 0) {
+          const payment = {
+            id: Date.now() + 1,
+            date: new Date().toISOString(),
+            clientId: clientId,
+            clientName: client ? client.name : 'Inconnu',
+            amount: paidAmount,
+            method: 'Espèces',
+            status: 'completed',
+            note: `Paiement partiel pour transaction #${transaction.id} (Reste: ${remaining})`
+          };
+          appState.payments.push(payment);
+      }
+  }
+
   saveToLocalStorage();
   updateDashboard();
   renderTables();
@@ -1764,13 +2054,27 @@ function addTransaction() {
   document.getElementById('clientSearch').value = '';
   document.getElementById('clientSelect').value = '';
   document.getElementById('offerSelect').value = '';
-  document.getElementById('offerDetails').textContent = 'Sélectionnez une offre';
-  calculatePreview();
+  document.getElementById('transactionStatus').value = 'completed';
+  document.getElementById('transactionRest').value = '';
+  document.getElementById('partialInputContainer').classList.add('hidden');
   
-  const clientName = client ? client.name : 'Inconnu';
-  showToast(`Transaction "${offer.name}" de $${offer.costPerUnit} pour ${clientName} enregistrée!`, 'success');
-  showTab('dashboard');
+  // Reset Custom Fields
+  document.getElementById('customCost').value = '';
+  document.getElementById('customPrice').value = '';
+  document.getElementById('customDuration').value = '';
+  document.getElementById('transactionCustomOfferFields').classList.add('hidden');
+  
+  // Reset UI details
+  document.getElementById('offerDetails').textContent = 'Sélectionnez une offre';
+  document.getElementById('previewCost').textContent = '0 DZD';
+  document.getElementById('previewRevenue').textContent = '0 DZD';
+  document.getElementById('previewProfit').textContent = '0 DZD';
+  document.getElementById('profitPercentage').textContent = 'Marge: 0.00%';
+  document.getElementById('profitPercentage').className = 'text-center text-sm font-medium text-gray-600';
+  
+  showToast('Transaction enregistrée', 'success');
 }
+
 
 function openClientModal(clientId = null) {
   const modal = document.getElementById('clientModal');
@@ -2057,39 +2361,101 @@ function selectClient(clientId, clientName) {
   calculatePreview();
 }
 
-function populateOfferSelect() {
-  const select = document.getElementById('offerSelect');
-  if (!select) return;
-  select.innerHTML = '<option value="">Standard</option>';
-  appState.offers.forEach(offer => {
-    const option = document.createElement('option');
-    option.value = offer.id;
-    option.textContent = `${offer.name} - ${formatCurrency(offer.price)}`;
-    select.appendChild(option);
+
+
+function renderDashboardOffersGrid() {
+  const grid = document.getElementById('dashboardOffersGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  
+  const activeOffers = (appState.offers || []).filter(o => o.isActive !== false);
+  
+  if (activeOffers.length === 0) {
+    grid.innerHTML = '<div class="col-span-full text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-200"><i class="fas fa-gift text-3xl mb-2 text-gray-300"></i><p>Aucune offre active pour le moment.</p></div>';
+    return;
+  }
+  
+  activeOffers.forEach(offer => {
+    const card = document.createElement('div');
+    card.className = 'bg-gray-50 p-5 rounded-xl border border-gray-100 hover:shadow-md transition-all cursor-pointer group hover:bg-white hover:border-purple-200';
+    card.onclick = () => {
+        showTab('offers');
+    };
+    
+    card.innerHTML = `
+        <div class="flex justify-between items-start mb-2">
+            <h3 class="font-bold text-gray-800 group-hover:text-purple-700 transition-colors">${offer.name}</h3>
+            <span class="text-purple-600 font-bold bg-purple-50 px-2 py-1 rounded-lg text-sm">${formatCurrency(offer.price)}</span>
+        </div>
+        <p class="text-xs text-gray-500 line-clamp-2 mb-3 min-h-[32px]">${offer.description || 'Pas de description disponible'}</p>
+        <div class="flex justify-between items-center text-xs pt-2 border-t border-gray-100">
+            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium"><i class="fas fa-clock mr-1"></i>${offer.duration || '∞'}</span>
+            <span class="text-gray-400 group-hover:text-purple-500 transition-colors flex items-center gap-1">Gérer <i class="fas fa-arrow-right"></i></span>
+        </div>
+    `;
+    grid.appendChild(card);
   });
 }
 
 function renderTables() {
   renderClientsTable();
   renderTransactionsTable();
+  renderDashboardOffersGrid();
   renderOffersGrid();
   renderPaymentsTable();
   renderUsdPurchasesTable();
   updateRecentActivity();
+  populateOrderOfferSelect();
 }
 
 function renderClientsTable() {
   const tbody = document.getElementById('clientsTableBody');
   if (!tbody) return;
   tbody.innerHTML = '';
-  if (appState.clients.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500"><i class="fas fa-users text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucun client enregistré</p><p class="text-sm mt-2">Commencez par ajouter votre premier client</p></td></tr>`;
+  
+  const searchTerm = document.getElementById('clientSearchInput')?.value.toLowerCase().trim() || '';
+  let clients = appState.clients || [];
+  
+  if (searchTerm) {
+      clients = clients.filter(c => c.name.toLowerCase().includes(searchTerm) || (c.phone && c.phone.includes(searchTerm)));
+  }
+
+  if (clients.length === 0) {
+    if (searchTerm) {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500"><i class="fas fa-search text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucun client trouvé pour "${searchTerm}"</p></td></tr>`;
+    } else {
+        tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500"><i class="fas fa-users text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucun client enregistré</p><p class="text-sm mt-2">Commencez par ajouter votre premier client</p></td></tr>`;
+    }
+    // Update summary even if empty
+    const summary = document.getElementById('clientsSummary');
+    const totalSpentSpan = document.getElementById('clientsTotalSpent');
+    if (summary) summary.textContent = `0 clients`;
+    if (totalSpentSpan) totalSpentSpan.textContent = `Total dépensé: 0 DZD`;
     return;
   }
-  appState.clients.forEach(client => {
+  
+  let globalTotalSpent = 0;
+
+  clients.forEach(client => {
     const clientTransactions = appState.transactions.filter(t => t.clientId == client.id);
     const totalSpent = clientTransactions.reduce((sum, t) => sum + t.totalDzd, 0);
+    globalTotalSpent += totalSpent;
     const transactionCount = clientTransactions.length;
+    
+    // Calculate Balance
+    const clientPayments = appState.payments.filter(p => p.clientId == client.id && p.status === 'completed');
+    const totalPaid = clientPayments.reduce((sum, p) => sum + p.amount, 0);
+    const balance = totalPaid - totalSpent;
+    
+    let balanceHtml = '';
+    if (balance > 0) {
+        balanceHtml = `<span class="text-green-600 font-bold">+${formatCurrency(balance)}</span>`;
+    } else if (balance < -1) {
+        balanceHtml = `<span class="text-red-600 font-bold">${formatCurrency(balance)}</span>`;
+    } else {
+        balanceHtml = `<span class="text-gray-400 font-medium">Réglé</span>`;
+    }
+    
     const joinDate = new Date(client.joinDate).toLocaleDateString('fr-FR');
     const lastActivity = client.lastActivity ? new Date(client.lastActivity).toLocaleDateString('fr-FR') : 'Jamais';
     const row = document.createElement('tr');
@@ -2098,16 +2464,21 @@ function renderClientsTable() {
     let contactHtml = '-';
     if (client.contact || client.phone || client.fbPage1) {
         contactHtml = '<div class="flex flex-col gap-1">';
-        if (client.phone) contactHtml += `<div class="text-sm"><i class="fas fa-phone text-gray-400 mr-1"></i>${client.phone}</div>`;
-        if (client.contact) contactHtml += `<div class="text-sm"><i class="fab fa-instagram text-pink-500 mr-1"></i>${client.contact}</div>`;
-        if (client.fbPage1) contactHtml += `<div class="text-sm"><i class="fab fa-facebook text-blue-600 mr-1"></i>${client.fbPage1}</div>`;
-        if (client.fbPage2) contactHtml += `<div class="text-sm"><i class="fab fa-facebook text-blue-600 mr-1"></i>${client.fbPage2}</div>`;
+        if (client.phone) contactHtml += `<a href="https://wa.me/${formatWhatsApp(client.phone)}" target="_blank" class="text-sm hover:text-green-600 transition-colors"><i class="fab fa-whatsapp text-green-500 mr-1"></i>${client.phone}</a>`;
+        if (client.contact) contactHtml += `<a href="https://instagram.com/${client.contact.replace('@','')}" target="_blank" class="text-sm hover:text-pink-600 transition-colors"><i class="fab fa-instagram text-pink-500 mr-1"></i>${client.contact}</a>`;
+        if (client.fbPage1) contactHtml += `<a href="https://facebook.com/${client.fbPage1}" target="_blank" class="text-sm hover:text-blue-600 transition-colors"><i class="fab fa-facebook text-blue-600 mr-1"></i>${client.fbPage1}</a>`;
+        if (client.fbPage2) contactHtml += `<a href="https://facebook.com/${client.fbPage2}" target="_blank" class="text-sm hover:text-blue-600 transition-colors"><i class="fab fa-facebook text-blue-600 mr-1"></i>${client.fbPage2}</a>`;
         contactHtml += '</div>';
     }
 
-    row.innerHTML = `<td class="p-4"><div class="font-bold">${client.name}</div><div class="text-sm text-gray-500">Inscrit le ${joinDate}</div></td><td class="p-4">${contactHtml}<div class="text-xs text-gray-500 mt-1">Dernière: ${lastActivity}</div></td><td class="p-4 font-bold text-green-600">${formatCurrency(totalSpent)}</td><td class="p-4"><span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${transactionCount} transaction${transactionCount > 1 ? 's' : ''}</span></td><td class="p-4"><button onclick="openClientModal('${client.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 mr-2" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteClient('${client.id}')" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    row.innerHTML = `<td class="p-4"><div class="font-bold">${client.name}</div><div class="text-sm text-gray-500">Inscrit le ${joinDate}</div></td><td class="p-4">${contactHtml}<div class="text-xs text-gray-500 mt-1">Dernière: ${lastActivity}</div></td><td class="p-4 font-bold text-gray-800">${formatCurrency(totalSpent)}</td><td class="p-4">${balanceHtml}</td><td class="p-4"><span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${transactionCount} transaction${transactionCount > 1 ? 's' : ''}</span></td><td class="p-4"><button onclick="openClientModal('${client.id}')" class="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 mr-2" title="Modifier"><i class="fas fa-edit"></i></button><button onclick="deleteClient('${client.id}')" class="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
+  
+  const summary = document.getElementById('clientsSummary');
+  const totalSpentSpan = document.getElementById('clientsTotalSpent');
+  if (summary) summary.textContent = `${clients.length} client${clients.length > 1 ? 's' : ''}`;
+  if (totalSpentSpan) totalSpentSpan.textContent = `Total dépensé: ${formatCurrency(globalTotalSpent)}`;
 }
 
 function renderTransactionsTable() {
@@ -2115,29 +2486,48 @@ function renderTransactionsTable() {
   if (!tbody) return;
   tbody.innerHTML = '';
   if (appState.transactions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500"><i class="fas fa-exchange-alt text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucune transaction enregistrée</p><p class="text-sm mt-2">Utilisez le calculateur pour créer votre première transaction</p></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500"><i class="fas fa-exchange-alt text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucune transaction enregistrée</p><p class="text-sm mt-2">Utilisez le calculateur pour créer votre première transaction</p></td></tr>`;
     return;
   }
   const transactions = filterTransactions();
   transactions.forEach(trans => {
     const date = new Date(trans.date).toLocaleDateString('fr-FR');
     const time = new Date(trans.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+    
+    // Status Badge
+    let statusBadge = '';
+    if (trans.status === 'completed' || !trans.status) { // Default to completed for old data
+        statusBadge = `<span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-green-200">Payé</span>`;
+    } else {
+        statusBadge = `<span class="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-red-200">Impayé</span>`;
+    }
+    
     const row = document.createElement('tr');
     row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4">${trans.clientName}</td><td class="p-4"><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${trans.offerName}</span></td><td class="p-4 font-bold">$${trans.dollarAmount.toFixed(2)}</td><td class="p-4">${trans.sellRate} DZD</td><td class="p-4 font-bold">${formatCurrency(trans.totalDzd)}</td><td class="p-4"><span class="profit-badge font-bold px-2.5 py-0.5 rounded-full">+${formatCurrency(trans.profit)}</span></td><td class="p-4"><button onclick="deleteTransaction('${trans.id}')" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4">${trans.clientName}</td><td class="p-4"><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${trans.offerName}</span></td><td class="p-4 font-bold text-gray-900">${formatCurrency(trans.totalDzd)}</td><td class="p-4">${statusBadge}</td><td class="p-4"><button onclick="deleteTransaction('${trans.id}')" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
 }
 
 function filterTransactions() {
-  const searchTerm = document.getElementById('transactionSearch')?.value.toLowerCase() || '';
-  const filterValue = document.getElementById('transactionFilter')?.value || 'all';
+  const searchTerm = document.getElementById('transactionSearch')?.value.toLowerCase().trim() || '';
+  const dateFilter = document.getElementById('transactionFilter')?.value || 'all';
+  const statusFilter = document.getElementById('transactionStatusFilter')?.value || 'all';
+  
   let filtered = [...appState.transactions];
+  
+  // 1. Search
   if (searchTerm) {
-    filtered = filtered.filter(t => t.clientName.toLowerCase().includes(searchTerm) || t.offerName.toLowerCase().includes(searchTerm) || t.dollarAmount.toString().includes(searchTerm));
+    filtered = filtered.filter(t => 
+        (t.clientName && t.clientName.toLowerCase().includes(searchTerm)) || 
+        (t.offerName && t.offerName.toLowerCase().includes(searchTerm)) || 
+        (t.dollarAmount && t.dollarAmount.toString().includes(searchTerm))
+    );
   }
+  
+  // 2. Date Filter
   const now = new Date();
-  switch(filterValue) {
+  switch(dateFilter) {
     case 'today':
       const today = new Date().toDateString();
       filtered = filtered.filter(t => new Date(t.date).toDateString() === today);
@@ -2151,6 +2541,17 @@ function filterTransactions() {
       filtered = filtered.filter(t => new Date(t.date) >= oneMonthAgo);
       break;
   }
+  
+  // 3. Status Filter
+  if (statusFilter !== 'all') {
+      filtered = filtered.filter(t => {
+          const isPaid = (t.status === 'completed' || !t.status); // Default to completed if undefined
+          if (statusFilter === 'paid') return isPaid;
+          if (statusFilter === 'unpaid') return !isPaid;
+          return true;
+      });
+  }
+  
   return filtered;
 }
 
@@ -2439,8 +2840,7 @@ function renderRequests() {
         // Phone/WhatsApp from client or request
         const phone = req.phone || (client ? client.phone : '');
         if (phone) {
-            const cleanPhone = phone.replace(/[^0-9]/g, '');
-            contactButtons += `<a href="https://wa.me/${cleanPhone}" target="_blank" class="text-green-500 hover:scale-110 transition-transform" title="WhatsApp"><i class="fab fa-whatsapp text-lg"></i></a>`;
+            contactButtons += `<a href="https://wa.me/${formatWhatsApp(phone)}" target="_blank" class="text-green-500 hover:scale-110 transition-transform" title="WhatsApp"><i class="fab fa-whatsapp text-lg"></i></a>`;
         }
 
         let contactInfo = `<div class="flex gap-2 mt-1">${contactButtons}</div>`;
@@ -2576,8 +2976,7 @@ function openRequestDetails(reqId) {
             buttons += `<a href="https://instagram.com/${handle}" target="_blank" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white shadow-md hover:shadow-lg hover:scale-110 transition-all" title="Ouvrir Instagram"><i class="fab fa-instagram text-xl"></i></a>`;
         }
         if (phone) {
-            const cleanPhone = phone.replace(/[^0-9]/g, '');
-            buttons += `<a href="https://wa.me/${cleanPhone}" target="_blank" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white shadow-md hover:shadow-lg hover:scale-110 transition-all" title="WhatsApp"><i class="fab fa-whatsapp text-xl"></i></a>`;
+            buttons += `<a href="https://wa.me/${formatWhatsApp(phone)}" target="_blank" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white shadow-md hover:shadow-lg hover:scale-110 transition-all" title="WhatsApp"><i class="fab fa-whatsapp text-xl"></i></a>`;
             buttons += `<a href="tel:${phone}" class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-700 text-white shadow-md hover:shadow-lg hover:scale-110 transition-all" title="Appeler"><i class="fas fa-phone text-xl"></i></a>`;
         }
         
@@ -2790,38 +3189,54 @@ function applyRecurringExpensesForCurrentMonth() {
 function saveToLocalStorage() { localStorage.setItem('sponsoringManagerData', JSON.stringify(appState)); }
 
 function loadFromLocalStorage() {
-  const saved = localStorage.getItem('sponsoringManagerData');
-  if (saved) {
-    appState = JSON.parse(saved);
-  } else {
-    const now = new Date().toISOString();
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    appState = {
-      clients: [
-        { id: 1, name: "Mohamed Ali", contact: "0555-123456", notes: "Client régulier", totalSpent: 0, joinDate: weekAgo, lastActivity: now },
-        { id: 2, name: "Fatima Zahra", contact: "Facebook: Fati.z", notes: "Préfère les paiements en cash", totalSpent: 0, joinDate: now, lastActivity: now }
-      ],
-      transactions: [
-        { id: 1, date: now, clientId: 1, clientName: "Mohamed Ali", offerName: "Pack Pro", dollarAmount: 10, buyRate: 255, sellRate: 357, totalDzd: 3570, profit: 1020, status: 'completed' }
-      ],
-      offers: [
-        { id: 1, name: "Pack Starter", description: "Parfait pour débutants - 5$ minimum", price: 50000, costPerUnit: 5, createdAt: weekAgo, isActive: true },
-        { id: 2, name: "Pack Pro", description: "Pour investisseurs sérieux - 10$ minimum", price: 150000, costPerUnit: 10, createdAt: weekAgo, isActive: true }
-      ],
-      payments: [
-        { id: 1, date: now, clientId: 1, clientName: "Mohamed Ali", amount: 3570, method: "Cash", status: "completed", note: "Paiement complet" }
-      ],
-      usdPurchases: [
-        { id: 1, date: weekAgo, amount: 100, rate: 250, totalDzd: 25000, source: "Binance P2P" }
-      ],
-      currentTab: 'dashboard',
-      settings: {
-        defaultBuyRate: 255,
-        defaultSellRate: 357,
-        currency: 'DZD'
-      }
-    };
+  try {
+    const saved = localStorage.getItem('sponsoringManagerData');
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed) {
+            appState = parsed;
+            console.log("Data loaded from LocalStorage", appState.session ? "Session found" : "No session");
+        }
+    } else {
+        console.log("No LocalStorage data found, using defaults");
+        // Defaults initialization logic...
+        const now = new Date().toISOString();
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        appState = {
+          clients: [
+            { id: 1, name: "Mohamed Ali", contact: "0555-123456", notes: "Client régulier", totalSpent: 0, joinDate: weekAgo, lastActivity: now },
+            { id: 2, name: "Fatima Zahra", contact: "Facebook: Fati.z", notes: "Préfère les paiements en cash", totalSpent: 0, joinDate: now, lastActivity: now }
+          ],
+          transactions: [
+            { id: 1, date: now, clientId: 1, clientName: "Mohamed Ali", offerName: "Pack Pro", dollarAmount: 10, buyRate: 255, sellRate: 357, totalDzd: 3570, profit: 1020, status: 'completed' }
+          ],
+          offers: [
+            { id: 1, name: "Pack Starter", description: "Parfait pour débutants - 5$ minimum", price: 50000, costPerUnit: 5, createdAt: weekAgo, isActive: true },
+            { id: 2, name: "Pack Pro", description: "Pour investisseurs sérieux - 10$ minimum", price: 150000, costPerUnit: 10, createdAt: weekAgo, isActive: true }
+          ],
+          payments: [
+            { id: 1, date: now, clientId: 1, clientName: "Mohamed Ali", amount: 3570, method: "Cash", status: "completed", note: "Paiement complet" }
+          ],
+          usdPurchases: [
+            { id: 1, date: weekAgo, amount: 100, rate: 250, totalDzd: 25000, source: "Binance P2P" }
+          ],
+          currentTab: 'dashboard',
+          settings: {
+            defaultBuyRate: 255,
+            defaultSellRate: 357,
+            currency: 'DZD'
+          }
+        };
+    }
+  } catch(e) {
+      console.error('Error loading from local storage', e);
+      // Fallback to ensure appState is valid
+      if (!appState) appState = {}; 
   }
+
+  // Update global reference
+  window.appState = appState;
+  
   ensureInitialData();
   updateRequestsBadge();
 }
@@ -2858,9 +3273,11 @@ function updateRecentActivity() {
   recent.forEach(trans => {
     const date = new Date(trans.date).toLocaleDateString('fr-FR');
     const time = new Date(trans.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+    const dollarAmount = trans.dollarAmount || 0;
+    const profit = trans.profit || 0;
     const item = document.createElement('div');
     item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-white border border-gray-100 transition-colors';
-    item.innerHTML = `<div><p class="font-bold">${trans.clientName}</p><p class="text-sm text-gray-500">${trans.dollarAmount}$ le ${date} à ${time}</p></div><div class="text-right"><p class="font-bold">$${trans.dollarAmount.toFixed(2)}</p><p class="text-sm font-bold text-green-600">+${formatCurrency(trans.profit)}</p></div>`;
+    item.innerHTML = `<div><p class="font-bold">${trans.clientName}</p><p class="text-sm text-gray-500">${dollarAmount}$ le ${date} à ${time}</p></div><div class="text-right"><p class="font-bold">$${dollarAmount.toFixed(2)}</p><p class="text-sm font-bold text-green-600">+${formatCurrency(profit)}</p></div>`;
     container.appendChild(item);
   });
 }
@@ -2875,9 +3292,8 @@ function updateClientsSummary() {
 }
 
 function updateTransactionsSummary() {
-  const totalProfit = appState.transactions.reduce((sum, t) => sum + t.profit, 0);
+  // Profit calculation removed for privacy
   document.getElementById('transactionsSummary').textContent = `${appState.transactions.length} transaction${appState.transactions.length > 1 ? 's' : ''}`;
-  document.getElementById('transactionsTotalProfit').textContent = `Profit total: ${formatCurrency(totalProfit)}`;
 }
 
 function deleteClient(id) {
@@ -3028,10 +3444,11 @@ function showToast(message, type = 'success') {
 window.showTab = showTab;
 window.calculatePreview = calculatePreview;
 window.addTransaction = addTransaction;
-window.addClient = addClient;
-window.addOffer = addOffer;
+window.saveClient = saveClient;
+window.saveOffer = saveOffer;
 window.addPayment = addPayment;
 window.addUsdPurchase = addUsdPurchase;
+window.togglePartialInput = togglePartialInput;
 window.deleteClient = deleteClient;
 window.deleteTransaction = deleteTransaction;
 window.deleteOffer = deleteOffer;
@@ -3070,7 +3487,12 @@ const firebaseConfig = {
             auth = firebase.auth();
             db = firebase.firestore();
             db.settings({ ignoreUndefinedProperties: true, merge: true });
-            console.log("Firebase initialized");
+            
+            // Expose globally
+            window.auth = auth;
+            window.db = db;
+            
+            console.log("Firebase initialized successfully");
         }
     } catch(e) { console.error("Firebase init error", e); }
         
@@ -3165,6 +3587,84 @@ async function loginClientQuick() {
     updateAuthUI(null);
     showClientSpace();
   }
+
+// === Social Login ===
+
+async function loginWithGoogle() {
+    if (window.location.protocol === 'file:') {
+        alert("La connexion Google ne fonctionne pas directement depuis un fichier local. Veuillez utiliser un serveur web local ou l'hébergement.");
+        return;
+    }
+    if (!window.auth) { showToast('Service d\'authentification indisponible (Initialisation...)', 'error'); return; }
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        const result = await window.auth.signInWithPopup(provider);
+        await handleSocialLogin(result.user);
+    } catch (error) {
+        console.error("Google Login Error:", error);
+        showToast(firebaseErrorMessage(error), 'error');
+    }
+}
+
+async function loginWithFacebook() {
+    if (window.location.protocol === 'file:') {
+        alert("La connexion Facebook ne fonctionne pas directement depuis un fichier local.");
+        return;
+    }
+    if (!window.auth) { showToast('Service d\'authentification indisponible', 'error'); return; }
+    const provider = new firebase.auth.FacebookAuthProvider();
+    try {
+        const result = await window.auth.signInWithPopup(provider);
+        await handleSocialLogin(result.user);
+    } catch (error) {
+        console.error("Facebook Login Error:", error);
+        showToast(firebaseErrorMessage(error), 'error');
+    }
+}
+
+async function handleSocialLogin(firebaseUser) {
+    if (!firebaseUser) return;
+    const email = firebaseUser.email;
+    const name = firebaseUser.displayName || email.split('@')[0];
+    
+    ensureInitialData();
+    let client = (appState.clients || []).find(c => c.email && c.email.toLowerCase() === email.toLowerCase());
+    
+    if (!client) {
+        // Create new client
+        client = {
+            id: generateId('client'),
+            name: name,
+            email: email,
+            username: email.split('@')[0], 
+            phone: '', 
+            contact: email,
+            social: { instagram: [], facebook: [] },
+            createdAt: Date.now(),
+            notes: 'Compte créé via Social Login',
+            totalSpent: 0, transactionsCount: 0, unpaid: 0,
+            authUid: firebaseUser.uid
+        };
+        if(!appState.clients) appState.clients = [];
+        appState.clients.push(client);
+        try { saveToLocalStorage(); } catch (e) {}
+        
+        // Sync to cloud
+        try {
+            if(typeof syncClientAccount === 'function') await syncClientAccount(client);
+            if(window.auth && window.auth.currentUser) await saveToCloud();
+        } catch(e) {}
+        
+        showToast('Compte créé avec succès', 'success');
+    } else {
+        showToast('Connexion réussie', 'success');
+    }
+    
+    appState.session = { type: 'client', id: client.id, name: client.name, username: client.username, phone: client.phone };
+    saveToLocalStorage();
+    updateAuthUI(null);
+    showClientSpace();
+}
 
 // === logoutClient ===
 
@@ -3447,7 +3947,7 @@ async function loadFromCloud() {
           
           normalizeAppState();
           try {
-            const localStr = localStorage.getItem('hichemSponsor');
+            const localStr = localStorage.getItem('sponsoringManagerData');
             if (localStr) {
               const localData = JSON.parse(localStr);
               const localUpdated = Number(localData?.lastUpdated || 0);
@@ -4064,22 +4564,20 @@ function populateClientDropdown() {
 // === populateOfferSelect ===
 
 function populateOfferSelect() {
-      const select = document.getElementById('offerSelect');
-      const details = document.getElementById('offerDetails');
-      const standardFields = document.getElementById('standardFields');
-      if (!select || !details || !standardFields) return;
+  const select = document.getElementById('offerSelect');
+  if (!select) return;
 
-      select.innerHTML = '<option value="">Offre Standard (saisie manuelle)</option>';
+  select.innerHTML = '<option value="">Sélectionner une offre...</option><option value="custom" class="font-bold text-purple-600">✨ Offre Personnalisée (Manuelle)</option>';
 
-      appState.offers.forEach(offer => {
-        const option = document.createElement('option');
-        option.value = offer.id;
-        option.textContent = offer.name;
-        select.appendChild(option);
-      });
+  appState.offers.forEach(offer => {
+    const option = document.createElement('option');
+    option.value = offer.id;
+    option.textContent = offer.name;
+    select.appendChild(option);
+  });
 
-      selectOfferInTransaction();
-    }
+  selectOfferInTransaction();
+}
 
 // === populatePaymentClientSelect ===
 
@@ -4489,7 +4987,15 @@ function clearFilePreview() {
 
 async function syncClientRequest(orderData) {
     if(!appState.clientRequests) appState.clientRequests = [];
-    appState.clientRequests.push(orderData);
+    
+    // Prevent duplicates
+    const existingIndex = appState.clientRequests.findIndex(r => r.id === orderData.id);
+    if (existingIndex === -1) {
+        appState.clientRequests.push(orderData);
+    } else {
+        appState.clientRequests[existingIndex] = orderData;
+    }
+    
     saveToLocalStorage();
     
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && (auth && auth.currentUser)) {
