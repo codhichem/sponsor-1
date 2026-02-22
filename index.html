@@ -3021,11 +3021,26 @@
         console.log('Merged granular data from Firebase');
     }
 
+    function buildCloudSnapshot() {
+      const snapshot = {
+        settings: appState.settings || {},
+        lastUpdated: appState.lastUpdated || Date.now(),
+        sync: {
+          retryDelayMs: appState.sync?.retryDelayMs || 5000,
+          throttleMs: appState.syncThrottleMs || 2000
+        }
+      };
+      // On ne met PAS les grosses listes (clients, transactions, images, etc.)
+      // Elles sont déjà synchronisées via les collections Firestore
+      return snapshot;
+    }
+
     async function saveToCloud() {
       try {
         const uid = getCloudUid();
         appState.lastUpdated = Date.now();
-        await getDb().collection('users').doc(uid).set({ data: appState }, { merge: true });
+        const data = buildCloudSnapshot();
+        await getDb().collection('users').doc(uid).set({ data }, { merge: true });
         await syncGranularToCloud();
         console.log('â˜ï¸ Données sauvegardées sur Firebase');
         appState.sync.pendingCloudSave = false;
@@ -7429,3 +7444,4 @@ window.setupClientSearchListeners = setupClientSearchListeners;
 
 </body>
 </html>
+
