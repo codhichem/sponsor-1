@@ -1633,6 +1633,18 @@
               <span id="totalTransactions">0 transactions</span>
             </div>
           </div>
+          <div class="bg-gradient-to-br from-yellow-50 to-amber-100 text-yellow-900 p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover border border-yellow-200">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-sm opacity-90 mb-2">Clients à relancer</p>
+                <p id="dueRemindersCount" class="text-2xl md:text-3xl font-black">0</p>
+              </div>
+              <i class="fas fa-bell text-2xl text-yellow-500 opacity-80"></i>
+            </div>
+            <div class="mt-4 text-sm opacity-90">
+              <span id="dueRemindersLabel">Aucun rappel aujourd'hui</span>
+            </div>
+          </div>
           <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
             <div class="flex justify-between items-start">
               <div>
@@ -1746,9 +1758,15 @@
                 </div>
               </div>
 
-              <div class="flex items-center gap-3">
-                <input id="transactionPaid" type="checkbox" class="w-5 h-5 accent-blue-600" checked>
-                <label for="transactionPaid" class="text-sm font-semibold text-gray-700">Payée</label>
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div class="flex items-center gap-3">
+                  <input id="transactionPaid" type="checkbox" class="w-5 h-5 accent-blue-600" checked>
+                  <label for="transactionPaid" class="text-sm font-semibold text-gray-700">Payée</label>
+                </div>
+                <div class="flex items-center gap-2">
+                  <label for="transactionReminderDate" class="text-sm text-gray-700">Rappel si impayée</label>
+                  <input id="transactionReminderDate" type="date" class="p-2 border rounded-lg text-sm">
+                </div>
               </div>
 
               <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-100 space-y-3">
@@ -1778,7 +1796,7 @@
               </button>
             </div>
           </div>
-          <!-- RECENT ACTIVITY -->
+          <!-- RECENT ACTIVITY + DUE REMINDERS -->
           <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border fade-in card-hover">
             <div class="flex justify-between items-center mb-6">
               <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
@@ -1794,11 +1812,23 @@
                 <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full" id="activityCount">0 transactions</span>
               </div>
             </div>
-            <div id="recentTransactions" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+            <div id="recentTransactions" class="space-y-4 max-h-[320px] overflow-y-auto pr-2">
               <div class="text-center py-10">
                 <i class="fas fa-exchange-alt text-gray-300 text-4xl mb-3"></i>
                 <p class="text-gray-400 italic">Aucune transaction récente</p>
                 <p class="text-sm text-gray-500 mt-2">Les transactions apparaÃ®tront ici</p>
+              </div>
+            </div>
+            <div class="mt-6 border-t pt-4">
+              <div class="flex justify-between items-center mb-3">
+                <h3 class="text-base md:text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <i class="fas fa-bell text-yellow-500"></i>
+                  Clients à relancer
+                </h3>
+                <span id="dueRemindersListCount" class="text-xs text-gray-500"></span>
+              </div>
+              <div id="dueRemindersList" class="space-y-2 max-h-40 overflow-y-auto pr-1 text-sm">
+                <p class="text-gray-400 italic">Aucun rappel programmé</p>
               </div>
             </div>
           </div>
@@ -2168,12 +2198,18 @@
             <i class="fas fa-times text-xl"></i>
           </button>
         </div>
-        <input id="newClientName" type="text" placeholder="Nom complet du client"
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-        <input id="newClientContact" type="text" placeholder="Contact (Téléphone, Facebook, etc.)"
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-        <textarea id="newClientNotes" placeholder="Notes supplémentaires (optionnel)"
-                  class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" rows="3"></textarea>
+        <div class="space-y-3 mb-4">
+          <input id="newClientName" type="text" placeholder="Nom complet du client"
+                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+          <input id="newClientPhone" type="text" placeholder="Numéro WhatsApp"
+                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+          <input id="newClientInstagram" type="text" placeholder="Compte Instagram (@mon_compte)"
+                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+          <input id="newClientFacebook" type="text" placeholder="Nom de la page Facebook"
+                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+          <textarea id="newClientNotes" placeholder="Notes supplémentaires (optionnel)"
+                    class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" rows="3"></textarea>
+        </div>
         <div class="flex justify-end gap-3">
           <button onclick="closeModal('clientModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
             Annuler
@@ -3188,9 +3224,17 @@
         const spent = Number(client.totalSpent || 0);
         const unpaid = Number(client.unpaid || 0);
         totalSpent += spent;
+        const waLink = buildClientWhatsAppLink(client);
+        const igLink = buildClientInstagramLink(client);
         row.innerHTML = `
           <td class="p-4 font-medium text-gray-800">${client.name}</td>
-          <td class="p-4 text-gray-600">${client.contact || '-'}</td>
+          <td class="p-4 text-gray-600">
+            <div>${client.contact || '-'}</div>
+            <div class="mt-1 flex items-center gap-2">
+              ${waLink ? `<a href="${waLink}" target="_blank" class="text-green-600 hover:text-green-800" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>` : ''}
+              ${igLink ? `<a href="${igLink}" target="_blank" class="text-pink-600 hover:text-pink-800" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
+            </div>
+          </td>
           <td class="p-4 text-green-600 font-semibold">${formatCurrency(spent)}</td>
           <td class="p-4 text-red-600 font-semibold">${formatCurrency(unpaid)}</td>
           <td class="p-4 text-gray-600">${client.transactionsCount || 0}</td>
@@ -3700,7 +3744,9 @@
     // === GESTION CLIENTS / OFFRES / TRANSACTIONS / PAIEMENTS / USD ===
     function addClient() {
       const name = document.getElementById('newClientName').value.trim();
-      const contact = document.getElementById('newClientContact').value.trim();
+      const phone = document.getElementById('newClientPhone').value.trim();
+      const instagram = document.getElementById('newClientInstagram').value.trim();
+      const facebook = document.getElementById('newClientFacebook').value.trim();
       const notes = document.getElementById('newClientNotes').value.trim();
 
       if (!name) {
@@ -3708,18 +3754,26 @@
         return;
       }
 
-      appState.clients.push({
+      const client = {
         id: generateId('client'),
         name,
-        contact,
+        phone,
+        contact: phone || instagram || facebook || '',
         notes,
         totalSpent: 0,
         unpaid: 0,
         transactionsCount: 0,
-      });
+        social: {
+          instagram: instagram ? [instagram.replace(/^@+/, '').trim()] : [],
+          facebook: facebook ? [facebook.trim()] : []
+        }
+      };
+      appState.clients.push(client);
 
       document.getElementById('newClientName').value = '';
-      document.getElementById('newClientContact').value = '';
+      document.getElementById('newClientPhone').value = '';
+      document.getElementById('newClientInstagram').value = '';
+      document.getElementById('newClientFacebook').value = '';
       document.getElementById('newClientNotes').value = '';
 
       closeModal('clientModal');
@@ -3741,12 +3795,23 @@
       if (!client) { showToast('Client introuvable', 'error'); return; }
       const newName = prompt('Nom du client', client.name || '');
       if (newName === null) return;
-      const newContact = prompt('Contact', client.contact || '');
-      if (newContact === null) return;
+      const newPhone = prompt('Numéro WhatsApp', client.phone || client.contact || '');
+      if (newPhone === null) return;
+      const newInsta = prompt('Compte Instagram', (client.username || (client.social && client.social.instagram && client.social.instagram[0]) || ''));
+      if (newInsta === null) return;
+      const newFb = prompt('Page Facebook', (client.social && client.social.facebook && client.social.facebook[0]) || '');
+      if (newFb === null) return;
       const newNotes = prompt('Notes', client.notes || '');
       if (newNotes === null) return;
+
       client.name = newName.trim() || client.name;
-      client.contact = newContact.trim();
+      client.phone = newPhone.trim();
+      client.contact = client.phone || client.contact;
+      if (!client.social) client.social = { instagram: [], facebook: [] };
+      const igHandle = newInsta.trim().replace(/^@+/, '');
+      client.username = igHandle;
+      client.social.instagram = igHandle ? [igHandle] : [];
+      client.social.facebook = newFb.trim() ? [newFb.trim()] : [];
       client.notes = newNotes.trim();
       renderClientsTable();
       populateClientDropdown();
@@ -3858,6 +3923,7 @@
       const clientId = document.getElementById('clientSelect').value;
       const buyRate = Number(document.getElementById('buyRate').value || 0);
       const paid = document.getElementById('transactionPaid').checked;
+      const reminderInput = document.getElementById('transactionReminderDate');
 
       // Toujours utiliser les champs saisis (remplis automatiquement si une offre est sélectionnée)
       const amount = Number(document.getElementById('standardDollarAmount').value || 0);
@@ -3892,6 +3958,17 @@
       const totalDzd = amount * buyRate;
       const profit = priceDzd - totalDzd;
 
+      let reminderAt = null;
+      if (!paid) {
+        if (reminderInput && reminderInput.value) {
+          reminderAt = reminderInput.value;
+        } else {
+          const d = new Date();
+          d.setDate(d.getDate() + 3);
+          reminderAt = d.toISOString().slice(0, 10);
+        }
+      }
+
       const transaction = {
         id: generateId('txn'),
         date: new Date().toISOString().slice(0, 10),
@@ -3906,6 +3983,7 @@
         profit,
         duration,
         paid,
+        reminderAt,
       };
 
       appState.transactions.push(transaction);
@@ -7244,12 +7322,57 @@ function updateDashboard() {
   const weekTransactions = appState.transactions.filter(t => new Date(t.date) >= oneWeekAgo);
   const weekProfit = weekTransactions.reduce((sum, t) => sum + t.profit, 0);
   const totalProfit = appState.transactions.reduce((sum, t) => sum + t.profit, 0);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const dueReminders = (appState.transactions || []).filter(t => !t.paid && t.reminderAt && t.reminderAt <= todayIso);
+  const dueCount = dueReminders.length;
   document.getElementById('todayProfit').textContent = formatCurrency(todayProfit);
   document.getElementById('weekProfit').textContent = formatCurrency(weekProfit);
   document.getElementById('totalProfit').textContent = formatCurrency(totalProfit);
   document.getElementById('totalClients').textContent = appState.clients.length;
   document.getElementById('weekTransactions').textContent = `${weekTransactions.length} transactions`;
   document.getElementById('totalTransactions').textContent = `${appState.transactions.length} transactions`;
+  const dueCountEl = document.getElementById('dueRemindersCount');
+  const dueLabelEl = document.getElementById('dueRemindersLabel');
+  const dueListEl = document.getElementById('dueRemindersList');
+  const dueListCountEl = document.getElementById('dueRemindersListCount');
+  if (dueCountEl) dueCountEl.textContent = String(dueCount);
+  if (dueLabelEl) {
+    if (dueCount === 0) {
+      dueLabelEl.textContent = "Aucun rappel aujourd'hui";
+    } else {
+      dueLabelEl.textContent = `${dueCount} client${dueCount > 1 ? 's' : ''} à relancer`;
+    }
+  }
+  if (dueListCountEl) {
+    dueListCountEl.textContent = dueCount ? `${dueCount} rappel${dueCount > 1 ? 's' : ''}` : '';
+  }
+  if (dueListEl) {
+    dueListEl.innerHTML = '';
+    if (!dueCount) {
+      dueListEl.innerHTML = '<p class="text-gray-400 italic">Aucun rappel programmé</p>';
+    } else {
+      dueReminders.slice(0, 20).forEach(t => {
+        const client = (appState.clients || []).find(c => c.id === t.clientId) || {};
+        const name = client.name || t.clientName || 'Client';
+        const wa = buildClientWhatsAppLink(client);
+        const ig = buildClientInstagramLink(client);
+        const amount = formatCurrency(t.priceDzd || t.totalDzd || 0);
+        const li = document.createElement('div');
+        li.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-lg';
+        li.innerHTML = `
+          <div>
+            <p class="font-medium text-gray-800">${name}</p>
+            <p class="text-xs text-gray-500">Impayé: ${amount}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            ${wa ? `<a href="${wa}" target="_blank" class="text-green-600 hover:text-green-800" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>` : ''}
+            ${ig ? `<a href="${ig}" target="_blank" class="text-pink-600 hover:text-pink-800" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
+          </div>
+        `;
+        dueListEl.appendChild(li);
+      });
+    }
+  }
 }
 
 function updateRecentActivity() {
@@ -7394,6 +7517,34 @@ function formatCurrency(amount) {
   return new Intl.NumberFormat('fr-DZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + ' DZD';
 }
 
+function normalizePhoneForWhatsApp(phone) {
+  if (!phone) return '';
+  let digits = String(phone).replace(/\D+/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (digits.startsWith('0') && digits.length > 9) digits = digits.slice(1);
+  return digits;
+}
+
+function buildClientWhatsAppLink(client) {
+  const phone = client.phone || client.contact || '';
+  const normalized = normalizePhoneForWhatsApp(phone);
+  if (!normalized) return '';
+  const msg = encodeURIComponent('Bonjour ' + (client.name || '') + ' ');
+  return 'https://wa.me/' + normalized + '?text=' + msg;
+}
+
+function buildClientInstagramLink(client) {
+  let handle = client.username;
+  if (!handle && client.social && Array.isArray(client.social.instagram) && client.social.instagram.length > 0) {
+    handle = client.social.instagram[0];
+  }
+  if (!handle) return '';
+  handle = String(handle).trim().replace(/^@+/, '');
+  if (!handle) return '';
+  return 'https://instagram.com/' + handle;
+}
+
 function showToast(message, type = 'success') {
   const toast = document.getElementById('toast');
   const toastIcon = document.getElementById('toastIcon');
@@ -7451,5 +7602,3 @@ window.setupClientSearchListeners = setupClientSearchListeners;
 
 </body>
 </html>
-
-
