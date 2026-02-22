@@ -2964,22 +2964,29 @@
         async function syncGranularToCloud() {
         if (typeof db === 'undefined') return;
         const collections = {
-            'clients': appState.clients,
-            'offers': appState.offers,
-            'transactions': appState.transactions,
-            'payments': appState.payments,
-            'usdPurchases': appState.usdPurchases,
-            'expenses': appState.expenses,
-            'clientRequests': appState.clientRequests,
-            'recurringExpenses': appState.recurringExpenses
+            clients: appState.clients,
+            offers: appState.offers,
+            transactions: appState.transactions,
+            payments: appState.payments,
+            usdPurchases: appState.usdPurchases,
+            expenses: appState.expenses,
+            clientRequests: appState.clientRequests,
+            recurringExpenses: appState.recurringExpenses
         };
         const promises = [];
         for (const [colName, items] of Object.entries(collections)) {
-            if (Array.isArray(items)) {
-                items.forEach(item => {
-                    if (item.id) promises.push(db.collection(colName).doc(item.id).set(item));
-                });
-            }
+            if (!Array.isArray(items)) continue;
+            items.forEach(item => {
+                if (!item || typeof item !== 'object') return;
+                let docRef;
+                if (item.id && typeof item.id === 'string' && item.id.indexOf('/') === -1) {
+                    docRef = db.collection(colName).doc(item.id);
+                } else {
+                    docRef = db.collection(colName).doc();
+                    item.id = docRef.id;
+                }
+                promises.push(docRef.set(item));
+            });
         }
         await Promise.all(promises);
         console.log('Synced granular data to Firebase');
@@ -7444,4 +7451,5 @@ window.setupClientSearchListeners = setupClientSearchListeners;
 
 </body>
 </html>
+
 
