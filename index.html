@@ -1590,8 +1590,8 @@
               <i class="fas fa-sun text-2xl opacity-80"></i>
             </div>
             <div class="mt-4 text-sm opacity-90">
-              <i class="fas fa-arrow-up mr-1"></i>
-              <span id="todayChange">0%</span> vs hier
+              <i class="fas fa-clock mr-1"></i>
+              <span>Chiffres mis à jour en temps réel</span>
             </div>
           </div>
           <div class="bg-gradient-to-br from-blue-500 to-cyan-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
@@ -2505,6 +2505,36 @@
 
     function formatCurrency(value) {
       return `${Number(value || 0).toLocaleString('fr-DZ')} DZD`;
+    }
+
+    function normalizePhoneForWhatsApp(phone) {
+      let digits = String(phone || '').replace(/\D+/g, '');
+      if (!digits) return '';
+      if (digits.startsWith('213') && digits.length === 12) return digits;
+      if (digits.startsWith('0') && digits.length === 10) return '213' + digits.slice(1);
+      if (digits.length === 9) return '213' + digits;
+      if (digits.startsWith('00')) digits = digits.slice(2);
+      if (digits.startsWith('0') && digits.length > 9) digits = digits.slice(1);
+      return digits;
+    }
+
+    function buildClientWhatsAppLink(client) {
+      const phone = client.phone || client.contact || '';
+      const normalized = normalizePhoneForWhatsApp(phone);
+      if (!normalized) return '';
+      const msg = encodeURIComponent('Bonjour ' + (client.name || '') + ' ');
+      return 'https://wa.me/' + normalized + '?text=' + msg;
+    }
+
+    function buildClientInstagramLink(client) {
+      let handle = client.username;
+      if (!handle && client.social && Array.isArray(client.social.instagram) && client.social.instagram.length > 0) {
+        handle = client.social.instagram[0];
+      }
+      if (!handle) return '';
+      handle = String(handle).trim().replace(/^@+/, '');
+      if (!handle) return '';
+      return 'https://instagram.com/' + handle;
     }
 
     function formatDate(date) {
@@ -3445,6 +3475,129 @@
         c.transactionsCount = txnCount;
         c.unpaid = Math.max(0, unpaidFromTxns - paidAmounts);
       });
+    }
+
+    function updateDashboard() {
+      const transactions = appState.transactions || [];
+      const todayIso = new Date().toISOString().slice(0, 10);
+
+      let todayProfit = 0;
+      let weekProfit = 0;
+      let totalProfit = 0;
+      let monthProfitGross = 0;
+      let monthExpenses = 0;
+      let todayCount = 0;
+      let weekCount = 0;
+
+      const now = new Date();
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - 7);
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      transactions.forEach(t => {
+        const profit = Number(t.profit || 0);
+        const d = new Date(t.date || todayIso);
+        totalProfit += profit;
+
+        const txDayIso = (t.date && typeof t.date === 'string') ? t.date.slice(0, 10) : d.toISOString().slice(0, 10);
+        if (txDayIso === todayIso) {
+          todayProfit += profit;
+          todayCount++;
+        }
+        if (d >= startOfWeek) {
+          weekProfit += profit;
+          weekCount++;
+        }
+        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+          monthProfitGross += profit;
+        }
+      });
+
+      (appState.expenses || []).forEach(e => {
+        const d = new Date(e.date || todayIso);
+        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+          monthExpenses += Number(e.amount || 0);
+        }
+      });
+
+      const monthNet = Math.max(0, monthProfitGross - monthExpenses);
+      const isEmployee = (appState.session && appState.session.type === 'employee');
+
+      const todayProfitEl = document.getElementById('todayProfit');
+      const weekProfitEl = document.getElementById('weekProfit');
+      const totalProfitEl = document.getElementById('totalProfit');
+      const monthProfitEl = document.getElementById('monthProfitNet');
+
+      if (isEmployee) {
+        if (todayProfitEl) todayProfitEl.textContent = '***';
+        if (weekProfitEl) weekProfitEl.textContent = '***';
+        if (totalProfitEl) totalProfitEl.textContent = '***';
+        if (monthProfitEl) monthProfitEl.textContent = '***';
+      } else {
+        if (todayProfitEl) todayProfitEl.textContent = formatCurrency(todayProfit);
+        if (weekProfitEl) weekProfitEl.textContent = formatCurrency(weekProfit);
+        if (totalProfitEl) totalProfitEl.textContent = formatCurrency(totalProfit);
+        if (monthProfitEl) monthProfitEl.textContent = formatCurrency(monthNet);
+      }
+
+      const totalClientsEl = document.getElementById('totalClients');
+      if (totalClientsEl) totalClientsEl.textContent = appState.clients.length;
+
+      const newClientsEl = document.getElementById('newClients');
+      if (newClientsEl) newClientsEl.textContent = `${appState.clients.length} nouveaux ce mois`;
+
+      const totalTransactionsEl = document.getElementById('totalTransactions');
+      if (totalTransactionsEl) totalTransactionsEl.textContent = `${transactions.length} transactions`;
+
+      const weekTransactionsEl = document.getElementById('weekTransactions');
+      if (weekTransactionsEl) weekTransactionsEl.textContent = `${weekCount} transactions`;
+
+      const dueReminders = transactions.filter(t => !t.paid && t.reminderAt && t.reminderAt <= todayIso);
+      const dueCount = dueReminders.length;
+      const dueCountEl = document.getElementById('dueRemindersCount');
+      const dueLabelEl = document.getElementById('dueRemindersLabel');
+      const dueListEl = document.getElementById('dueRemindersList');
+      const dueListCountEl = document.getElementById('dueRemindersListCount');
+
+      if (dueCountEl) dueCountEl.textContent = String(dueCount);
+      if (dueLabelEl) {
+        if (dueCount === 0) {
+          dueLabelEl.textContent = "Aucun rappel aujourd'hui";
+        } else {
+          dueLabelEl.textContent = `${dueCount} client${dueCount > 1 ? 's' : ''} à relancer`;
+        }
+      }
+      if (dueListCountEl) {
+        dueListCountEl.textContent = dueCount ? `${dueCount} rappel${dueCount > 1 ? 's' : ''}` : '';
+      }
+      if (dueListEl) {
+        dueListEl.innerHTML = '';
+        if (!dueCount) {
+          dueListEl.innerHTML = '<p class="text-gray-400 italic">Aucun rappel programmé</p>';
+        } else {
+          dueReminders.slice(0, 20).forEach(t => {
+            const client = (appState.clients || []).find(c => c.id === t.clientId) || {};
+            const name = client.name || t.clientName || 'Client';
+            const wa = buildClientWhatsAppLink(client);
+            const ig = buildClientInstagramLink(client);
+            const amount = formatCurrency(t.priceDzd || t.totalDzd || 0);
+            const li = document.createElement('div');
+            li.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-lg';
+            li.innerHTML = `
+              <div>
+                <p class="font-medium text-gray-800">${name}</p>
+                <p class="text-xs text-gray-500">Impayé: ${amount}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                ${wa ? `<a href="${wa}" target="_blank" class="text-green-600 hover:text-green-800" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>` : ''}
+                ${ig ? `<a href="${ig}" target="_blank" class="text-pink-600 hover:text-pink-800" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
+              </div>
+            `;
+            dueListEl.appendChild(li);
+          });
+        }
+      }
     }
 
             function applyEmployeeRestrictions() {
@@ -6038,85 +6191,6 @@
     }
 })();
 </script>
-</body>
-</html>
-
-2 eme code de comparaison 
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sponsoring Manager PRO</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    .fade-in { animation: fadeIn 0.5s ease forwards; opacity: 0; }
-    @keyframes fadeIn { to { opacity: 1; } }
-    .hover-scale:hover { transform: scale(1.03); transition: transform 0.2s; }
-    .active-tab {
-      background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
-      color: white;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-    }
-    .card-hover { transition: all 0.3s ease; border: 1px solid transparent; }
-    .card-hover:hover { border-color: #3b82f6; box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2); }
-    .modal-show { animation: modalFadeIn 0.3s ease; }
-    @keyframes modalFadeIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
-    .profit-badge { background-color: #dcfce7; color: #166534; }
-    .loss-badge { background-color: #fee2e2; color: #991b1b; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #a1a1a1; }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen p-4 md:p-6 font-sans text-slate-800">
-  <div class="max-w-7xl mx-auto space-y-6">
-
-    <!-- HEADER -->
-    <header class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border fade-in">
-      <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div>
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
-              <i class="fas fa-handshake text-white text-2xl"></i>
-            </div>
-            <div>
-              <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Sponsoring Manager PRO
-              </h1>
-              <p class="text-sm md:text-lg text-gray-600 mt-1">
-                Gestion clients • Offres • Transactions • Paiements • Achats USD
-              </p>
-            </div>
-          </div>
-        </div>
-        <div class="flex gap-2 md:gap-3 flex-wrap justify-center">
-          <button onclick="exportPDF()" class="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold rounded-xl hover:shadow-lg transition-all shadow flex items-center gap-2">
-            <i class="fas fa-file-pdf"></i>
-            <span class="hidden sm:inline">Export PDF</span>
-          </button>
-          <button onclick="backupData()" class="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-bold rounded-xl hover:shadow-lg transition-all shadow flex items-center gap-2">
-            <i class="fas fa-download"></i>
-            <span class="hidden sm:inline">Backup JSON</span>
-          </button>
-          <button onclick="importData()" class="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold rounded-xl hover:shadow-lg transition-all shadow flex items-center gap-2">
-            <i class="fas fa-upload"></i>
-            <span class="hidden sm:inline">Import JSON</span>
-          </button>
-          <button onclick="showStats()" class="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold rounded-xl hover:shadow-lg transition-all shadow flex items-center gap-2">
-            <i class="fas fa-chart-bar"></i>
-            <span class="hidden sm:inline">Statistiques</span>
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- NAV TABS -->
-    <nav class="bg-white rounded-3xl shadow-xl p-4 md:p-6 border mb-6 fade-in" style="animation-delay: 0.1s;">
-      <div class="flex flex-wrap -mx-1">
-        <button onclick="showTab('dashboard')" id="tab-dashboard"
                 class="tab-btn m-1 px-4 md:px-6 py-3 font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl shadow hover:shadow-lg transition-all flex items-center gap-2">
           <i class="fas fa-tachometer-alt"></i>
           <span>Dashboard</span>
@@ -7321,9 +7395,6 @@ function updateDashboard() {
 
   const weekTransactionsEl = document.getElementById('weekTransactions');
   if (weekTransactionsEl) weekTransactionsEl.textContent = `${weekCount} transactions`;
-
-  const todayChangeEl = document.getElementById('todayChange');
-  if (todayChangeEl) todayChangeEl.textContent = '0%';
 
   const dueReminders = transactions.filter(t => !t.paid && t.reminderAt && t.reminderAt <= todayIso);
   const dueCount = dueReminders.length;
