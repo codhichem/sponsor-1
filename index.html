@@ -4606,7 +4606,8 @@
           problematic: { text: 'Problématique', cls: 'text-red-700 bg-red-50 border-red-200' },
           processed: { text: 'Traité', cls: 'text-green-700 bg-green-50 border-green-200' },
         };
-        const s = statusMap[req.status || 'pending'];
+        const rawStatus = req.status || 'pending';
+        const s = statusMap[rawStatus] || statusMap['pending'];
         
         tr.innerHTML = `
           <td class="p-4 text-gray-600 whitespace-nowrap">
