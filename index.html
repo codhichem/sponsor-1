@@ -239,6 +239,20 @@
 
   <!-- Fonction isAdminSession exposée globalement -->
   <script>
+    function getCloudUid() {
+      try {
+        if (window.auth && window.auth.currentUser && window.auth.currentUser.uid) {
+          return window.auth.currentUser.uid;
+        }
+      } catch (e) {}
+      if (!window.appState) window.appState = {};
+      if (!window.appState.settings) window.appState.settings = {};
+      if (!window.appState.settings.cloudOwnerId) {
+        window.appState.settings.cloudOwnerId = 'defaultOwner';
+      }
+      return window.appState.settings.cloudOwnerId;
+    }
+
     window.isAdminSession = function () {
       const hasFirebase = !!(window.auth && window.auth.currentUser);
       const isEmployee = !!(window.appState && window.appState.session && window.appState.session.type === 'employee');
@@ -2907,9 +2921,7 @@
     // === CLOUD (FIRESTORE) ===
     async function loadFromCloud() {
       try {
-        const user = auth.currentUser;
-        if (!user) { console.warn('Pas dâ€™utilisateur connecté'); loadFromLocalStorage(); showToast('Non connecté: chargement des données locales.', 'info'); return; }
-        const uid = user.uid;
+        const uid = getCloudUid();
         const doc = await getDb().collection('users').doc(uid).get();
         if (doc.exists) {
           const raw = doc.data();
@@ -2937,7 +2949,7 @@
             console.warn('Fusion locale/cloud impossible', e);
           }
         } else {
-          console.log('â˜ï¸ Aucun document pour cet utilisateur, initialisation...');
+          console.log('â˜ï¸ Aucun document cloud pour cet identifiant, initialisation...');
           ensureInitialData();
           normalizeAppState();
           await saveToCloud();
@@ -3011,9 +3023,7 @@
 
     async function saveToCloud() {
       try {
-        const user = auth.currentUser;
-        if (!user) { console.warn('Pas dâ€™utilisateur connecté'); saveToLocalStorage(); return; }
-        const uid = user.uid;
+        const uid = getCloudUid();
         appState.lastUpdated = Date.now();
         await getDb().collection('users').doc(uid).set({ data: appState }, { merge: true });
         await syncGranularToCloud();
@@ -7421,7 +7431,4 @@ window.setupClientSearchListeners = setupClientSearchListeners;
 
 </body>
 </html>
-
-
-
 
