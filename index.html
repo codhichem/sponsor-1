@@ -2882,10 +2882,6 @@
       }
       if (changed) {
         try { saveToLocalStorage(); } catch (e) {}
-        await syncClientAccount(newClient);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
-          saveToCloud();
-        }
       }
     }
 
@@ -7426,7 +7422,6 @@ window.setupClientSearchListeners = setupClientSearchListeners;
 
 </body>
 </html>
-
 
 
 
