@@ -541,7 +541,7 @@
 
   async function forceCloudSave() {
     try {
-      if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
+      if (appState.settings.storageMode === 'cloud') {
         await saveToCloud();
         scheduleCloudRetry();
         showToast('Sauvegarde cloud forcée', 'success');
@@ -2615,7 +2615,7 @@
     const container = document.getElementById('settingsContent');
     if (!container) return;
     if (!Array.isArray(appState.employees)) appState.employees = [];
-    const cloudStatus = (appState.settings.storageMode === 'cloud' && auth.currentUser) 
+    const cloudStatus = (appState.settings.storageMode === 'cloud') 
       ? '<span class="text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded text-xs">Cloud connecté</span>'
       : '<span class="text-gray-700 bg-gray-50 border border-gray-200 px-2 py-1 rounded text-xs">Mode local</span>';
     container.innerHTML = `
@@ -3041,7 +3041,7 @@
 
     function scheduleCloudRetry() {
       if (!appState.sync.pendingCloudSave) return;
-      if (!(appState.settings.storageMode === 'cloud' && auth.currentUser)) return;
+      if (!(appState.settings.storageMode === 'cloud')) return;
       setTimeout(async () => {
         if (appState.sync.pendingCloudSave) {
           await saveToCloud();
@@ -3062,7 +3062,7 @@
       if (appState.syncTimer) return;
       appState.syncTimer = setTimeout(async () => {
         appState.syncTimer = null;
-        if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
+        if (appState.settings.storageMode === 'cloud') {
           await saveToCloud();
           appState.syncQueue = [];
           scheduleCloudRetry();
@@ -4403,8 +4403,7 @@
     function manualSave() {
       try {
         appState.lastUpdated = Date.now();
-        await syncClientAccount(newClient);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
+        if (appState.settings.storageMode === 'cloud') {
           saveToCloud();
           showToast('Sauvegarde cloud effectuée', 'success');
         } else {
@@ -4428,8 +4427,7 @@
       appState.settings.seedDefaults = false;
       appState.lastUpdated = Date.now();
       saveToLocalStorage();
-      await syncClientAccount(newClient);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
+      if (appState.settings.storageMode === 'cloud') {
         await saveToCloud();
       }
       populateClientDropdown();
@@ -4860,7 +4858,7 @@
     c.contact = email || phone || user || c.contact;
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud') { try { saveToCloud(); } catch (e) {} }
     showToast('Profil mis à jour', 'success');
     renderClientAccountInfo();
   }
@@ -4876,7 +4874,7 @@
     document.getElementById('clientAddInstagram').value = '';
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud') { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
   
@@ -4891,7 +4889,7 @@
     document.getElementById('clientAddFacebook').value = '';
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud') { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
   
@@ -4901,7 +4899,7 @@
     c.social.instagram.splice(idx, 1);
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud') { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
   
@@ -4911,7 +4909,7 @@
     c.social.facebook.splice(idx, 1);
     try { saveToLocalStorage(); } catch (e) {}
     await syncClientAccount(c);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) { try { saveToCloud(); } catch (e) {} }
+    if (appState.settings.storageMode === 'cloud') { try { saveToCloud(); } catch (e) {} }
     renderClientAccountInfo();
   }
   function renderClientOffers() {
@@ -5249,10 +5247,10 @@
       // Fix: Sync to Cloud Collection
       await syncClientRequest(orderData);
       
-      if(appState.settings.storageMode === 'cloud' && auth.currentUser) {
-         saveToCloud(); 
+      if(appState.settings.storageMode === 'cloud') {
+        saveToCloud(); 
       } else {
-         saveToLocalStorage();
+        saveToLocalStorage();
       }
       
       updateRequestsBadge();
@@ -5493,7 +5491,7 @@
       if(input && input.value) {
           appState.customSection.title = input.value;
           saveToLocalStorage();
-          if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+          if(appState.settings.storageMode === 'cloud') saveToCloud();
           showToast('Titre mis à jour', 'success');
           renderCustomSectionClient(); // Update client view if visible
       }
@@ -5533,7 +5531,7 @@
               }
               appState.customSection.categories.push(newCat);
               saveToLocalStorage();
-              if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+              if(appState.settings.storageMode === 'cloud') saveToCloud();
               
               showToast('Catégorie ajoutée', 'success');
               renderCustomSectionAdmin();
@@ -5552,7 +5550,7 @@
       }
       appState.customSection.categories.push(newCat);
       saveToLocalStorage();
-      if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+      if(appState.settings.storageMode === 'cloud') saveToCloud();
       
       showToast('Catégorie ajoutée', 'success');
       renderCustomSectionAdmin();
@@ -7431,4 +7429,3 @@ window.setupClientSearchListeners = setupClientSearchListeners;
 
 </body>
 </html>
-
