@@ -527,8 +527,7 @@
 
   async function forceCloudSave() {
     try {
-      await syncClientAccount(newClient);
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
+      if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
         await saveToCloud();
         scheduleCloudRetry();
         showToast('Sauvegarde cloud forcée', 'success');
@@ -5320,7 +5319,7 @@
     ensureClientToken();
     return localStorage.getItem('clientToken');
   }
-      async   async function renderClientRequests() {
+  async function renderClientRequests() {
     const list = document.getElementById('clientRequestsList');
     if (!list) return;
     
@@ -7422,8 +7421,6 @@ window.setupClientSearchListeners = setupClientSearchListeners;
 
 </body>
 </html>
-
-
 
 
 
