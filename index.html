@@ -3131,74 +3131,6 @@
     }
 
     // === DASHBOARD / RENDU ===
-        function updateDashboard() {
-      const transactions = appState.transactions || [];
-      const today = new Date().toISOString().slice(0, 10);
-      
-      let todayProfit = 0;
-      let weekProfit = 0;
-      let totalProfit = 0;
-      let monthProfitGross = 0;
-      let monthExpenses = 0;
-      let todayCount = 0;
-      let weekCount = 0;
-
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - 7);
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      transactions.forEach(t => {
-        const profit = Number(t.profit || 0);
-        const date = t.date || today;
-        totalProfit += profit;
-
-        const d = new Date(date);
-        if (date === today) {
-          todayProfit += profit;
-          todayCount++;
-        }
-        if (d >= startOfWeek) {
-          weekProfit += profit;
-          weekCount++;
-        }
-        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-          monthProfitGross += profit;
-        }
-      });
-
-      (appState.expenses || []).forEach(e => {
-        const d = new Date(e.date || today);
-        if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-          monthExpenses += Number(e.amount || 0);
-        }
-      });
-
-      const monthNet = Math.max(0, monthProfitGross - monthExpenses);
-      const isEmployee = (appState.session && appState.session.type === 'employee');
-
-      if (isEmployee) {
-           const hide = (id) => { const el = document.getElementById(id); if(el) el.textContent = '***'; };
-           hide('todayProfit');
-           hide('weekProfit');
-           hide('totalProfit');
-           hide('monthProfitNet');
-      } else {
-           document.getElementById('todayProfit').textContent = formatCurrency(todayProfit);
-           document.getElementById('weekProfit').textContent = formatCurrency(weekProfit);
-           document.getElementById('totalProfit').textContent = formatCurrency(totalProfit);
-           const monthEl = document.getElementById('monthProfitNet');
-           if (monthEl) monthEl.textContent = formatCurrency(monthNet);
-      }
-
-      document.getElementById('totalClients').textContent = appState.clients.length;
-      document.getElementById('newClients').textContent = `${appState.clients.length} nouveaux ce mois`;
-      document.getElementById('totalTransactions').textContent = `${transactions.length} transactions`;
-      document.getElementById('weekTransactions').textContent = `${weekCount} transactions`;
-      document.getElementById('todayChange').textContent = '0%';
-    }
-
     function renderClientsTable() {
       const tbody = document.getElementById('clientsTableBody');
       const searchInput = document.getElementById('clientTableSearch');
@@ -3224,8 +3156,8 @@
         const spent = Number(client.totalSpent || 0);
         const unpaid = Number(client.unpaid || 0);
         totalSpent += spent;
-        const waLink = buildClientWhatsAppLink(client);
-        const igLink = buildClientInstagramLink(client);
+        const waLink = (typeof buildClientWhatsAppLink === 'function') ? buildClientWhatsAppLink(client) : '';
+        const igLink = (typeof buildClientInstagramLink === 'function') ? buildClientInstagramLink(client) : '';
         row.innerHTML = `
           <td class="p-4 font-medium text-gray-800">${client.name}</td>
           <td class="p-4 text-gray-600">
@@ -7315,23 +7247,86 @@ function loadFromLocalStorage() {
 }
 
 function updateDashboard() {
-  const today = new Date().toDateString();
-  const todayTransactions = appState.transactions.filter(t => new Date(t.date).toDateString() === today);
-  const todayProfit = todayTransactions.reduce((sum, t) => sum + t.profit, 0);
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const weekTransactions = appState.transactions.filter(t => new Date(t.date) >= oneWeekAgo);
-  const weekProfit = weekTransactions.reduce((sum, t) => sum + t.profit, 0);
-  const totalProfit = appState.transactions.reduce((sum, t) => sum + t.profit, 0);
+  const transactions = appState.transactions || [];
   const todayIso = new Date().toISOString().slice(0, 10);
-  const dueReminders = (appState.transactions || []).filter(t => !t.paid && t.reminderAt && t.reminderAt <= todayIso);
+
+  let todayProfit = 0;
+  let weekProfit = 0;
+  let totalProfit = 0;
+  let monthProfitGross = 0;
+  let monthExpenses = 0;
+  let todayCount = 0;
+  let weekCount = 0;
+
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - 7);
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  transactions.forEach(t => {
+    const profit = Number(t.profit || 0);
+    const d = new Date(t.date || todayIso);
+    totalProfit += profit;
+
+    const txDayIso = (t.date && typeof t.date === 'string') ? t.date.slice(0, 10) : d.toISOString().slice(0, 10);
+    if (txDayIso === todayIso) {
+      todayProfit += profit;
+      todayCount++;
+    }
+    if (d >= startOfWeek) {
+      weekProfit += profit;
+      weekCount++;
+    }
+    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+      monthProfitGross += profit;
+    }
+  });
+
+  (appState.expenses || []).forEach(e => {
+    const d = new Date(e.date || todayIso);
+    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+      monthExpenses += Number(e.amount || 0);
+    }
+  });
+
+  const monthNet = Math.max(0, monthProfitGross - monthExpenses);
+  const isEmployee = (appState.session && appState.session.type === 'employee');
+
+  const todayProfitEl = document.getElementById('todayProfit');
+  const weekProfitEl = document.getElementById('weekProfit');
+  const totalProfitEl = document.getElementById('totalProfit');
+  const monthProfitEl = document.getElementById('monthProfitNet');
+
+  if (isEmployee) {
+    if (todayProfitEl) todayProfitEl.textContent = '***';
+    if (weekProfitEl) weekProfitEl.textContent = '***';
+    if (totalProfitEl) totalProfitEl.textContent = '***';
+    if (monthProfitEl) monthProfitEl.textContent = '***';
+  } else {
+    if (todayProfitEl) todayProfitEl.textContent = formatCurrency(todayProfit);
+    if (weekProfitEl) weekProfitEl.textContent = formatCurrency(weekProfit);
+    if (totalProfitEl) totalProfitEl.textContent = formatCurrency(totalProfit);
+    if (monthProfitEl) monthProfitEl.textContent = formatCurrency(monthNet);
+  }
+
+  const totalClientsEl = document.getElementById('totalClients');
+  if (totalClientsEl) totalClientsEl.textContent = appState.clients.length;
+
+  const newClientsEl = document.getElementById('newClients');
+  if (newClientsEl) newClientsEl.textContent = `${appState.clients.length} nouveaux ce mois`;
+
+  const totalTransactionsEl = document.getElementById('totalTransactions');
+  if (totalTransactionsEl) totalTransactionsEl.textContent = `${transactions.length} transactions`;
+
+  const weekTransactionsEl = document.getElementById('weekTransactions');
+  if (weekTransactionsEl) weekTransactionsEl.textContent = `${weekCount} transactions`;
+
+  const todayChangeEl = document.getElementById('todayChange');
+  if (todayChangeEl) todayChangeEl.textContent = '0%';
+
+  const dueReminders = transactions.filter(t => !t.paid && t.reminderAt && t.reminderAt <= todayIso);
   const dueCount = dueReminders.length;
-  document.getElementById('todayProfit').textContent = formatCurrency(todayProfit);
-  document.getElementById('weekProfit').textContent = formatCurrency(weekProfit);
-  document.getElementById('totalProfit').textContent = formatCurrency(totalProfit);
-  document.getElementById('totalClients').textContent = appState.clients.length;
-  document.getElementById('weekTransactions').textContent = `${weekTransactions.length} transactions`;
-  document.getElementById('totalTransactions').textContent = `${appState.transactions.length} transactions`;
   const dueCountEl = document.getElementById('dueRemindersCount');
   const dueLabelEl = document.getElementById('dueRemindersLabel');
   const dueListEl = document.getElementById('dueRemindersList');
@@ -7355,8 +7350,8 @@ function updateDashboard() {
       dueReminders.slice(0, 20).forEach(t => {
         const client = (appState.clients || []).find(c => c.id === t.clientId) || {};
         const name = client.name || t.clientName || 'Client';
-        const wa = buildClientWhatsAppLink(client);
-        const ig = buildClientInstagramLink(client);
+        const wa = (typeof buildClientWhatsAppLink === 'function') ? buildClientWhatsAppLink(client) : '';
+        const ig = (typeof buildClientInstagramLink === 'function') ? buildClientInstagramLink(client) : '';
         const amount = formatCurrency(t.priceDzd || t.totalDzd || 0);
         const li = document.createElement('div');
         li.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-lg';
