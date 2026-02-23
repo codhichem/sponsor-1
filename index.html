@@ -1878,6 +1878,28 @@
               </button>
             </div>
           </div>
+          <div class="mb-4 text-sm text-gray-500 flex justify-between items-center">
+            <span id="clientsSummary">0 clients</span>
+            <span id="clientsTotalSpent">Total dépensé: 0 DZD</span>
+          </div>
+          <div class="mb-4 text-sm text-gray-500 flex flex-wrap gap-2 justify-between items-center">
+            <span id="usdPurchasesSummary">0 achats</span>
+            <div class="flex items-center gap-2">
+              <span>Tri:</span>
+              <select id="usdSortField"
+                      class="border rounded-lg px-2 py-1 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      onchange="changeUsdSortField(this.value)">
+                <option value="date">Date</option>
+                <option value="amount">Montant</option>
+              </select>
+              <button onclick="toggleUsdSortDirection()"
+                      class="p-2 border rounded-lg text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-arrow-up"></i>
+                <i class="fas fa-arrow-down ml-1"></i>
+              </button>
+              <span id="usdPurchasesTotal" class="font-bold text-blue-600">Total USD: 0</span>
+            </div>
+          </div>
           <div class="overflow-x-auto rounded-xl border">
             <table class="w-full text-left">
               <thead>
@@ -1904,10 +1926,7 @@
               </tbody>
             </table>
           </div>
-          <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
-            <span id="clientsSummary">0 clients</span>
-            <span id="clientsTotalSpent">Total dépensé: 0 DZD</span>
-          </div>
+          <div class="mt-4"></div>
         </div>
       </section>
 
@@ -1931,6 +1950,10 @@
               </select>
             </div>
           </div>
+          <div class="mb-4 text-sm text-gray-500 flex justify-between items-center">
+            <span id="transactionsSummary">0 transactions</span>
+            <span id="transactionsTotalProfit">Profit total: 0 DZD</span>
+          </div>
           <div class="overflow-x-auto rounded-xl border">
             <table class="w-full text-left text-sm">
               <thead>
@@ -1951,10 +1974,7 @@
               </tbody>
             </table>
           </div>
-          <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
-            <span id="transactionsSummary">0 transactions</span>
-            <span id="transactionsTotalProfit">Profit total: 0 DZD</span>
-          </div>
+          <div class="mt-4"></div>
         </div>
       </section>
 
@@ -2015,10 +2035,7 @@
               </tbody>
             </table>
           </div>
-          <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
-            <span id="paymentsSummary">0 paiements</span>
-            <span id="paymentsTotal" class="font-bold text-green-600">Total: 0 DZD</span>
-          </div>
+          <div class="mt-4"></div>
         </div>
       </section>
 
@@ -2056,10 +2073,7 @@
               </tbody>
             </table>
           </div>
-          <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
-            <span id="usdPurchasesSummary">0 achats</span>
-            <span id="usdPurchasesTotal" class="font-bold text-blue-600">Total USD: 0</span>
-          </div>
+          <div class="mt-4"></div>
         </div>
 
         <div class="mt-6 bg-white p-6 md:p-8 rounded-3xl shadow-xl border card-hover">
@@ -2075,7 +2089,10 @@
               </p>
             </div>
           </div>
-
+          <div class="mb-4 text-sm text-gray-500 flex justify-between items-center">
+            <span id="usdtExpensesSummary">0 dépenses USDT</span>
+            <span id="usdtExpensesTotal" class="font-bold text-amber-600">Total valeur: 0 DZD</span>
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-1">Montant USDT</label>
@@ -2124,10 +2141,7 @@
               </tbody>
             </table>
           </div>
-          <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
-            <span id="usdtExpensesSummary">0 dépenses USDT</span>
-            <span id="usdtExpensesTotal" class="font-bold text-amber-600">Total valeur: 0 DZD</span>
-          </div>
+          <div class="mt-4"></div>
         </div>
       </section>
       <!-- FRAIS TAB -->
@@ -2154,6 +2168,46 @@
               </button>
             </div>
           </div>
+          <div class="mb-4 text-sm text-gray-500 flex flex-wrap gap-2 justify-between items-center">
+            <span id="paymentsSummary">0 paiements</span>
+            <div class="flex items-center gap-2">
+              <span>Tri:</span>
+              <select id="paymentsSortField"
+                      class="border rounded-lg px-2 py-1 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      onchange="changePaymentsSortField(this.value)">
+                <option value="date">Date</option>
+                <option value="amount">Montant</option>
+              </select>
+              <button onclick="togglePaymentsSortDirection()"
+                      class="p-2 border rounded-lg text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-arrow-up"></i>
+                <i class="fas fa-arrow-down ml-1"></i>
+              </button>
+              <span id="paymentsTotal" class="font-bold text-green-600">Total: 0 DZD</span>
+            </div>
+          </div>
+          <div class="mb-4 text-sm text-gray-500 flex flex-wrap gap-2 justify-between items-center">
+            <span id="usdPurchasesSummary">0 achats</span>
+            <div class="flex items-center gap-2">
+              <span>Tri:</span>
+              <select id="usdSortField"
+                      class="border rounded-lg px-2 py-1 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      onchange="changeUsdSortField(this.value)">
+                <option value="date">Date</option>
+                <option value="amount">Montant</option>
+              </select>
+              <button onclick="toggleUsdSortDirection()"
+                      class="p-2 border rounded-lg text-gray-600 hover:bg-gray-50">
+                <i class="fas fa-arrow-up"></i>
+                <i class="fas fa-arrow-down ml-1"></i>
+              </button>
+              <span id="usdPurchasesTotal" class="font-bold text-blue-600">Total USD: 0</span>
+            </div>
+          </div>
+          <div class="mb-4 text-sm text-gray-500 flex justify-between items-center">
+            <span id="expensesSummary">0 frais</span>
+            <span id="expensesMonthTotal" class="font-bold text-rose-600">Total mensuel: 0 DZD</span>
+          </div>
           <div class="overflow-x-auto rounded-xl border">
             <table class="w-full text-left text-sm">
               <thead>
@@ -2170,10 +2224,7 @@
               </tbody>
             </table>
           </div>
-          <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
-            <span id="expensesSummary">0 frais</span>
-            <span id="expensesMonthTotal" class="font-bold text-rose-600">Total mensuel: 0 DZD</span>
-          </div>
+          <div class="mt-4"></div>
         </div>
       </section>
 
@@ -2372,80 +2423,6 @@
         </div>
     </section>
 
-    <div id="offerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
-      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold flex items-center gap-2">
-            <i class="fas fa-gift text-purple-600"></i>
-            Ajouter une Offre
-          </h3>
-          <button onclick="closeModal('offerModal')" class="text-gray-400 hover:text-gray-600">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-        <input id="newOfferName" type="text" placeholder="Nom de l'offre (ex: Pack Gold)"
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
-        <textarea id="newOfferDesc" placeholder="Description détaillée"
-                  class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all" rows="3"></textarea>
-        <input id="newOfferPrice" type="number" placeholder="Prix Vente (DZD)" step="0.01"
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
-        <input id="newOfferCostPerUnit" type="number" step="0.01" placeholder="Montant à dépenser ($)"
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
-        <input id="newOfferDuration" type="text" placeholder="Durée de l'offre (ex: 30 jours, 3 mois)"
-               class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
-        <div class="flex justify-end gap-3">
-          <button onclick="closeModal('offerModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
-            Annuler
-          </button>
-          <button onclick="addOffer()" class="px-5 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
-            Enregistrer
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
-      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold flex items-center gap-2">
-            <i class="fas fa-credit-card text-orange-600"></i>
-            Enregistrer Paiement
-          </h3>
-          <button onclick="closeModal('paymentModal')" class="text-gray-400 hover:text-gray-600">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-        <select id="paymentClientSelect" class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
-          <option value="">Choisir un client...</option>
-        </select>
-        <input id="paymentAmount" type="number" placeholder="Montant (DZD)"
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
-        <select id="paymentMethod" class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
-          <option value="Cash">Cash</option>
-          <option value="CCP">CCP</option>
-          <option value="BaridiMob">BaridiMob</option>
-          <option value="Paysera">Paysera</option>
-          <option value="Virement">Virement bancaire</option>
-          <option value="Carte">Carte bancaire</option>
-        </select>
-        <select id="paymentStatus" class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
-          <option value="completed">Complété</option>
-          <option value="pending">En attente</option>
-          <option value="partial">Partiel</option>
-        </select>
-        <input id="paymentNote" type="text" placeholder="Note (optionnel)"
-               class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
-        <div class="flex justify-end gap-3">
-          <button onclick="closeModal('paymentModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
-            Annuler
-          </button>
-          <button onclick="addPayment()" class="px-5 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:shadow-lg transition-all font-medium">
-            Enregistrer
-          </button>
-        </div>
-      </div>
-    </div>
-
     <div id="expenseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
       <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
         <div class="flex justify-between items-center mb-4">
@@ -2631,37 +2608,6 @@
         return false;
       }
       return true;
-    }
-
-    function showTab(tabId) {
-      if (appState.session && appState.session.type === 'client') {
-        showToast('Accès réservé à lâ€™administration', 'warning');
-        return;
-      }
-      appState.currentTab = tabId;
-
-      document.querySelectorAll('.tab-content').forEach(el => {
-        el.classList.add('hidden');
-      });
-      const activeSection = document.getElementById(tabId);
-      if (activeSection) activeSection.classList.remove('hidden');
-
-      document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('active-tab');
-      });
-      const activeBtn = document.getElementById(`tab-${tabId}`);
-      if (activeBtn) activeBtn.classList.add('active-tab');
-
-      // Auto-refresh data based on tab
-      if (tabId === 'requests') renderRequests();
-      if (tabId === 'paiements') renderPaymentsTable();
-      if (tabId === 'achats') { renderUsdPurchasesTable(); renderUsdtExpensesTable(); }
-      if (tabId === 'frais') renderExpensesTable();
-      if (tabId === 'transactions') renderTransactionsTable();
-      if (tabId === 'custom-section-admin') renderCustomSectionAdmin();
-    if (tabId === 'settings') renderSettingsAdmin();
-      
-      updateRequestsBadge();
     }
 
     // Expose functions globally to ensure HTML event handlers find them
@@ -3304,7 +3250,13 @@
       let totalProfit = 0;
       const isEmployee = (appState.session && appState.session.type === 'employee');
 
-      const filteredTransactions = filterTransactions();
+      const filteredTransactions = filterTransactions().sort((a, b) => {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        const cmpDate = dateB.localeCompare(dateA);
+        if (cmpDate !== 0) return cmpDate;
+        return (b.createdAt || 0) - (a.createdAt || 0);
+      });
 
       const frag = document.createDocumentFragment();
       filteredTransactions.forEach(t => {
@@ -3345,6 +3297,31 @@
       }
     }
 
+    let paymentsSortField = 'date';
+    let paymentsSortDirection = 'desc';
+    let usdPurchasesSortField = 'date';
+    let usdPurchasesSortDirection = 'desc';
+
+    function changePaymentsSortField(field) {
+      paymentsSortField = field || 'date';
+      renderPaymentsTable();
+    }
+
+    function togglePaymentsSortDirection() {
+      paymentsSortDirection = paymentsSortDirection === 'asc' ? 'desc' : 'asc';
+      renderPaymentsTable();
+    }
+
+    function changeUsdSortField(field) {
+      usdPurchasesSortField = field || 'date';
+      renderUsdPurchasesTable();
+    }
+
+    function toggleUsdSortDirection() {
+      usdPurchasesSortDirection = usdPurchasesSortDirection === 'asc' ? 'desc' : 'asc';
+      renderUsdPurchasesTable();
+    }
+
     function renderPaymentsTable() {
       const tbody = document.getElementById('paymentsTableBody');
       if (!tbody) return;
@@ -3352,8 +3329,27 @@
 
       let total = 0;
 
+      const payments = [...(appState.payments || [])];
+      payments.sort((a, b) => {
+        let cmp = 0;
+        if (paymentsSortField === 'amount') {
+          const aVal = Number(a.amount || 0);
+          const bVal = Number(b.amount || 0);
+          cmp = aVal - bVal;
+        } else {
+          const dateA = a.date || '';
+          const dateB = b.date || '';
+          cmp = dateA.localeCompare(dateB);
+        }
+        if (paymentsSortDirection === 'desc') cmp = -cmp;
+        if (cmp !== 0) return cmp;
+        const idA = (a.id || '').toString();
+        const idB = (b.id || '').toString();
+        return idB.localeCompare(idA);
+      });
+
       const frag = document.createDocumentFragment();
-      appState.payments.forEach(p => {
+      payments.forEach(p => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         const amount = Number(p.amount || 0);
@@ -3366,25 +3362,45 @@
           <td class="p-4 text-gray-700">${p.status || '-'}</td>
           <td class="p-4 text-gray-500">${p.note || '-'}</td>
         `;
+        row.dataset.paymentId = p.id;
         frag.appendChild(row);
       });
       tbody.appendChild(frag);
 
       const summary = document.getElementById('paymentsSummary');
       const totalSpan = document.getElementById('paymentsTotal');
-      if (summary) summary.textContent = `${appState.payments.length} paiements`;
+      if (summary) summary.textContent = `${payments.length} paiements`;
       if (totalSpan) totalSpan.textContent = `Total: ${formatCurrency(total)}`;
     }
 
-function renderUsdPurchasesTable() {
+ function renderUsdPurchasesTable() {
       const tbody = document.getElementById('usdPurchasesTableBody');
       if (!tbody) return;
       tbody.innerHTML = '';
 
       let totalUsd = 0;
 
+      const purchases = [...(appState.usdPurchases || [])];
+      purchases.sort((a, b) => {
+        let cmp = 0;
+        if (usdPurchasesSortField === 'amount') {
+          const aVal = Number(a.amount || 0);
+          const bVal = Number(b.amount || 0);
+          cmp = aVal - bVal;
+        } else {
+          const dateA = a.date || '';
+          const dateB = b.date || '';
+          cmp = dateA.localeCompare(dateB);
+        }
+        if (usdPurchasesSortDirection === 'desc') cmp = -cmp;
+        if (cmp !== 0) return cmp;
+        const idA = (a.id || '').toString();
+        const idB = (b.id || '').toString();
+        return idB.localeCompare(idA);
+      });
+
       const frag = document.createDocumentFragment();
-      appState.usdPurchases.forEach(p => {
+      purchases.forEach(p => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         const amount = Number(p.amount || 0);
@@ -3401,13 +3417,14 @@ function renderUsdPurchasesTable() {
             </button>
           </td>
         `;
+        row.dataset.usdId = p.id;
         frag.appendChild(row);
       });
       tbody.appendChild(frag);
 
       const summary = document.getElementById('usdPurchasesSummary');
       const totalSpan = document.getElementById('usdPurchasesTotal');
-      if (summary) summary.textContent = `${appState.usdPurchases.length} achats`;
+      if (summary) summary.textContent = `${purchases.length} achats`;
       if (totalSpan) totalSpan.textContent = `Total USD: ${safeToFixed(totalUsd, 2)}`;
     }
 
@@ -4250,6 +4267,17 @@ function renderUsdPurchasesTable() {
       client.unpaid = Math.max(0, Number(client.unpaid || 0) - amount);
 
       renderPaymentsTable();
+      const tbody = document.getElementById('paymentsTableBody');
+      if (tbody) {
+        const row = tbody.querySelector(`tr[data-payment-id="${payment.id}"]`);
+        if (row) {
+          row.classList.add('animate-pulse');
+          setTimeout(() => {
+            row.classList.remove('animate-pulse');
+          }, 800);
+        }
+      }
+      closeModal('paymentModal');
       renderClientsTable();
       autoSave();
       showToast('Paiement enregistré', 'success');
@@ -4322,16 +4350,29 @@ function renderUsdPurchasesTable() {
 
       const totalDzd = amount * rate;
 
-      appState.usdPurchases.push({
+      const purchase = {
         id: generateId('usd'),
         date: new Date().toISOString().slice(0, 10),
         amount,
         rate,
         totalDzd,
         source,
-      });
+      };
+
+      appState.usdPurchases.push(purchase);
 
       renderUsdPurchasesTable();
+      const tbody = document.getElementById('usdPurchasesTableBody');
+      if (tbody) {
+        const row = tbody.querySelector(`tr[data-usd-id="${purchase.id}"]`);
+        if (row) {
+          row.classList.add('animate-pulse');
+          setTimeout(() => {
+            row.classList.remove('animate-pulse');
+          }, 800);
+        }
+      }
+      closeModal('usdPurchaseModal');
       autoSave();
       showToast('Achat USD enregistré', 'success');
     }
@@ -4634,7 +4675,7 @@ function renderUsdPurchasesTable() {
 
       const id = select.value;
       if (!id) {
-        details.textContent = 'Sélectionnez une offre';
+        details.textContent = 'Offre Standard (saisie manuelle)';
         standardFields.classList.remove('hidden');
         amountInput.value = '';
         priceInput.value = '';
@@ -6164,22 +6205,10 @@ function renderUsdPurchasesTable() {
 
   // === INITIALISATION GLOBALE ===
   document.addEventListener('DOMContentLoaded', async function () {
-    // Language Detection
     const userLang = navigator.language.startsWith('ar') ? 'ar' : 'fr';
     setLanguage(userLang);
 
-    const loginButton = document.getElementById('loginButton');
-
-    if (loginButton) {
-      loginButton.addEventListener('click', function (e) {
-        e.preventDefault();
-        handleLoginClick();
-      });
-    }
-
-    // Connexion GitHub retirée
-
-    console.log('🚀 Hichem Sponsor - Initialisation');
+    console.log('🚀 Sponsoring Manager PRO - Initialisation');
 
     updateAuthUI(auth.currentUser);
     loadFromLocalStorage();
@@ -6216,7 +6245,10 @@ function renderUsdPurchasesTable() {
     populatePaymentClientSelect();
     renderTables();
     calculatePreview();
-    showToast('Bienvenue dans Hichem Sponsor!', 'success');
+    updateDashboard();
+    setupEventListeners();
+    setupClientSearchListeners();
+    showToast('Bienvenue dans Sponsoring Manager PRO!', 'success');
     
     const empToggle = document.getElementById('employeeModeToggle');
     const emailLabel = document.querySelector('label[for="loginEmail"]');
@@ -6377,14 +6409,6 @@ function renderUsdPurchasesTable() {
         }
     }, 2000);
 
-    // 3. AUTH LISTENER
-    if (window.auth) {
-        window.auth.onAuthStateChanged((user) => {
-            if (user) {
-                setTimeout(() => window.forceDisplayDashboard(false), 1000);
-            }
-        });
-    }
 })();
 </script>
                 class="tab-btn m-1 px-4 md:px-6 py-3 font-bold bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-2xl shadow hover:shadow-lg transition-all flex items-center gap-2">
@@ -6876,19 +6900,6 @@ function renderUsdPurchasesTable() {
   </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('🚀 Sponsoring Manager PRO - Initialisation');
-  loadFromLocalStorage();
-  showTab('dashboard');
-  updateDashboard();
-  populatePaymentClientSelect();
-  populateOfferSelect();
-  renderTables();
-  setupEventListeners();
-  setupClientSearchListeners();
-  showToast('Bienvenue dans Sponsoring Manager PRO!', 'success');
-});
-
 function setupClientSearchListeners() {
   const clientSearch = document.getElementById('clientSearch');
   const dropdown = document.getElementById('clientDropdown');
@@ -6943,262 +6954,6 @@ function setupEventListeners() {
     if (e.target.classList.contains('modal-backdrop')) { closeAllModals(); }
   });
 }
-
-function selectOfferInTransaction() {
-  const offerId = document.getElementById('offerSelect').value;
-  const buyRate = parseFloat(document.getElementById('buyRate').value) || 0;
-  
-  if (!offerId) {
-    document.getElementById('offerDetails').textContent = 'Sélectionnez une offre';
-    document.getElementById('previewCost').textContent = '0 DZD';
-    document.getElementById('previewRevenue').textContent = '0 DZD';
-    document.getElementById('previewProfit').textContent = '0 DZD';
-    document.getElementById('profitPercentage').textContent = 'Marge: 0.00%';
-    return;
-  }
-  
-  const offer = appState.offers.find(o => o.id == offerId);
-  if (!offer) return;
-  
-  const cost = offer.costPerUnit * buyRate;
-  const profit = offer.price - cost;
-  const profitPercentage = cost > 0 ? ((profit / cost) * 100).toFixed(2) : 0;
-  
-  let marginColor = 'text-green-600';
-  if (profitPercentage < 10) marginColor = 'text-red-600';
-  else if (profitPercentage < 20) marginColor = 'text-yellow-600';
-  
-  document.getElementById('offerDetails').innerHTML = `
-    <div class="space-y-2">
-      <div class="flex justify-between"><span class="text-gray-600">Montant $:</span><span class="font-bold text-blue-600">$${offer.costPerUnit.toFixed(2)}</span></div>
-      <div class="flex justify-between"><span class="text-gray-600">Taux @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(cost)}</span></div>
-      <div class="flex justify-between"><span class="text-gray-600">Prix Vente:</span><span class="font-bold text-green-600">${formatCurrency(offer.price)}</span></div>
-      <div class="flex justify-between"><span class="text-gray-600">Marge:</span><span class="font-bold ${marginColor}">${profitPercentage}%</span></div>
-    </div>
-  `;
-  
-  document.getElementById('previewCost').textContent = formatCurrency(cost);
-  document.getElementById('previewRevenue').textContent = formatCurrency(offer.price);
-  document.getElementById('previewProfit').textContent = formatCurrency(profit);
-  document.getElementById('profitPercentage').textContent = `Marge: ${profitPercentage}%`;
-  
-  const profitPercentElem = document.getElementById('profitPercentage');
-  profitPercentElem.className = 'text-center text-sm font-medium ' + marginColor;
-}
-
-function calculatePreview() {
-  const offerId = document.getElementById('offerSelect').value;
-  if (offerId) {
-    selectOfferInTransaction();
-  }
-}
-
-function resetCalculator() {
-  document.getElementById('buyRate').value = appState.settings.defaultBuyRate;
-  document.getElementById('clientSelect').value = '';
-  document.getElementById('clientSearch').value = '';
-  document.getElementById('offerSelect').value = '';
-  document.getElementById('clientDropdown').classList.add('hidden');
-  document.getElementById('offerDetails').textContent = 'Sélectionnez une offre';
-  calculatePreview();
-  showToast('Calculatrice réinitialisée', 'info');
-}
-
-function addTransactionLegacy() {
-  const buyRate = parseFloat(document.getElementById('buyRate').value);
-  const clientId = document.getElementById('clientSelect').value;
-  const offerId = document.getElementById('offerSelect').value;
-  
-  if (!clientId || !offerId) {
-    showToast('Veuillez sélectionner un client et une offre', 'error');
-    return;
-  }
-  
-  const client = appState.clients.find(c => c.id == clientId);
-  const offer = appState.offers.find(o => o.id == offerId);
-  
-  if (!offer) {
-    showToast('Offre invalide', 'error');
-    return;
-  }
-  
-  const cost = offer.costPerUnit * buyRate;
-  const profit = offer.price - cost;
-  
-  const transaction = {
-    id: Date.now(),
-    date: new Date().toISOString(),
-    clientId: clientId,
-    clientName: client ? client.name : 'Inconnu',
-    offerName: offer.name,
-    dollarAmount: offer.costPerUnit,
-    buyRate: buyRate,
-    sellRate: offer.price / offer.costPerUnit,
-    totalDzd: offer.price,
-    profit: profit,
-    status: 'completed'
-  };
-  appState.transactions.unshift(transaction);
-  saveToLocalStorage();
-  updateDashboard();
-  renderTables();
-  
-  document.getElementById('clientSearch').value = '';
-  document.getElementById('clientSelect').value = '';
-  document.getElementById('offerSelect').value = '';
-  document.getElementById('offerDetails').textContent = 'Sélectionnez une offre';
-  calculatePreview();
-  
-  const clientName = client ? client.name : 'Inconnu';
-  showToast(`Transaction "${offer.name}" de $${offer.costPerUnit} pour ${clientName} enregistrée!`, 'success');
-  showTab('dashboard');
-}
-
-function addClientLegacy() {
-  const name = document.getElementById('newClientName').value.trim();
-  const contact = document.getElementById('newClientContact').value.trim();
-  const notes = document.getElementById('newClientNotes').value.trim();
-  if (!name) {
-    showToast('Le nom du client est requis', 'error');
-    return;
-  }
-  const client = {
-    id: Date.now(),
-    name: name,
-    contact: contact,
-    notes: notes,
-    totalSpent: 0,
-    joinDate: new Date().toISOString(),
-    lastActivity: new Date().toISOString()
-  };
-  appState.clients.push(client);
-  saveToLocalStorage();
-  closeModal('clientModal');
-  renderTables();
-  populatePaymentClientSelect();
-  document.getElementById('newClientName').value = '';
-  document.getElementById('newClientContact').value = '';
-  document.getElementById('newClientNotes').value = '';
-  showToast(`Client "${name}" ajouté avec succès`, 'success');
-}
-
-function addOfferLegacy() {
-  const name = document.getElementById('newOfferName').value.trim();
-  const desc = document.getElementById('newOfferDesc').value.trim();
-  const price = parseFloat(document.getElementById('newOfferPrice').value);
-  const costPerUnit = parseFloat(document.getElementById('newOfferCostPerUnit').value);
-  
-  console.log('DEBUG addOffer:', { name, desc, price, costPerUnit });
-  
-  if (!name || isNaN(price) || isNaN(costPerUnit)) {
-    showToast('Nom, prix de vente et montant à dépenser sont requis et doivent être des nombres', 'error');
-    return;
-  }
-  if (price <= 0 || costPerUnit <= 0) {
-    showToast('Les montants doivent être supérieurs à 0', 'error');
-    return;
-  }
-  const offer = {
-    id: Date.now(),
-    name: name,
-    description: desc,
-    price: price,
-    costPerUnit: costPerUnit,
-    duration: document.getElementById('newOfferDuration').value.trim(),
-    createdAt: new Date().toISOString(),
-    isActive: true
-  };
-  appState.offers.push(offer);
-  console.log('Offre ajoutée:', offer);
-  console.log('Total offres:', appState.offers.length);
-  saveToLocalStorage();
-  closeModal('offerModal');
-  renderTables();
-  populateOfferSelect();
-  document.getElementById('newOfferName').value = '';
-  document.getElementById('newOfferDesc').value = '';
-  document.getElementById('newOfferPrice').value = '';
-  document.getElementById('newOfferCostPerUnit').value = '';
-  document.getElementById('newOfferDuration').value = '';
-  showToast(`Offre "${name}" créée avec succès`, 'success');
-}
-
-function addPaymentLegacy() {
-  const clientId = document.getElementById('paymentClientSelect').value;
-  const amount = parseFloat(document.getElementById('paymentAmount').value);
-  const method = document.getElementById('paymentMethod').value;
-  const status = document.getElementById('paymentStatus').value;
-  const note = document.getElementById('paymentNote').value.trim();
-  if (!clientId || !amount) {
-    showToast('Client et montant sont requis', 'error');
-    return;
-  }
-  if (amount <= 0) {
-    showToast('Le montant doit être supérieur à 0', 'error');
-    return;
-  }
-  const client = appState.clients.find(c => c.id == clientId);
-  const payment = {
-    id: Date.now(),
-    date: new Date().toISOString(),
-    clientId: clientId,
-    clientName: client ? client.name : 'Inconnu',
-    amount: amount,
-    method: method,
-    status: status,
-    note: note
-  };
-  appState.payments.push(payment);
-  saveToLocalStorage();
-  closeModal('paymentModal');
-  renderTables();
-  document.getElementById('paymentAmount').value = '';
-  document.getElementById('paymentNote').value = '';
-  showToast(`Paiement de ${formatCurrency(amount)} enregistré`, 'success');
-}
-
-function addUsdPurchaseLegacy() {
-  const amount = parseFloat(document.getElementById('usdAmount').value);
-  const rate = parseFloat(document.getElementById('usdRate').value);
-  const source = document.getElementById('usdSource').value.trim();
-  if (!amount || !rate) {
-    showToast('Montant et taux sont requis', 'error');
-    return;
-  }
-  if (amount <= 0 || rate <= 0) {
-    showToast('Montant et taux doivent être supérieurs à 0', 'error');
-    return;
-  }
-  const purchase = {
-    id: Date.now(),
-    date: new Date().toISOString(),
-    amount: amount,
-    rate: rate,
-    totalDzd: amount * rate,
-    source: source
-  };
-  appState.usdPurchases.push(purchase);
-  saveToLocalStorage();
-  closeModal('usdPurchaseModal');
-  renderTables();
-  document.getElementById('usdAmount').value = '';
-  document.getElementById('usdSource').value = '';
-  showToast(`Achat de $${amount} enregistré`, 'success');
-}
-
-function populatePaymentClientSelectLegacy() {
-  const paymentSelect = document.getElementById('paymentClientSelect');
-  if (paymentSelect) {
-    paymentSelect.innerHTML = '<option value="">Choisir un client...</option>';
-    appState.clients.forEach(client => {
-      const option = document.createElement('option');
-      option.value = client.id;
-      option.textContent = `${client.name}${client.contact ? ` (${client.contact})` : ''}`;
-      paymentSelect.appendChild(option);
-    });
-  }
-}
-
 function filterClients() {
   const searchInput = document.getElementById('clientSearch');
   const dropdown = document.getElementById('clientDropdown');
@@ -7240,69 +6995,6 @@ function selectClient(clientId, clientName) {
   document.getElementById('clientDropdown').classList.add('hidden');
   calculatePreview();
 }
-
-function populateOfferSelectLegacy() {
-  const select = document.getElementById('offerSelect');
-  if (!select) return;
-  select.innerHTML = '<option value="">Standard</option>';
-  appState.offers.forEach(offer => {
-    const option = document.createElement('option');
-    option.value = offer.id;
-    option.textContent = `${offer.name} - ${formatCurrency(offer.price)}`;
-    select.appendChild(option);
-  });
-}
-
-function renderTablesLegacy() {
-  renderClientsTable();
-  renderTransactionsTable();
-  renderOffersGrid();
-  renderPaymentsTable();
-  renderUsdPurchasesTable();
-  updateRecentActivity();
-}
-
-function renderClientsTableLegacy() {
-  const tbody = document.getElementById('clientsTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  if (appState.clients.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500"><i class="fas fa-users text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucun client enregistré</p><p class="text-sm mt-2">Commencez par ajouter votre premier client</p></td></tr>`;
-    return;
-  }
-  appState.clients.forEach(client => {
-    const clientTransactions = appState.transactions.filter(t => t.clientId == client.id);
-    const totalSpent = clientTransactions.reduce((sum, t) => sum + t.totalDzd, 0);
-    const transactionCount = clientTransactions.length;
-    const joinDate = new Date(client.joinDate).toLocaleDateString('fr-FR');
-    const lastActivity = client.lastActivity ? new Date(client.lastActivity).toLocaleDateString('fr-FR') : 'Jamais';
-    const row = document.createElement('tr');
-    row.className = 'hover:bg-gray-50 transition-colors';
-    row.innerHTML = `<td class="p-4"><div class="font-bold">${client.name}</div><div class="text-sm text-gray-500">Inscrit le ${joinDate}</div></td><td class="p-4"><div>${client.contact || '-'}</div><div class="text-xs text-gray-500">Dernière: ${lastActivity}</div></td><td class="p-4 font-bold text-green-600">${formatCurrency(totalSpent)}</td><td class="p-4"><span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${transactionCount} transaction${transactionCount > 1 ? 's' : ''}</span></td><td class="p-4"><button onclick="deleteClient(${client.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
-    tbody.appendChild(row);
-  });
-}
-
-function renderTransactionsTableLegacy() {
-  const tbody = document.getElementById('transactionsTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  if (appState.transactions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500"><i class="fas fa-exchange-alt text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucune transaction enregistrée</p><p class="text-sm mt-2">Utilisez le calculateur pour créer votre première transaction</p></td></tr>`;
-    return;
-  }
-  const transactions = filterTransactions();
-  transactions.forEach(trans => {
-    const date = new Date(trans.date).toLocaleDateString('fr-FR');
-    const time = new Date(trans.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-    const row = document.createElement('tr');
-    row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    const usdAmount = safeToFixed(trans.dollarAmount ?? trans.amount ?? 0, 2);
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4">${trans.clientName}</td><td class="p-4"><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${trans.offerName}</span></td><td class="p-4 font-bold">$${usdAmount}</td><td class="p-4">${trans.sellRate} DZD</td><td class="p-4 font-bold">${formatCurrency(trans.totalDzd)}</td><td class="p-4"><span class="profit-badge font-bold px-2.5 py-0.5 rounded-full">+${formatCurrency(trans.profit)}</span></td><td class="p-4"><button onclick="deleteTransaction(${trans.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
-    tbody.appendChild(row);
-  });
-}
-
 function filterTransactions() {
   const searchTerm = document.getElementById('transactionSearch')?.value.toLowerCase() || '';
   const filterValue = document.getElementById('transactionFilter')?.value || 'all';
@@ -7388,150 +7080,6 @@ function renderPaymentsTable() {
     tbody.appendChild(row);
   });
 }
-
-function renderUsdPurchasesTableLegacy() {
-  const tbody = document.getElementById('usdPurchasesTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  if (appState.usdPurchases.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500"><i class="fas fa-dollar-sign text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucun achat USD enregistré</p><p class="text-sm mt-2">Enregistrez votre premier achat de dollars</p></td></tr>`;
-    return;
-  }
-  appState.usdPurchases.forEach(purchase => {
-    const date = new Date(purchase.date).toLocaleDateString('fr-FR');
-    const time = new Date(purchase.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-    const row = document.createElement('tr');
-    row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    const usdAmount = safeToFixed(purchase.amount, 2);
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4 font-bold">$${usdAmount}</td><td class="p-4">${purchase.rate} DZD</td><td class="p-4 font-bold text-red-600">${formatCurrency(purchase.totalDzd)}</td><td class="p-4 text-gray-700">${purchase.source || '-'}</td><td class="p-4"><button onclick="deleteUsdPurchase(${purchase.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
-    tbody.appendChild(row);
-  });
-}
-
-// Ancienne logique locale sponsoringManagerData retirée (on utilise hichemSponsor + Firebase plus haut)
-
-function updateDashboardLegacy() {
-  const transactions = appState.transactions || [];
-  const todayIso = new Date().toISOString().slice(0, 10);
-
-  let todayProfit = 0;
-  let weekProfit = 0;
-  let totalProfit = 0;
-  let monthProfitGross = 0;
-  let monthExpenses = 0;
-  let todayCount = 0;
-  let weekCount = 0;
-
-  const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - 7);
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  transactions.forEach(t => {
-    const profit = Number(t.profit || 0);
-    const d = new Date(t.date || todayIso);
-    totalProfit += profit;
-
-    const txDayIso = (t.date && typeof t.date === 'string') ? t.date.slice(0, 10) : d.toISOString().slice(0, 10);
-    if (txDayIso === todayIso) {
-      todayProfit += profit;
-      todayCount++;
-    }
-    if (d >= startOfWeek) {
-      weekProfit += profit;
-      weekCount++;
-    }
-    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-      monthProfitGross += profit;
-    }
-  });
-
-  (appState.expenses || []).forEach(e => {
-    const d = new Date(e.date || todayIso);
-    if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-      monthExpenses += Number(e.amount || 0);
-    }
-  });
-
-  const monthNet = Math.max(0, monthProfitGross - monthExpenses);
-  const isEmployee = (appState.session && appState.session.type === 'employee');
-
-  const todayProfitEl = document.getElementById('todayProfit');
-  const weekProfitEl = document.getElementById('weekProfit');
-  const totalProfitEl = document.getElementById('totalProfit');
-  const monthProfitEl = document.getElementById('monthProfitNet');
-
-  if (isEmployee) {
-    if (todayProfitEl) todayProfitEl.textContent = '***';
-    if (weekProfitEl) weekProfitEl.textContent = '***';
-    if (totalProfitEl) totalProfitEl.textContent = '***';
-    if (monthProfitEl) monthProfitEl.textContent = '***';
-  } else {
-    if (todayProfitEl) todayProfitEl.textContent = formatCurrency(todayProfit);
-    if (weekProfitEl) weekProfitEl.textContent = formatCurrency(weekProfit);
-    if (totalProfitEl) totalProfitEl.textContent = formatCurrency(totalProfit);
-    if (monthProfitEl) monthProfitEl.textContent = formatCurrency(monthNet);
-  }
-
-  const totalClientsEl = document.getElementById('totalClients');
-  if (totalClientsEl) totalClientsEl.textContent = appState.clients.length;
-
-  const newClientsEl = document.getElementById('newClients');
-  if (newClientsEl) newClientsEl.textContent = `${appState.clients.length} nouveaux ce mois`;
-
-  const totalTransactionsEl = document.getElementById('totalTransactions');
-  if (totalTransactionsEl) totalTransactionsEl.textContent = `${transactions.length} transactions`;
-
-  const weekTransactionsEl = document.getElementById('weekTransactions');
-  if (weekTransactionsEl) weekTransactionsEl.textContent = `${weekCount} transactions`;
-
-  const dueReminders = transactions.filter(t => !t.paid && t.reminderAt && t.reminderAt <= todayIso);
-  const dueCount = dueReminders.length;
-  const dueCountEl = document.getElementById('dueRemindersCount');
-  const dueLabelEl = document.getElementById('dueRemindersLabel');
-  const dueListEl = document.getElementById('dueRemindersList');
-  const dueListCountEl = document.getElementById('dueRemindersListCount');
-  if (dueCountEl) dueCountEl.textContent = String(dueCount);
-  if (dueLabelEl) {
-    if (dueCount === 0) {
-      dueLabelEl.textContent = "Aucun rappel aujourd'hui";
-    } else {
-      dueLabelEl.textContent = `${dueCount} client${dueCount > 1 ? 's' : ''} à relancer`;
-    }
-  }
-  if (dueListCountEl) {
-    dueListCountEl.textContent = dueCount ? `${dueCount} rappel${dueCount > 1 ? 's' : ''}` : '';
-  }
-  if (dueListEl) {
-    dueListEl.innerHTML = '';
-    if (!dueCount) {
-      dueListEl.innerHTML = '<p class="text-gray-400 italic">Aucun rappel programmé</p>';
-    } else {
-      dueReminders.slice(0, 20).forEach(t => {
-        const client = (appState.clients || []).find(c => c.id === t.clientId) || {};
-        const name = client.name || t.clientName || 'Client';
-        const wa = (typeof buildClientWhatsAppLink === 'function') ? buildClientWhatsAppLink(client) : '';
-        const ig = (typeof buildClientInstagramLink === 'function') ? buildClientInstagramLink(client) : '';
-        const amount = formatCurrency(t.priceDzd || t.totalDzd || 0);
-        const li = document.createElement('div');
-        li.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-lg';
-        li.innerHTML = `
-          <div>
-            <p class="font-medium text-gray-800">${name}</p>
-            <p class="text-xs text-gray-500">Impayé: ${amount}</p>
-          </div>
-          <div class="flex items-center gap-2">
-            ${wa ? `<a href="${wa}" target="_blank" class="text-green-600 hover:text-green-800" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>` : ''}
-            ${ig ? `<a href="${ig}" target="_blank" class="text-pink-600 hover:text-pink-800" title="Instagram"><i class="fab fa-instagram"></i></a>` : ''}
-          </div>
-        `;
-        dueListEl.appendChild(li);
-      });
-    }
-  }
-}
-
 function updateRecentActivity() {
   const container = document.getElementById('recentTransactions');
   if (!container) return;
