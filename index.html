@@ -2061,6 +2061,74 @@
             <span id="usdPurchasesTotal" class="font-bold text-blue-600">Total USD: 0</span>
           </div>
         </div>
+
+        <div class="mt-6 bg-white p-6 md:p-8 rounded-3xl shadow-xl border card-hover">
+          <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+            <div>
+              <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-coins text-amber-600"></i>
+                Dépenses en USDT
+              </h2>
+              <p class="text-gray-600 text-sm mt-1">
+                Enregistrez les dépenses payées en USDT. Le coût utilise le dernier taux d’achat USD,
+                et la valeur est calculée à 340 DZD par USDT.
+              </p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">Montant USDT</label>
+              <input id="usdtExpenseAmount" type="number" step="0.01"
+                     class="w-full p-2 border rounded-lg text-sm"
+                     placeholder="ex: 100">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">Mois</label>
+              <input id="usdtExpenseMonth" type="month"
+                     class="w-full p-2 border rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">Note</label>
+              <input id="usdtExpenseNote" type="text"
+                     class="w-full p-2 border rounded-lg text-sm"
+                     placeholder="ex: remarque sur la dépense">
+            </div>
+          </div>
+
+          <div class="mb-6">
+            <button onclick="addUsdtExpense()"
+                    class="px-4 md:px-6 py-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center gap-2">
+              <i class="fas fa-plus"></i>
+              Enregistrer dépense USDT
+            </button>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="bg-gradient-to-r from-gray-50 to-amber-50">
+                  <th class="p-4 rounded-l-lg font-semibold text-gray-700">Date</th>
+                  <th class="p-4 font-semibold text-gray-700">Montant USDT</th>
+                  <th class="p-4 font-semibold text-gray-700">Taux achat (DZD)</th>
+                  <th class="p-4 font-semibold text-gray-700">Taux dépense (DZD)</th>
+                  <th class="p-4 font-semibold text-gray-700">Coût (DZD)</th>
+                  <th class="p-4 font-semibold text-gray-700">Valeur à 340 (DZD)</th>
+                  <th class="p-4 font-semibold text-gray-700">Différence</th>
+                  <th class="p-4 font-semibold text-gray-700">Mois</th>
+                  <th class="p-4 font-semibold text-gray-700">Note</th>
+                  <th class="p-4 rounded-r-lg font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usdtExpensesTableBody" class="divide-y divide-gray-100">
+              </tbody>
+            </table>
+          </div>
+          <div class="mt-4 text-sm text-gray-500 flex justify-between items-center">
+            <span id="usdtExpensesSummary">0 dépenses USDT</span>
+            <span id="usdtExpensesTotal" class="font-bold text-amber-600">Total valeur: 0 DZD</span>
+          </div>
+        </div>
       </section>
       <!-- FRAIS TAB -->
       <section id="frais" class="tab-content hidden fade-in">
@@ -2471,6 +2539,7 @@
   <script>
     // === ETAT GLOBAL DE L'APP ===
     let editingOfferId = null;
+    let editingClientId = null;
     let appState = {
       clients: [],
       transactions: [],
@@ -2494,6 +2563,7 @@
       expenses: [],
       recurringExpenses: [],
       clientRequests: [],
+      usdtExpenses: [],
     };
     window.appState = appState;
 
@@ -2505,6 +2575,12 @@
 
     function formatCurrency(value) {
       return `${Number(value || 0).toLocaleString('fr-DZ')} DZD`;
+    }
+
+    function safeToFixed(value, digits = 2) {
+      const num = Number(value || 0);
+      if (Number.isNaN(num)) return (0).toFixed(digits);
+      return num.toFixed(digits);
     }
 
     function normalizePhoneForWhatsApp(phone) {
@@ -2579,7 +2655,7 @@
       // Auto-refresh data based on tab
       if (tabId === 'requests') renderRequests();
       if (tabId === 'paiements') renderPaymentsTable();
-      if (tabId === 'achats') renderUsdPurchasesTable();
+      if (tabId === 'achats') { renderUsdPurchasesTable(); renderUsdtExpensesTable(); }
       if (tabId === 'frais') renderExpensesTable();
       if (tabId === 'transactions') renderTransactionsTable();
       if (tabId === 'custom-section-admin') renderCustomSectionAdmin();
@@ -2899,6 +2975,7 @@
           if (typeof e.amount !== 'number') { e.amount = Number(e.amount || 0); changed = true; }
           if (!('category' in e)) { e.category = 'Autre'; changed = true; }
         });
+        if (!Array.isArray(appState.usdtExpenses)) { appState.usdtExpenses = []; changed = true; }
         if (!Array.isArray(appState.recurringExpenses)) { appState.recurringExpenses = []; changed = true; }
         if (!Array.isArray(appState.clientRequests)) { appState.clientRequests = []; changed = true; }
         (appState.clientRequests || []).forEach(r => {
@@ -3221,26 +3298,13 @@
 
         function renderTransactionsTable() {
       const tbody = document.getElementById('transactionsTableBody');
-      const searchInput = document.getElementById('transactionSearch');
-      const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
-
       if (!tbody) return;
       tbody.innerHTML = '';
 
       let totalProfit = 0;
       const isEmployee = (appState.session && appState.session.type === 'employee');
-      
-      const sortedTransactions = [...appState.transactions].sort((a, b) => {
-        const dateComp = (b.date || '').localeCompare(a.date || '');
-        if (dateComp !== 0) return dateComp;
-        return (b.createdAt || 0) - (a.createdAt || 0);
-      });
 
-      const filteredTransactions = sortedTransactions.filter(t => {
-        const clientName = (t.clientName || '').toLowerCase();
-        const offerName = (t.offerName || '').toLowerCase();
-        return clientName.includes(searchTerm) || offerName.includes(searchTerm);
-      });
+      const filteredTransactions = filterTransactions();
 
       const frag = document.createDocumentFragment();
       filteredTransactions.forEach(t => {
@@ -3312,7 +3376,7 @@
       if (totalSpan) totalSpan.textContent = `Total: ${formatCurrency(total)}`;
     }
 
-    function renderUsdPurchasesTable() {
+function renderUsdPurchasesTable() {
       const tbody = document.getElementById('usdPurchasesTableBody');
       if (!tbody) return;
       tbody.innerHTML = '';
@@ -3327,7 +3391,7 @@
         totalUsd += amount;
         row.innerHTML = `
           <td class="p-4 text-gray-700">${formatDate(p.date)}</td>
-          <td class="p-4 text-gray-800">${amount.toFixed(2)} $</td>
+          <td class="p-4 text-gray-800">${safeToFixed(amount, 2)} $</td>
           <td class="p-4 text-gray-700">${p.rate || 0}</td>
           <td class="p-4 text-gray-700">${formatCurrency(p.totalDzd || 0)}</td>
           <td class="p-4 text-gray-700">${p.source || '-'}</td>
@@ -3344,7 +3408,53 @@
       const summary = document.getElementById('usdPurchasesSummary');
       const totalSpan = document.getElementById('usdPurchasesTotal');
       if (summary) summary.textContent = `${appState.usdPurchases.length} achats`;
-      if (totalSpan) totalSpan.textContent = `Total USD: ${totalUsd.toFixed(2)}`;
+      if (totalSpan) totalSpan.textContent = `Total USD: ${safeToFixed(totalUsd, 2)}`;
+    }
+
+    function renderUsdtExpensesTable() {
+      const tbody = document.getElementById('usdtExpensesTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const expenses = appState.usdtExpenses || [];
+      let totalValueDzd = 0;
+
+      const frag = document.createDocumentFragment();
+      expenses.forEach(e => {
+        const amount = Number(e.amount || 0);
+        const buyRate = Number(e.buyRate || 0);
+        const spendRate = Number(e.spendRate || 0);
+        const costDzd = Number(e.costDzd || amount * buyRate);
+        const valueDzd = Number(e.valueDzd || amount * spendRate);
+        const diffDzd = Number(e.diffDzd || (valueDzd - costDzd));
+        totalValueDzd += valueDzd;
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+          <td class="p-4 text-gray-700">${formatDate(e.date)}</td>
+          <td class="p-4 text-gray-800">${safeToFixed(amount, 2)} USDT</td>
+          <td class="p-4 text-gray-700">${safeToFixed(buyRate, 2)}</td>
+          <td class="p-4 text-gray-700">${safeToFixed(spendRate, 2)}</td>
+          <td class="p-4 text-red-600 font-semibold">${formatCurrency(costDzd)}</td>
+          <td class="p-4 text-green-600 font-semibold">${formatCurrency(valueDzd)}</td>
+          <td class="p-4 text-gray-700">${formatCurrency(diffDzd)}</td>
+          <td class="p-4 text-gray-700">${e.month || '-'}</td>
+          <td class="p-4 text-gray-600">${e.note || '-'}</td>
+          <td class="p-4">
+            <button onclick="deleteUsdtExpense('${e.id}')" class="text-red-600 hover:text-red-800">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </td>
+        `;
+        frag.appendChild(row);
+      });
+      tbody.appendChild(frag);
+
+      const summary = document.getElementById('usdtExpensesSummary');
+      const totalSpan = document.getElementById('usdtExpensesTotal');
+      if (summary) summary.textContent = `${expenses.length} dépenses USDT`;
+      if (totalSpan) totalSpan.textContent = `Total valeur: ${formatCurrency(totalValueDzd)}`;
     }
 
         function renderRecentTransactions() {
@@ -3718,6 +3828,7 @@
       renderOffersGrid();
       renderPaymentsTable();
       renderUsdPurchasesTable();
+      renderUsdtExpensesTable();
       renderExpensesTable();
       renderRecentTransactions();
       renderTopClients();
@@ -3839,21 +3950,41 @@
         return;
       }
 
-      const client = {
-        id: generateId('client'),
-        name,
-        phone,
-        contact: phone || instagram || facebook || '',
-        notes,
-        totalSpent: 0,
-        unpaid: 0,
-        transactionsCount: 0,
-        social: {
-          instagram: instagram ? [instagram.replace(/^@+/, '').trim()] : [],
-          facebook: facebook ? [facebook.trim()] : []
+      if (editingClientId) {
+        const client = appState.clients.find(c => c.id === editingClientId);
+        if (!client) {
+          showToast('Client introuvable', 'error');
+        } else {
+          client.name = name;
+          client.phone = phone;
+          client.contact = phone || instagram || facebook || '';
+          client.notes = notes;
+          if (!client.social) client.social = { instagram: [], facebook: [] };
+          const igHandle = instagram ? instagram.replace(/^@+/, '').trim() : '';
+          client.username = igHandle;
+          client.social.instagram = igHandle ? [igHandle] : [];
+          client.social.facebook = facebook ? [facebook.trim()] : [];
         }
-      };
-      appState.clients.push(client);
+        editingClientId = null;
+        showToast('Client modifié', 'success');
+      } else {
+        const client = {
+          id: generateId('client'),
+          name,
+          phone,
+          contact: phone || instagram || facebook || '',
+          notes,
+          totalSpent: 0,
+          unpaid: 0,
+          transactionsCount: 0,
+          social: {
+            instagram: instagram ? [instagram.replace(/^@+/, '').trim()] : [],
+            facebook: facebook ? [facebook.trim()] : []
+          }
+        };
+        appState.clients.push(client);
+        showToast('Client ajouté', 'success');
+      }
 
       document.getElementById('newClientName').value = '';
       document.getElementById('newClientPhone').value = '';
@@ -3865,7 +3996,6 @@
       renderClientsTable();
       populateClientDropdown();
       autoSave();
-      showToast('Client ajouté', 'success');
     }
 
     function deleteClient(id) {
@@ -3878,30 +4008,30 @@
     function editClient(id) {
       const client = appState.clients.find(c => c.id === id);
       if (!client) { showToast('Client introuvable', 'error'); return; }
-      const newName = prompt('Nom du client', client.name || '');
-      if (newName === null) return;
-      const newPhone = prompt('Numéro WhatsApp', client.phone || client.contact || '');
-      if (newPhone === null) return;
-      const newInsta = prompt('Compte Instagram', (client.username || (client.social && client.social.instagram && client.social.instagram[0]) || ''));
-      if (newInsta === null) return;
-      const newFb = prompt('Page Facebook', (client.social && client.social.facebook && client.social.facebook[0]) || '');
-      if (newFb === null) return;
-      const newNotes = prompt('Notes', client.notes || '');
-      if (newNotes === null) return;
 
-      client.name = newName.trim() || client.name;
-      client.phone = newPhone.trim();
-      client.contact = client.phone || client.contact;
-      if (!client.social) client.social = { instagram: [], facebook: [] };
-      const igHandle = newInsta.trim().replace(/^@+/, '');
-      client.username = igHandle;
-      client.social.instagram = igHandle ? [igHandle] : [];
-      client.social.facebook = newFb.trim() ? [newFb.trim()] : [];
-      client.notes = newNotes.trim();
-      renderClientsTable();
-      populateClientDropdown();
-      autoSave();
-      showToast('Client modifié', 'success');
+      editingClientId = id;
+
+      const nameEl = document.getElementById('newClientName');
+      const phoneEl = document.getElementById('newClientPhone');
+      const instaEl = document.getElementById('newClientInstagram');
+      const fbEl = document.getElementById('newClientFacebook');
+      const notesEl = document.getElementById('newClientNotes');
+      const titleEl = document.querySelector('#clientModal h3');
+
+      if (nameEl) nameEl.value = client.name || '';
+      if (phoneEl) phoneEl.value = client.phone || client.contact || '';
+      if (instaEl) {
+        const ig = client.username || (client.social && client.social.instagram && client.social.instagram[0]) || '';
+        instaEl.value = ig ? '@' + ig.replace(/^@+/, '') : '';
+      }
+      if (fbEl) {
+        const fb = (client.social && client.social.facebook && client.social.facebook[0]) || '';
+        fbEl.value = fb;
+      }
+      if (notesEl) notesEl.value = client.notes || '';
+      if (titleEl) titleEl.textContent = 'Modifier un Client';
+
+      openModal('clientModal');
     }
 
     function prepareAddOffer() {
@@ -4125,6 +4255,61 @@
       showToast('Paiement enregistré', 'success');
     }
 
+    function addUsdtExpense() {
+      const amount = Number(document.getElementById('usdtExpenseAmount').value || 0);
+      const month = document.getElementById('usdtExpenseMonth').value;
+      const note = document.getElementById('usdtExpenseNote').value.trim();
+
+      if (!amount) {
+        showToast('Montant USDT requis', 'error');
+        return;
+      }
+
+      if (!month) {
+        showToast('Mois requis', 'error');
+        return;
+      }
+
+      const purchases = appState.usdPurchases || [];
+      const lastPurchase = purchases.length > 0 ? purchases[purchases.length - 1] : null;
+      const buyRate = lastPurchase ? Number(lastPurchase.rate || 0) : 0;
+      if (!buyRate) {
+        showToast('Aucun achat USD trouvé pour calculer le coût', 'error');
+      }
+
+      const spendRate = 340;
+      const costDzd = amount * buyRate;
+      const valueDzd = amount * spendRate;
+      const diffDzd = valueDzd - costDzd;
+
+      if (!Array.isArray(appState.usdtExpenses)) {
+        appState.usdtExpenses = [];
+      }
+
+      const expense = {
+        id: generateId('usdt'),
+        date: new Date().toISOString().slice(0, 10),
+        amount,
+        month,
+        buyRate,
+        spendRate,
+        costDzd,
+        valueDzd,
+        diffDzd,
+        note,
+      };
+
+      appState.usdtExpenses.push(expense);
+
+      renderUsdtExpensesTable();
+      autoSave();
+
+      document.getElementById('usdtExpenseAmount').value = '';
+      document.getElementById('usdtExpenseMonth').value = '';
+      document.getElementById('usdtExpenseNote').value = '';
+      showToast('Dépense USDT enregistrée', 'success');
+    }
+
     function addUsdPurchase() {
       const amount = Number(document.getElementById('usdAmount').value || 0);
       const rate = Number(document.getElementById('usdRate').value || 0);
@@ -4184,6 +4369,15 @@
       const monthSpan = document.getElementById('expensesMonthTotal');
       if (summary) summary.textContent = `${(appState.expenses || []).length} frais`;
       if (monthSpan) monthSpan.textContent = `Total mensuel: ${formatCurrency(monthTotal)}`;
+    }
+
+    function deleteUsdtExpense(id) {
+      if (!Array.isArray(appState.usdtExpenses)) {
+        appState.usdtExpenses = [];
+      }
+      appState.usdtExpenses = appState.usdtExpenses.filter(e => e.id !== id);
+      renderUsdtExpensesTable();
+      autoSave();
     }
 
     function populateExpenseCategorySelect() {
@@ -5985,11 +6179,13 @@
 
     // Connexion GitHub retirée
 
-    console.log('ðŸš€ Hichem Sponsor - Initialisation');
+    console.log('🚀 Hichem Sponsor - Initialisation');
 
     updateAuthUI(auth.currentUser);
     loadFromLocalStorage();
-    await syncClientAccount(newClient);
+    if (typeof newClient !== 'undefined') {
+      await syncClientAccount(newClient);
+    }
     if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
       if (typeof window.loadFromCloud === 'function') {
         await window.loadFromCloud();
@@ -6599,33 +6795,7 @@
     </div>
 
     <!-- MODALS -->
-    <div id="clientModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
-      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold flex items-center gap-2">
-            <i class="fas fa-user-plus text-blue-600"></i>
-            Ajouter un Client
-          </h3>
-          <button onclick="closeModal('clientModal')" class="text-gray-400 hover:text-gray-600">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-        <input id="newClientName" type="text" placeholder="Nom complet du client" 
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-        <input id="newClientContact" type="text" placeholder="Contact (Téléphone, Facebook, etc.)" 
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
-        <textarea id="newClientNotes" placeholder="Notes supplémentaires (optionnel)" 
-                  class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" rows="3"></textarea>
-        <div class="flex justify-end gap-3">
-          <button onclick="closeModal('clientModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
-            Annuler
-          </button>
-          <button onclick="addClient()" class="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
-            Enregistrer
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Ancienne duplication de clientModal supprimée -->
 
     <div id="offerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
       <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
@@ -6701,64 +6871,11 @@
       </div>
     </div>
 
-    <div id="usdPurchaseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
-      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
-        <div class="flex justify-between items-center mb-4">
-          <h3 class="text-xl font-bold flex items-center gap-2">
-            <i class="fas fa-dollar-sign text-teal-600"></i>
-            Achat Stock USD
-          </h3>
-          <button onclick="closeModal('usdPurchaseModal')" class="text-gray-400 hover:text-gray-600">
-            <i class="fas fa-times text-xl"></i>
-          </button>
-        </div>
-        <input id="usdAmount" type="number" step="0.01" placeholder="Montant USD ($)" 
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
-        <input id="usdRate" type="number" step="0.01" placeholder="Taux d'achat (DZD)" value="255"
-               class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
-        <input id="usdSource" type="text" placeholder="Source (ex: Binance P2P, Bank, etc.)" 
-               class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
-        <div class="flex justify-end gap-3">
-          <button onclick="closeModal('usdPurchaseModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
-            Annuler
-          </button>
-          <button onclick="addUsdPurchase()" class="px-5 py-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
-            Enregistrer
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <input type="file" id="fileInput" class="hidden" accept=".json" onchange="handleFileLoad(this)">
-
-    <!-- NOTIFICATION TOAST -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white p-4 rounded-xl shadow-2xl hidden z-50 max-w-sm transition-all duration-300">
-      <div class="flex items-center gap-3">
-        <i id="toastIcon" class="fas fa-check-circle text-green-400 text-xl"></i>
-        <div>
-          <p id="toastTitle" class="font-bold">Succès</p>
-          <p id="toastMessage" class="text-sm text-gray-300">Opération effectuée avec succès</p>
-        </div>
-      </div>
-    </div>
+    <!-- Les éléments suivants (usdPurchaseModal, fileInput, toast) existent déjà plus haut dans la page -->
 
   </div>
 
 <script>
-let appState = {
-  clients: [],
-  transactions: [],
-  offers: [],
-  payments: [],
-  usdPurchases: [],
-  currentTab: 'dashboard',
-  settings: {
-    defaultBuyRate: 255,
-    defaultSellRate: 357,
-    currency: 'DZD'
-  }
-};
-
 document.addEventListener('DOMContentLoaded', function() {
   console.log('🚀 Sponsoring Manager PRO - Initialisation');
   loadFromLocalStorage();
@@ -6817,8 +6934,8 @@ function showTab(tabId) {
 function setupEventListeners() {
   const searchInput = document.getElementById('transactionSearch');
   const filterSelect = document.getElementById('transactionFilter');
-  if (searchInput) { searchInput.addEventListener('input', filterTransactions); }
-  if (filterSelect) { filterSelect.addEventListener('change', filterTransactions); }
+  if (searchInput) { searchInput.addEventListener('input', renderTransactionsTable); }
+  if (filterSelect) { filterSelect.addEventListener('change', renderTransactionsTable); }
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { closeAllModals(); }
   });
@@ -6887,7 +7004,7 @@ function resetCalculator() {
   showToast('Calculatrice réinitialisée', 'info');
 }
 
-function addTransaction() {
+function addTransactionLegacy() {
   const buyRate = parseFloat(document.getElementById('buyRate').value);
   const clientId = document.getElementById('clientSelect').value;
   const offerId = document.getElementById('offerSelect').value;
@@ -6937,7 +7054,7 @@ function addTransaction() {
   showTab('dashboard');
 }
 
-function addClient() {
+function addClientLegacy() {
   const name = document.getElementById('newClientName').value.trim();
   const contact = document.getElementById('newClientContact').value.trim();
   const notes = document.getElementById('newClientNotes').value.trim();
@@ -6965,7 +7082,7 @@ function addClient() {
   showToast(`Client "${name}" ajouté avec succès`, 'success');
 }
 
-function addOffer() {
+function addOfferLegacy() {
   const name = document.getElementById('newOfferName').value.trim();
   const desc = document.getElementById('newOfferDesc').value.trim();
   const price = parseFloat(document.getElementById('newOfferPrice').value);
@@ -7006,7 +7123,7 @@ function addOffer() {
   showToast(`Offre "${name}" créée avec succès`, 'success');
 }
 
-function addPayment() {
+function addPaymentLegacy() {
   const clientId = document.getElementById('paymentClientSelect').value;
   const amount = parseFloat(document.getElementById('paymentAmount').value);
   const method = document.getElementById('paymentMethod').value;
@@ -7040,7 +7157,7 @@ function addPayment() {
   showToast(`Paiement de ${formatCurrency(amount)} enregistré`, 'success');
 }
 
-function addUsdPurchase() {
+function addUsdPurchaseLegacy() {
   const amount = parseFloat(document.getElementById('usdAmount').value);
   const rate = parseFloat(document.getElementById('usdRate').value);
   const source = document.getElementById('usdSource').value.trim();
@@ -7069,7 +7186,7 @@ function addUsdPurchase() {
   showToast(`Achat de $${amount} enregistré`, 'success');
 }
 
-function populatePaymentClientSelect() {
+function populatePaymentClientSelectLegacy() {
   const paymentSelect = document.getElementById('paymentClientSelect');
   if (paymentSelect) {
     paymentSelect.innerHTML = '<option value="">Choisir un client...</option>';
@@ -7124,7 +7241,7 @@ function selectClient(clientId, clientName) {
   calculatePreview();
 }
 
-function populateOfferSelect() {
+function populateOfferSelectLegacy() {
   const select = document.getElementById('offerSelect');
   if (!select) return;
   select.innerHTML = '<option value="">Standard</option>';
@@ -7136,7 +7253,7 @@ function populateOfferSelect() {
   });
 }
 
-function renderTables() {
+function renderTablesLegacy() {
   renderClientsTable();
   renderTransactionsTable();
   renderOffersGrid();
@@ -7145,7 +7262,7 @@ function renderTables() {
   updateRecentActivity();
 }
 
-function renderClientsTable() {
+function renderClientsTableLegacy() {
   const tbody = document.getElementById('clientsTableBody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -7166,7 +7283,7 @@ function renderClientsTable() {
   });
 }
 
-function renderTransactionsTable() {
+function renderTransactionsTableLegacy() {
   const tbody = document.getElementById('transactionsTableBody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -7180,7 +7297,8 @@ function renderTransactionsTable() {
     const time = new Date(trans.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     const row = document.createElement('tr');
     row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4">${trans.clientName}</td><td class="p-4"><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${trans.offerName}</span></td><td class="p-4 font-bold">$${trans.dollarAmount.toFixed(2)}</td><td class="p-4">${trans.sellRate} DZD</td><td class="p-4 font-bold">${formatCurrency(trans.totalDzd)}</td><td class="p-4"><span class="profit-badge font-bold px-2.5 py-0.5 rounded-full">+${formatCurrency(trans.profit)}</span></td><td class="p-4"><button onclick="deleteTransaction(${trans.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    const usdAmount = safeToFixed(trans.dollarAmount ?? trans.amount ?? 0, 2);
+    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4">${trans.clientName}</td><td class="p-4"><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${trans.offerName}</span></td><td class="p-4 font-bold">$${usdAmount}</td><td class="p-4">${trans.sellRate} DZD</td><td class="p-4 font-bold">${formatCurrency(trans.totalDzd)}</td><td class="p-4"><span class="profit-badge font-bold px-2.5 py-0.5 rounded-full">+${formatCurrency(trans.profit)}</span></td><td class="p-4"><button onclick="deleteTransaction(${trans.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
 }
@@ -7190,7 +7308,12 @@ function filterTransactions() {
   const filterValue = document.getElementById('transactionFilter')?.value || 'all';
   let filtered = [...appState.transactions];
   if (searchTerm) {
-    filtered = filtered.filter(t => t.clientName.toLowerCase().includes(searchTerm) || t.offerName.toLowerCase().includes(searchTerm) || t.dollarAmount.toString().includes(searchTerm));
+    filtered = filtered.filter(t => {
+      const clientName = (t.clientName || '').toLowerCase();
+      const offerName = (t.offerName || '').toLowerCase();
+      const amountStr = (t.dollarAmount ?? t.amount ?? '').toString().toLowerCase();
+      return clientName.includes(searchTerm) || offerName.includes(searchTerm) || amountStr.includes(searchTerm);
+    });
   }
   const now = new Date();
   switch(filterValue) {
@@ -7225,8 +7348,8 @@ function renderOffersGrid() {
     
     // Calcul de la marge pour chaque offre
     const buyRate = appState.settings.defaultBuyRate;
-    const offerPrice = offer.price;
-    const offerCostUSD = offer.costPerUnit;
+    const offerPrice = Number(offer.price || 0);
+    const offerCostUSD = Number(offer.costPerUnit || 0);
     const costDzd = offerCostUSD * buyRate;
     const marginDzd = offerPrice - costDzd;
     const marginPercentage = costDzd > 0 ? ((marginDzd / costDzd) * 100).toFixed(2) : 0;
@@ -7235,7 +7358,8 @@ function renderOffersGrid() {
     if (marginPercentage < 10) marginColor = 'text-red-600';
     else if (marginPercentage < 20) marginColor = 'text-yellow-600';
     
-    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div><h3 class="text-xl font-bold text-gray-800">${offer.name}</h3><p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i>${offer.duration || 'Non spécifiée'}</p></div><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">${usageCount} vente${usageCount > 1 ? 's' : ''}</span></div><p class="text-gray-600 mb-4 min-h-[50px] text-sm">${offer.description || 'Pas de description'}</p><div class="grid grid-cols-2 gap-3 mb-4 text-sm border-t border-b border-gray-100 py-3"><div><span class="text-gray-600 text-xs block">Montant ($):</span><span class="font-bold text-blue-600">$${offerCostUSD.toFixed(2)}</span></div><div><span class="text-gray-600 text-xs block">Prix Vente (DZD):</span><span class="font-bold text-purple-600">${formatCurrency(offerPrice)}</span></div><div><span class="text-gray-600 text-xs block">Coût @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(costDzd)}</span></div><div><span class="text-gray-600 text-xs block">Marge:</span><span class="font-bold ${marginColor}">${marginPercentage}%</span></div></div><div class="flex justify-between items-center"><div><p class="text-xs text-gray-500">Bénéfice estimé</p><span class="text-lg font-black text-green-600">${formatCurrency(marginDzd)}</span></div><button onclick="deleteOffer(${offer.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></div>`;
+    const usdDisplay = safeToFixed(offerCostUSD, 2);
+    card.innerHTML = `<div class="flex justify-between items-start mb-2"><div><h3 class="text-xl font-bold text-gray-800">${offer.name}</h3><p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock mr-1"></i>${offer.duration || 'Non spécifiée'}</p></div><span class="bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full">${usageCount} vente${usageCount > 1 ? 's' : ''}</span></div><p class="text-gray-600 mb-4 min-h-[50px] text-sm">${offer.description || 'Pas de description'}</p><div class="grid grid-cols-2 gap-3 mb-4 text-sm border-t border-b border-gray-100 py-3"><div><span class="text-gray-600 text-xs block">Montant ($):</span><span class="font-bold text-blue-600">$${usdDisplay}</span></div><div><span class="text-gray-600 text-xs block">Prix Vente (DZD):</span><span class="font-bold text-purple-600">${formatCurrency(offerPrice)}</span></div><div><span class="text-gray-600 text-xs block">Coût @ ${buyRate}:</span><span class="font-bold text-red-600">${formatCurrency(costDzd)}</span></div><div><span class="text-gray-600 text-xs block">Marge:</span><span class="font-bold ${marginColor}">${marginPercentage}%</span></div></div><div class="flex justify-between items-center"><div><p class="text-xs text-gray-500">Bénéfice estimé</p><span class="text-lg font-black text-green-600">${formatCurrency(marginDzd)}</span></div><button onclick="deleteOffer(${offer.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></div>`;
     grid.appendChild(card);
   });
 }
@@ -7265,7 +7389,7 @@ function renderPaymentsTable() {
   });
 }
 
-function renderUsdPurchasesTable() {
+function renderUsdPurchasesTableLegacy() {
   const tbody = document.getElementById('usdPurchasesTableBody');
   if (!tbody) return;
   tbody.innerHTML = '';
@@ -7278,49 +7402,15 @@ function renderUsdPurchasesTable() {
     const time = new Date(purchase.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     const row = document.createElement('tr');
     row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4 font-bold">$${purchase.amount.toFixed(2)}</td><td class="p-4">${purchase.rate} DZD</td><td class="p-4 font-bold text-red-600">${formatCurrency(purchase.totalDzd)}</td><td class="p-4 text-gray-700">${purchase.source || '-'}</td><td class="p-4"><button onclick="deleteUsdPurchase(${purchase.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
+    const usdAmount = safeToFixed(purchase.amount, 2);
+    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4 font-bold">$${usdAmount}</td><td class="p-4">${purchase.rate} DZD</td><td class="p-4 font-bold text-red-600">${formatCurrency(purchase.totalDzd)}</td><td class="p-4 text-gray-700">${purchase.source || '-'}</td><td class="p-4"><button onclick="deleteUsdPurchase(${purchase.id})" class="text-red-600 hover:text-red-800" title="Supprimer"><i class="fas fa-trash"></i></button></td>`;
     tbody.appendChild(row);
   });
 }
 
-function saveToLocalStorage() { localStorage.setItem('sponsoringManagerData', JSON.stringify(appState)); }
+// Ancienne logique locale sponsoringManagerData retirée (on utilise hichemSponsor + Firebase plus haut)
 
-function loadFromLocalStorage() {
-  const saved = localStorage.getItem('sponsoringManagerData');
-  if (saved) {
-    appState = JSON.parse(saved);
-  } else {
-    const now = new Date().toISOString();
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    appState = {
-      clients: [
-        { id: 1, name: "Mohamed Ali", contact: "0555-123456", notes: "Client régulier", totalSpent: 0, joinDate: weekAgo, lastActivity: now },
-        { id: 2, name: "Fatima Zahra", contact: "Facebook: Fati.z", notes: "Préfère les paiements en cash", totalSpent: 0, joinDate: now, lastActivity: now }
-      ],
-      transactions: [
-        { id: 1, date: now, clientId: 1, clientName: "Mohamed Ali", offerName: "Pack Pro", dollarAmount: 10, buyRate: 255, sellRate: 357, totalDzd: 3570, profit: 1020, status: 'completed' }
-      ],
-      offers: [
-        { id: 1, name: "Pack Starter", description: "Parfait pour débutants - 5$ minimum", price: 50000, costPerUnit: 5, createdAt: weekAgo, isActive: true },
-        { id: 2, name: "Pack Pro", description: "Pour investisseurs sérieux - 10$ minimum", price: 150000, costPerUnit: 10, createdAt: weekAgo, isActive: true }
-      ],
-      payments: [
-        { id: 1, date: now, clientId: 1, clientName: "Mohamed Ali", amount: 3570, method: "Cash", status: "completed", note: "Paiement complet" }
-      ],
-      usdPurchases: [
-        { id: 1, date: weekAgo, amount: 100, rate: 250, totalDzd: 25000, source: "Binance P2P" }
-      ],
-      currentTab: 'dashboard',
-      settings: {
-        defaultBuyRate: 255,
-        defaultSellRate: 357,
-        currency: 'DZD'
-      }
-    };
-  }
-}
-
-function updateDashboard() {
+function updateDashboardLegacy() {
   const transactions = appState.transactions || [];
   const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -7459,7 +7549,8 @@ function updateRecentActivity() {
     const time = new Date(trans.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
     const item = document.createElement('div');
     item.className = 'flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-white border border-gray-100 transition-colors';
-    item.innerHTML = `<div><p class="font-bold">${trans.clientName}</p><p class="text-sm text-gray-500">${trans.dollarAmount}$ le ${date} à ${time}</p></div><div class="text-right"><p class="font-bold">$${trans.dollarAmount.toFixed(2)}</p><p class="text-sm font-bold text-green-600">+${formatCurrency(trans.profit)}</p></div>`;
+    const usdAmount = safeToFixed(trans.dollarAmount ?? trans.amount ?? 0, 2);
+    item.innerHTML = `<div><p class="font-bold">${trans.clientName}</p><p class="text-sm text-gray-500">${usdAmount}$ le ${date} à ${time}</p></div><div class="text-right"><p class="font-bold">$${usdAmount}</p><p class="text-sm font-bold text-green-600">+${formatCurrency(trans.profit)}</p></div>`;
     container.appendChild(item);
   });
 }
