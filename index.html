@@ -1660,6 +1660,43 @@
           </div>
         </div>
 
+        <!-- FONDS DE SOCIÉTÉ -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 fade-in">
+          <!-- FOND DZD -->
+          <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-emerald-500 flex justify-between items-center card-hover">
+            <div>
+              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Fond DZD (Trésorerie)</p>
+              <h3 id="fondDzd" class="text-3xl font-bold text-gray-800 mt-1">0 DZD</h3>
+              <p class="text-xs text-gray-400 mt-1">Encaissements - Dépenses - Achats USDT</p>
+            </div>
+            <div class="bg-emerald-100 p-4 rounded-full text-emerald-600">
+              <i class="fas fa-coins text-2xl"></i>
+            </div>
+          </div>
+          <!-- FOND USDT -->
+          <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-blue-500 flex justify-between items-center card-hover">
+            <div>
+              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Fond USDT (Stock)</p>
+              <h3 id="fondUsdt" class="text-3xl font-bold text-gray-800 mt-1">0 USDT</h3>
+              <p class="text-xs text-gray-400 mt-1">Achats - Ventes - Dépenses</p>
+            </div>
+            <div class="bg-blue-100 p-4 rounded-full text-blue-600">
+              <i class="fas fa-wallet text-2xl"></i>
+            </div>
+          </div>
+          <!-- IMPÔT ESTIMÉ -->
+          <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-red-500 flex justify-between items-center card-hover md:col-span-2 lg:col-span-1">
+            <div>
+              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Impôt à Payer (0.05%)</p>
+              <h3 id="taxAmount" class="text-3xl font-bold text-red-600 mt-1">0 DZD</h3>
+              <p class="text-xs text-gray-400 mt-1">Calculé sur le Fond DZD</p>
+            </div>
+            <div class="bg-red-100 p-4 rounded-full text-red-600">
+              <i class="fas fa-file-invoice-dollar text-2xl"></i>
+            </div>
+          </div>
+        </div>
+
         <!-- CALCULATOR + RESULTS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-8">
           <!-- CALCULATOR -->
@@ -2906,42 +2943,52 @@
           changed = true;
         }
       };
+
+      // Initialisation des tableaux manquants
+      if (!Array.isArray(appState.offers)) { appState.offers = []; changed = true; }
+      if (!Array.isArray(appState.clients)) { appState.clients = []; changed = true; }
+      if (!Array.isArray(appState.transactions)) { appState.transactions = []; changed = true; }
+      if (!Array.isArray(appState.payments)) { appState.payments = []; changed = true; }
+      if (!Array.isArray(appState.usdPurchases)) { appState.usdPurchases = []; changed = true; }
+      if (!Array.isArray(appState.expenses)) { appState.expenses = []; changed = true; }
+      if (!Array.isArray(appState.usdtExpenses)) { appState.usdtExpenses = []; changed = true; }
+      if (!Array.isArray(appState.recurringExpenses)) { appState.recurringExpenses = []; changed = true; }
+      if (!Array.isArray(appState.clientRequests)) { appState.clientRequests = []; changed = true; }
+
       try {
-        (appState.offers || []).forEach(o => {
+        appState.offers.forEach(o => {
           ensureId(o, 'offer');
           if (typeof o.price !== 'number') { o.price = Number(o.price || 0); changed = true; }
           if (typeof o.costPerUnit !== 'number') { o.costPerUnit = Number(o.costPerUnit || 0); changed = true; }
           if (!('description' in o)) { o.description = ''; changed = true; }
           if (!('duration' in o)) { o.duration = 'N/A'; changed = true; }
         });
-        (appState.clients || []).forEach(c => {
+        appState.clients.forEach(c => {
           ensureId(c, 'client');
           if (!('contact' in c)) { c.contact = ''; changed = true; }
           if (!('notes' in c)) { c.notes = ''; changed = true; }
         });
-        (appState.transactions || []).forEach(t => {
+        appState.transactions.forEach(t => {
           ensureId(t, 'txn');
           if (!('date' in t)) { t.date = new Date().toISOString().slice(0, 10); changed = true; }
           if (!('createdAt' in t)) { t.createdAt = Date.now(); changed = true; }
         });
-        (appState.payments || []).forEach(p => {
+        appState.payments.forEach(p => {
           ensureId(p, 'pay');
           if (!('date' in p)) { p.date = new Date().toISOString().slice(0, 10); changed = true; }
         });
-        (appState.usdPurchases || []).forEach(u => {
+        appState.usdPurchases.forEach(u => {
           ensureId(u, 'usd');
           if (!('date' in u)) { u.date = new Date().toISOString().slice(0, 10); changed = true; }
         });
-        (appState.expenses || []).forEach(e => {
+        appState.expenses.forEach(e => {
           ensureId(e, 'exp');
           if (!('date' in e)) { e.date = new Date().toISOString().slice(0, 10); changed = true; }
           if (typeof e.amount !== 'number') { e.amount = Number(e.amount || 0); changed = true; }
           if (!('category' in e)) { e.category = 'Autre'; changed = true; }
         });
-        if (!Array.isArray(appState.usdtExpenses)) { appState.usdtExpenses = []; changed = true; }
-        if (!Array.isArray(appState.recurringExpenses)) { appState.recurringExpenses = []; changed = true; }
-        if (!Array.isArray(appState.clientRequests)) { appState.clientRequests = []; changed = true; }
-        (appState.clientRequests || []).forEach(r => {
+        
+        appState.clientRequests.forEach(r => {
           if (typeof r.read !== 'boolean') { r.read = false; changed = true; }
           if (typeof r.processed !== 'boolean') { r.processed = false; changed = true; }
           if (!r.date) { r.date = new Date().toISOString(); changed = true; }
@@ -3657,6 +3704,11 @@
 
     function updateDashboard() {
       const transactions = appState.transactions || [];
+      const expenses = appState.expenses || [];
+      const usdtExpenses = appState.usdtExpenses || [];
+      const payments = appState.payments || [];
+      const usdPurchases = appState.usdPurchases || [];
+      
       const todayIso = new Date().toISOString().slice(0, 10);
 
       let todayProfit = 0;
@@ -3673,6 +3725,7 @@
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
+      // 1. Calculs sur les Transactions (Profit Brut)
       transactions.forEach(t => {
         const profit = Number(t.profit || 0);
         const d = new Date(t.date || todayIso);
@@ -3692,31 +3745,90 @@
         }
       });
 
-      (appState.expenses || []).forEach(e => {
+      // 2. Calculs des Dépenses Frais
+      let totalGeneralExpenses = 0;
+      expenses.forEach(e => {
+        const amt = Number(e.amount || 0);
+        totalGeneralExpenses += amt;
         const d = new Date(e.date || todayIso);
         if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
-          monthExpenses += Number(e.amount || 0);
+          monthExpenses += amt;
         }
       });
 
+      // 3. Calculs des Dépenses USDT (Différence = Gain/Perte)
+      let totalUsdtDiff = 0;
+      usdtExpenses.forEach(e => {
+        totalUsdtDiff += Number(e.diffDzd || 0);
+      });
+
+      // 4. Calcul du Profit Net Global
+      // Profit Transactions + Différence USDT - Frais Généraux
+      const globalNetProfit = totalProfit + totalUsdtDiff - totalGeneralExpenses;
       const monthNet = Math.max(0, monthProfitGross - monthExpenses);
+
+      // 5. Calcul des Fonds de Société
+      // Fond DZD = (Transactions Payées + Paiements Reçus) - (Frais + Achats USDT Cost)
+      const totalPaidSales = transactions.filter(t => t.paid).reduce((sum, t) => sum + Number(t.priceDzd || 0), 0);
+      const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalUsdPurchaseCost = usdPurchases.reduce((sum, p) => sum + Number(p.totalDzd || 0), 0);
+      
+      // Calculer le fond DZD (Base)
+      const fondDzd = totalPaidSales + totalPayments - totalGeneralExpenses - totalUsdPurchaseCost;
+      
+      // Calculer l'Impôt sur le Fond DZD (0.05%)
+      const taxRate = 0.0005; // 0.05%
+      // On applique l'impôt sur le fond positif uniquement (si c'est un "Capital" positif)
+      const taxAmount = fondDzd > 0 ? fondDzd * taxRate : 0;
+
+
+      // Fond USDT = (Achats USD Qty) - (Ventes USD Qty + Dépenses USDT Qty)
+      const totalUsdBought = usdPurchases.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      const totalUsdSpent = usdtExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+      const totalUsdSold = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      
+      const fondUsdt = totalUsdBought - totalUsdSpent - totalUsdSold;
+
+
+      // === AFFICHAGE ===
       const isEmployee = (appState.session && appState.session.type === 'employee');
 
       const todayProfitEl = document.getElementById('todayProfit');
       const weekProfitEl = document.getElementById('weekProfit');
       const totalProfitEl = document.getElementById('totalProfit');
       const monthProfitEl = document.getElementById('monthProfitNet');
+      const fondDzdEl = document.getElementById('fondDzd');
+      const fondUsdtEl = document.getElementById('fondUsdt');
+      const taxAmountEl = document.getElementById('taxAmount');
 
       if (isEmployee) {
         if (todayProfitEl) todayProfitEl.textContent = '***';
         if (weekProfitEl) weekProfitEl.textContent = '***';
         if (totalProfitEl) totalProfitEl.textContent = '***';
         if (monthProfitEl) monthProfitEl.textContent = '***';
+        if (fondDzdEl) fondDzdEl.textContent = '***';
+        if (fondUsdtEl) fondUsdtEl.textContent = '***';
+        if (taxAmountEl) taxAmountEl.textContent = '***';
       } else {
         if (todayProfitEl) todayProfitEl.textContent = formatCurrency(todayProfit);
         if (weekProfitEl) weekProfitEl.textContent = formatCurrency(weekProfit);
-        if (totalProfitEl) totalProfitEl.textContent = formatCurrency(totalProfit);
+        // Mise à jour : Afficher le Profit Net Global au lieu du brut
+        if (totalProfitEl) totalProfitEl.textContent = formatCurrency(globalNetProfit);
         if (monthProfitEl) monthProfitEl.textContent = formatCurrency(monthNet);
+        
+        // Affichage des fonds
+        if (fondDzdEl) {
+          fondDzdEl.textContent = formatCurrency(fondDzd);
+          fondDzdEl.className = `text-3xl font-bold mt-1 ${fondDzd >= 0 ? 'text-gray-800' : 'text-red-600'}`;
+        }
+        if (fondUsdtEl) {
+          fondUsdtEl.textContent = `${safeToFixed(fondUsdt, 2)} USDT`;
+          fondUsdtEl.className = `text-3xl font-bold mt-1 ${fondUsdt >= 0 ? 'text-gray-800' : 'text-red-600'}`;
+        }
+        // Affichage de l'impôt
+        if (taxAmountEl) {
+          taxAmountEl.textContent = formatCurrency(taxAmount);
+        }
       }
 
       const totalClientsEl = document.getElementById('totalClients');
