@@ -3124,7 +3124,8 @@
             usdPurchases: appState.usdPurchases,
             expenses: appState.expenses,
             clientRequests: appState.clientRequests,
-            recurringExpenses: appState.recurringExpenses
+            recurringExpenses: appState.recurringExpenses,
+            usdtExpenses: appState.usdtExpenses
         };
         const promises = [];
         for (const [colName, items] of Object.entries(collections)) {
@@ -3153,10 +3154,10 @@
                 return snap.docs.map(d => d.data());
             } catch (e) { console.warn('Error loading ' + col, e); return []; }
         };
-        const [clients, offers, transactions, payments, usdPurchases, expenses, clientRequests, recurringExpenses] = await Promise.all([
+        const [clients, offers, transactions, payments, usdPurchases, expenses, clientRequests, recurringExpenses, usdtExpenses] = await Promise.all([
             loadCol('clients'), loadCol('offers'), loadCol('transactions'),
             loadCol('payments'), loadCol('usdPurchases'), loadCol('expenses'),
-            loadCol('clientRequests'), loadCol('recurringExpenses')
+            loadCol('clientRequests'), loadCol('recurringExpenses'), loadCol('usdtExpenses')
         ]);
         
         const merge = (local, cloud) => {
@@ -3178,6 +3179,7 @@
         appState.expenses = merge(appState.expenses, expenses);
         appState.clientRequests = merge(appState.clientRequests, clientRequests);
         appState.recurringExpenses = merge(appState.recurringExpenses, recurringExpenses);
+        appState.usdtExpenses = merge(appState.usdtExpenses, usdtExpenses);
         console.log('Merged granular data from Firebase');
     }
 
