@@ -2121,6 +2121,23 @@
             </button>
           </div>
 
+          <!-- Filtre et Total Différence -->
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-4 bg-amber-50 p-4 rounded-xl border border-amber-100">
+            <div class="flex items-center gap-2">
+              <label for="usdtExpenseFilterMonth" class="font-semibold text-gray-700">Filtrer par mois:</label>
+              <input type="month" id="usdtExpenseFilterMonth" onchange="renderUsdtExpensesTable()" 
+                     class="p-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-amber-500 outline-none">
+              <button onclick="document.getElementById('usdtExpenseFilterMonth').value=''; renderUsdtExpensesTable()" 
+                      class="text-gray-500 hover:text-gray-700 transition-colors" title="Effacer filtre">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="text-right">
+              <p class="text-sm text-gray-500">Total Différence</p>
+              <p id="usdtDiffTotal" class="text-2xl font-bold text-gray-800">0 DZD</p>
+            </div>
+          </div>
+
           <div class="overflow-x-auto rounded-xl border">
             <table class="w-full text-left text-sm">
               <thead>
@@ -3429,49 +3446,83 @@
     }
 
     function renderUsdtExpensesTable() {
-      const tbody = document.getElementById('usdtExpensesTableBody');
-      if (!tbody) return;
-      tbody.innerHTML = '';
+      try {
+        const tbody = document.getElementById('usdtExpensesTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
-      const expenses = appState.usdtExpenses || [];
-      let totalValueDzd = 0;
+        const filterMonth = document.getElementById('usdtExpenseFilterMonth')?.value;
+        let expenses = appState.usdtExpenses || [];
+        if (!Array.isArray(expenses)) expenses = [];
 
-      const frag = document.createDocumentFragment();
-      expenses.forEach(e => {
-        const amount = Number(e.amount || 0);
-        const buyRate = Number(e.buyRate || 0);
-        const spendRate = Number(e.spendRate || 0);
-        const costDzd = Number(e.costDzd || amount * buyRate);
-        const valueDzd = Number(e.valueDzd || amount * spendRate);
-        const diffDzd = Number(e.diffDzd || (valueDzd - costDzd));
-        totalValueDzd += valueDzd;
+        if (filterMonth) {
+          expenses = expenses.filter(e => {
+            if (!e) return false;
+            // Filtrer par le mois assigné (e.month) ou par la date d'ajout si absent
+            if (e.month) return e.month === filterMonth;
+            if (e.date) return String(e.date).startsWith(filterMonth);
+            return false;
+          });
+        }
 
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        row.innerHTML = `
-          <td class="p-4 text-gray-700">${formatDate(e.date)}</td>
-          <td class="p-4 text-gray-800">${safeToFixed(amount, 2)} USDT</td>
-          <td class="p-4 text-gray-700">${safeToFixed(buyRate, 2)}</td>
-          <td class="p-4 text-gray-700">${safeToFixed(spendRate, 2)}</td>
-          <td class="p-4 text-red-600 font-semibold">${formatCurrency(costDzd)}</td>
-          <td class="p-4 text-green-600 font-semibold">${formatCurrency(valueDzd)}</td>
-          <td class="p-4 text-gray-700">${formatCurrency(diffDzd)}</td>
-          <td class="p-4 text-gray-700">${e.month || '-'}</td>
-          <td class="p-4 text-gray-600">${e.note || '-'}</td>
-          <td class="p-4">
-            <button onclick="deleteUsdtExpense('${e.id}')" class="text-red-600 hover:text-red-800">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </td>
-        `;
-        frag.appendChild(row);
-      });
-      tbody.appendChild(frag);
+        let totalValueDzd = 0;
+        let totalDiffDzd = 0;
 
-      const summary = document.getElementById('usdtExpensesSummary');
-      const totalSpan = document.getElementById('usdtExpensesTotal');
-      if (summary) summary.textContent = `${expenses.length} dépenses USDT`;
-      if (totalSpan) totalSpan.textContent = `Total valeur: ${formatCurrency(totalValueDzd)}`;
+        const frag = document.createDocumentFragment();
+        expenses.forEach(e => {
+          if (!e) return;
+          const amount = Number(e.amount || 0);
+          const buyRate = Number(e.buyRate || 0);
+          const spendRate = Number(e.spendRate || 0);
+          const costDzd = Number(e.costDzd || amount * buyRate);
+          const valueDzd = Number(e.valueDzd || amount * spendRate);
+          const diffDzd = Number(e.diffDzd || (valueDzd - costDzd));
+          totalValueDzd += valueDzd;
+          totalDiffDzd += diffDzd;
+
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-gray-50';
+          const diffColor = diffDzd >= 0 ? 'text-green-600' : 'text-red-600';
+          
+          let dateStr = '-';
+          try {
+            if (e.date) dateStr = formatDate(e.date);
+          } catch (err) { dateStr = e.date || '-'; }
+
+          row.innerHTML = `
+            <td class="p-4 text-gray-700">${dateStr}</td>
+            <td class="p-4 text-gray-800">${safeToFixed(amount, 2)} USDT</td>
+            <td class="p-4 text-gray-700">${safeToFixed(buyRate, 2)}</td>
+            <td class="p-4 text-gray-700">${safeToFixed(spendRate, 2)}</td>
+            <td class="p-4 text-red-600 font-semibold">${formatCurrency(costDzd)}</td>
+            <td class="p-4 text-green-600 font-semibold">${formatCurrency(valueDzd)}</td>
+            <td class="p-4 font-bold ${diffColor}">${formatCurrency(diffDzd)}</td>
+            <td class="p-4 text-gray-700">${e.month || '-'}</td>
+            <td class="p-4 text-gray-600">${e.note || '-'}</td>
+            <td class="p-4">
+              <button onclick="deleteUsdtExpense('${e.id}')" class="text-red-600 hover:text-red-800">
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </td>
+          `;
+          frag.appendChild(row);
+        });
+        tbody.appendChild(frag);
+
+        const summary = document.getElementById('usdtExpensesSummary');
+        const totalSpan = document.getElementById('usdtExpensesTotal');
+        const diffTotalSpan = document.getElementById('usdtDiffTotal');
+
+        if (summary) summary.textContent = `${expenses.length} dépenses USDT`;
+        if (totalSpan) totalSpan.textContent = `Total valeur: ${formatCurrency(totalValueDzd)}`;
+        if (diffTotalSpan) {
+          diffTotalSpan.textContent = formatCurrency(totalDiffDzd);
+          diffTotalSpan.className = `text-2xl font-bold ${totalDiffDzd >= 0 ? 'text-green-600' : 'text-red-600'}`;
+        }
+      } catch (error) {
+        console.error("Erreur renderUsdtExpensesTable:", error);
+        showToast("Erreur d'affichage des dépenses USDT", "error");
+      }
     }
 
         function renderRecentTransactions() {
