@@ -542,16 +542,17 @@
   async function forceCloudSave() {
     try {
       if (appState.settings.storageMode === 'cloud') {
+        showToast('Synchronisation en cours...', 'info');
         await saveToCloud();
         scheduleCloudRetry();
-        showToast('Sauvegarde cloud forcée', 'success');
         renderSettingsAdmin();
       } else {
         saveToLocalStorage();
         showToast('Sauvegarde locale effectuée', 'success');
       }
     } catch (e) {
-      showToast('Erreur lors de la sauvegarde', 'error');
+      console.error('Erreur forceCloudSave:', e);
+      showToast('Erreur lors de la sauvegarde: ' + e.message, 'error');
     }
   }
 
@@ -3203,13 +3204,17 @@
     async function saveToCloud() {
       try {
         const uid = getCloudUid();
+        const db = getDb();
+        if (!db) throw new Error('Base de données non initialisée');
+        
         appState.lastUpdated = Date.now();
         const data = buildCloudSnapshot();
-        await getDb().collection('users').doc(uid).set({ data }, { merge: true });
+        await db.collection('users').doc(uid).set({ data }, { merge: true });
         await syncGranularToCloud();
-        console.log('â˜ï¸ Données sauvegardées sur Firebase');
+        console.log('☁️ Données sauvegardées sur Firebase');
         appState.sync.pendingCloudSave = false;
         updateSyncIndicator();
+        showToast('Synchronisation Cloud réussie', 'success');
       } catch (err) {
         console.error('Erreur sauvegarde cloud:', err);
         showToast('Mode hors ligne : sauvegarde locale effectuée', 'warning');
