@@ -540,19 +540,22 @@
   }
 
   async function forceCloudSave() {
+    console.log("forceCloudSave called");
     try {
       if (appState.settings.storageMode === 'cloud') {
-        showToast('Synchronisation en cours...', 'info');
+        showToast('Début synchronisation...', 'info');
+        console.log("Storage mode is cloud, calling saveToCloud...");
         await saveToCloud();
         scheduleCloudRetry();
         renderSettingsAdmin();
       } else {
+        console.log("Storage mode is local");
         saveToLocalStorage();
-        showToast('Sauvegarde locale effectuée', 'success');
+        showToast('Sauvegarde locale effectuée (Mode Cloud désactivé)', 'success');
       }
     } catch (e) {
       console.error('Erreur forceCloudSave:', e);
-      showToast('Erreur lors de la sauvegarde: ' + e.message, 'error');
+      showToast('Erreur critique sauvegarde: ' + e.message, 'error');
     }
   }
 
@@ -3118,7 +3121,11 @@
 
         async function syncGranularToCloud() {
         const db = getDb();
-        if (!db) return;
+        if (!db) {
+            console.error("syncGranularToCloud: DB not initialized");
+            return;
+        }
+        console.log("Starting granular sync...");
         const collections = {
             clients: appState.clients,
             offers: appState.offers,
@@ -3131,10 +3138,13 @@
             usdtExpenses: appState.usdtExpenses
         };
         const promises = [];
+        let totalItems = 0;
         for (const [colName, items] of Object.entries(collections)) {
             if (!Array.isArray(items)) continue;
+            console.log(`Syncing ${colName}: ${items.length} items`);
             items.forEach(item => {
                 if (!item || typeof item !== 'object') return;
+                totalItems++;
                 let docRef;
                 if (item.id && typeof item.id === 'string' && item.id.indexOf('/') === -1) {
                     docRef = db.collection(colName).doc(item.id);
@@ -3142,11 +3152,15 @@
                     docRef = db.collection(colName).doc();
                     item.id = docRef.id;
                 }
-                promises.push(docRef.set(item));
+                // Use a wrapper promise to catch individual errors
+                promises.push(
+                    docRef.set(item)
+                    .catch(e => console.error(`Failed to sync item in ${colName}:`, item, e))
+                );
             });
         }
         await Promise.all(promises);
-        console.log('Synced granular data to Firebase');
+        console.log(`Synced granular data to Firebase (${totalItems} items processed)`);
     }
 
     async function loadGranularFromCloud() {
