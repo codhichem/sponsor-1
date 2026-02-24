@@ -686,7 +686,8 @@
     });
     
     // === TRY CLOUD FETCH ===
-    if (!c && typeof db !== 'undefined') {
+    const db = getDb();
+    if (!c && db) {
         try {
              let q = await db.collection('clients').where('email', '==', ident).limit(1).get();
              if (q.empty) q = await db.collection('clients').where('username', '==', ident).limit(1).get();
@@ -3115,7 +3116,8 @@
     }
 
         async function syncGranularToCloud() {
-        if (typeof db === 'undefined') return;
+        const db = getDb();
+        if (!db) return;
         const collections = {
             clients: appState.clients,
             offers: appState.offers,
@@ -3147,7 +3149,8 @@
     }
 
     async function loadGranularFromCloud() {
-        if (typeof db === 'undefined') return;
+        const db = getDb();
+        if (!db) return;
         const loadCol = async (col) => {
             try {
                 const snap = await db.collection(col).get();
@@ -3922,7 +3925,8 @@
     }
 
   async function syncAdminRequests() {
-    if (typeof db === 'undefined') return;
+    const db = getDb();
+    if (!db) return;
     try {
         const snap = await db.collection('requests').get();
         const remoteReqs = [];
@@ -3940,7 +3944,8 @@
   let adminRequestsUnsubscribe = null;
 
   function setupAdminRealtimeListeners() {
-    if (typeof db === 'undefined') return;
+    const db = getDb();
+    if (!db) return;
     if (appState.session && appState.session.type === 'client') return;
     
     // Unsubscribe previous if exists
