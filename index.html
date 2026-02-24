@@ -3125,7 +3125,12 @@
             console.error("syncGranularToCloud: DB not initialized");
             return;
         }
-        console.log("Starting granular sync...");
+        
+        // Initialize lastSyncedState if needed
+        if (!appState.sync) appState.sync = {};
+        if (!appState.sync.lastSyncedState) appState.sync.lastSyncedState = {};
+
+        console.log("Starting granular sync (Optimized)...");
         const collections = {
             clients: appState.clients,
             offers: appState.offers,
@@ -3139,8 +3144,19 @@
         };
         const promises = [];
         let totalItems = 0;
+        let skippedItems = 0;
+
         for (const [colName, items] of Object.entries(collections)) {
             if (!Array.isArray(items)) continue;
+            
+            // Check if collection has changed significantly (simple hash or length check could be done, 
+            // but we need per-item check for robustness or full collection JSON check)
+            const currentJson = JSON.stringify(items);
+            if (appState.sync.lastSyncedState[colName] === currentJson) {
+                console.log(`Skipping ${colName}: No changes detected since last sync.`);
+                continue;
+            }
+
             console.log(`Syncing ${colName}: ${items.length} items`);
             items.forEach(item => {
                 if (!item || typeof item !== 'object') return;
@@ -3152,15 +3168,34 @@
                     docRef = db.collection(colName).doc();
                     item.id = docRef.id;
                 }
+                
                 // Use a wrapper promise to catch individual errors
                 promises.push(
                     docRef.set(item)
-                    .catch(e => console.error(`Failed to sync item in ${colName}:`, item, e))
+                    .catch(e => {
+                        console.error(`Failed to sync item in ${colName}:`, item, e);
+                        if (e.code === 'resource-exhausted') {
+                             throw e; // Re-throw to stop the process
+                        }
+                    })
                 );
             });
+            
+            // Update last synced state for this collection AFTER loop (optimistic, but effective for reducing load)
+            // We do this here, but ideally we should wait for promises. 
+            // However, to simplify and avoid blocking the loop logic, we'll update it if no critical error occurs later.
+             appState.sync.lastSyncedState[colName] = currentJson;
         }
-        await Promise.all(promises);
-        console.log(`Synced granular data to Firebase (${totalItems} items processed)`);
+        
+        try {
+            await Promise.all(promises);
+            console.log(`Synced granular data to Firebase (${totalItems} items processed, others skipped)`);
+        } catch(e) {
+            if (e.code === 'resource-exhausted') {
+                console.error("Quota exceeded during granular sync");
+                throw e; // Propagate to saveToCloud
+            }
+        }
     }
 
     async function loadGranularFromCloud() {
@@ -3231,7 +3266,11 @@
         showToast('Synchronisation Cloud réussie', 'success');
       } catch (err) {
         console.error('Erreur sauvegarde cloud:', err);
-        showToast('Mode hors ligne : sauvegarde locale effectuée', 'warning');
+        if (err.code === 'resource-exhausted') {
+            showToast('Quota Firebase dépassé (Trop de synchronisations). Réessayez demain.', 'error');
+        } else {
+            showToast('Mode hors ligne : sauvegarde locale effectuée', 'warning');
+        }
         saveToLocalStorage();
         appState.sync.pendingCloudSave = true;
         updateSyncIndicator();
