@@ -9,6 +9,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
   <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -1702,6 +1705,23 @@
           </div>
         </div>
 
+        <!-- GRAPH: REVENUS VS DEPENSES -->
+        <div class="bg-white p-6 rounded-2xl shadow-xl mb-8 border border-gray-100 fade-in" style="animation-delay: 0.3s;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-chart-line text-blue-600"></i>
+                    Évolution des Profits (30 derniers jours)
+                </h2>
+                <div class="text-sm text-gray-500 hidden md:block">
+                   <span class="inline-block w-3 h-3 rounded-full bg-blue-500 mr-1"></span> Profit Net
+                   <span class="inline-block w-3 h-3 rounded-full bg-red-400 mr-1 ml-3"></span> Dépenses
+                </div>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="profitChart"></canvas>
+            </div>
+        </div>
+
         <!-- CALCULATOR + RESULTS -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-8">
           <!-- CALCULATOR -->
@@ -1891,6 +1911,30 @@
 
       <!-- SETTINGS TAB -->
       <section id="settings" class="tab-content hidden fade-in">
+        <div class="bg-white p-6 rounded-2xl shadow-xl mb-6">
+            <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                <i class="fas fa-database text-gray-600"></i>
+                Gestion des Données (Sécurité)
+            </h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <button onclick="backupData()" class="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition flex items-center gap-2">
+                    <i class="fas fa-download"></i>
+                    Sauvegarder les données (JSON)
+                </button>
+                <div class="relative">
+                    <input type="file" id="restoreFile" class="hidden" accept=".json" onchange="restoreData(this)">
+                    <button onclick="document.getElementById('restoreFile').click()" class="px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition flex items-center gap-2">
+                        <i class="fas fa-upload"></i>
+                        Restaurer les données
+                    </button>
+                </div>
+            </div>
+            <p class="text-sm text-gray-500 mt-4">
+                <i class="fas fa-info-circle mr-1"></i>
+                Téléchargez une copie de vos données pour les conserver en sécurité sur votre ordinateur. Vous pourrez les restaurer plus tard en cas de problème.
+            </p>
+        </div>
+        
         <div id="settingsContent" class="space-y-6">
            <!-- Dynamic Content -->
         </div>
@@ -1990,6 +2034,10 @@
                 <option value="week">Cette semaine</option>
                 <option value="month">Ce mois</option>
               </select>
+              <button onclick="exportTransactions()" class="p-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition flex items-center gap-2 whitespace-nowrap">
+                <i class="fas fa-file-csv"></i>
+                Exporter
+              </button>
             </div>
           </div>
           <div class="mb-4 text-sm text-gray-500 flex justify-between items-center">
@@ -3128,9 +3176,9 @@
         
         // Initialize lastSyncedState if needed
         if (!appState.sync) appState.sync = {};
-        if (!appState.sync.lastSyncedState) appState.sync.lastSyncedState = {};
+        if (!appState.sync.itemSnapshots) appState.sync.itemSnapshots = {};
 
-        console.log("Starting granular sync (Optimized)...");
+        console.log("Starting granular sync (Delta Optimized)...");
         const collections = {
             clients: appState.clients,
             offers: appState.offers,
@@ -3143,24 +3191,30 @@
             usdtExpenses: appState.usdtExpenses
         };
         const promises = [];
-        let totalItems = 0;
-        let skippedItems = 0;
+        let totalWrites = 0;
+        let totalSkipped = 0;
 
         for (const [colName, items] of Object.entries(collections)) {
             if (!Array.isArray(items)) continue;
             
-            // Check if collection has changed significantly (simple hash or length check could be done, 
-            // but we need per-item check for robustness or full collection JSON check)
-            const currentJson = JSON.stringify(items);
-            if (appState.sync.lastSyncedState[colName] === currentJson) {
-                console.log(`Skipping ${colName}: No changes detected since last sync.`);
-                continue;
-            }
-
-            console.log(`Syncing ${colName}: ${items.length} items`);
+            // Ensure snapshot container exists for this collection
+            if (!appState.sync.itemSnapshots[colName]) appState.sync.itemSnapshots[colName] = {};
+            
             items.forEach(item => {
                 if (!item || typeof item !== 'object') return;
-                totalItems++;
+                
+                // Generate ID if missing (should not happen usually but safe to have)
+                if (!item.id) item.id = generateId();
+
+                // Compute signature of current item
+                const currentSig = JSON.stringify(item);
+                
+                // Compare with last successfully synced signature
+                if (appState.sync.itemSnapshots[colName][item.id] === currentSig) {
+                    totalSkipped++;
+                    return; // Skip this item, it's already 100% synced
+                }
+
                 let docRef;
                 if (item.id && typeof item.id === 'string' && item.id.indexOf('/') === -1) {
                     docRef = db.collection(colName).doc(item.id);
@@ -3169,31 +3223,36 @@
                     item.id = docRef.id;
                 }
                 
-                // Use a wrapper promise to catch individual errors
+                // Add to write queue
                 promises.push(
                     docRef.set(item)
+                    .then(() => {
+                        // On success, update the snapshot signature
+                        appState.sync.itemSnapshots[colName][item.id] = currentSig;
+                        totalWrites++;
+                    })
                     .catch(e => {
                         console.error(`Failed to sync item in ${colName}:`, item, e);
                         if (e.code === 'resource-exhausted') {
-                             throw e; // Re-throw to stop the process
+                             throw e; 
                         }
                     })
                 );
             });
-            
-            // Update last synced state for this collection AFTER loop (optimistic, but effective for reducing load)
-            // We do this here, but ideally we should wait for promises. 
-            // However, to simplify and avoid blocking the loop logic, we'll update it if no critical error occurs later.
-             appState.sync.lastSyncedState[colName] = currentJson;
         }
         
         try {
-            await Promise.all(promises);
-            console.log(`Synced granular data to Firebase (${totalItems} items processed, others skipped)`);
+            if (promises.length > 0) {
+                console.log(`Sending ${promises.length} updates to Cloud...`);
+                await Promise.all(promises);
+                console.log(`Delta Sync Complete: ${totalWrites} written, ${totalSkipped} skipped.`);
+            } else {
+                console.log("Delta Sync: No changes detected (100% synced).");
+            }
         } catch(e) {
             if (e.code === 'resource-exhausted') {
                 console.error("Quota exceeded during granular sync");
-                throw e; // Propagate to saveToCloud
+                throw e; 
             }
         }
     }
@@ -3369,7 +3428,80 @@
       if (totalSpan) totalSpan.textContent = `Total dépensé: ${formatCurrency(totalSpent)}`;
     }
 
-        function renderTransactionsTable() {
+        function generateInvoice(transactionId) {
+        const t = appState.transactions.find(tx => tx.id === transactionId);
+        if (!t) return;
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFillColor(33, 150, 243); // Blue
+        doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.text("FACTURE", 105, 25, { align: "center" });
+        
+        // Company Info
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(10);
+        doc.text("Hichem Sponsor", 14, 50);
+        doc.text("Service de Sponsoring Digital", 14, 55);
+        
+        // Invoice Details
+        doc.setFontSize(10);
+        const dateStr = (t.date || '').slice(0, 10);
+        doc.text(`Date: ${dateStr}`, 150, 50);
+        doc.text(`N° Facture: #${t.id.slice(-6).toUpperCase()}`, 150, 55);
+        
+        // Client Info
+        doc.setFontSize(12);
+        doc.setTextColor(0, 0, 0);
+        doc.text("Client:", 14, 70);
+        doc.setFontSize(10);
+        doc.setTextColor(50, 50, 50);
+        doc.text(t.clientName || "Client Inconnu", 14, 76);
+        
+        // Table
+        const tableData = [
+            [
+                t.offerName || "Service Sponsoring", 
+                t.duration || "N/A", 
+                formatCurrency(t.priceDzd || 0)
+            ]
+        ];
+        
+        doc.autoTable({
+            startY: 90,
+            head: [['Description', 'Durée', 'Montant']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [33, 150, 243] },
+            styles: { fontSize: 10, cellPadding: 4 },
+        });
+        
+        // Total
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Total à payer: ${formatCurrency(t.priceDzd || 0)}`, 140, finalY, { align: "left" });
+        
+        // Status
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        const status = t.paid ? "PAYÉ" : "EN ATTENTE";
+        doc.setTextColor(t.paid ? 0 : 200, t.paid ? 150 : 0, 0); // Green or Red
+        doc.text(`Statut: ${status}`, 14, finalY);
+        
+        // Footer
+        doc.setTextColor(150, 150, 150);
+        doc.setFontSize(8);
+        doc.text("Merci de votre confiance.", 105, 280, { align: "center" });
+        
+        doc.save(`Facture_${t.clientName}_${dateStr}.pdf`);
+    }
+
+    function renderTransactionsTable() {
       const tbody = document.getElementById('transactionsTableBody');
       if (!tbody) return;
       tbody.innerHTML = '';
@@ -3403,11 +3535,14 @@
           <td class="p-4 text-gray-700">${formatCurrency(t.totalDzd || 0)}</td>
           ${profitCell}
           <td class="p-4 text-gray-600">${t.duration || '-'}</td>
-          <td class="p-4">
-            <button onclick="editTransaction('${t.id}')" class="text-blue-600 hover:text-blue-800 mr-3">
+          <td class="p-4 flex gap-2">
+            <button onclick="generateInvoice('${t.id}')" class="text-gray-600 hover:text-gray-800" title="Facture PDF">
+              <i class="fas fa-file-invoice"></i>
+            </button>
+            <button onclick="editTransaction('${t.id}')" class="text-blue-600 hover:text-blue-800" title="Modifier">
               <i class="fas fa-edit"></i>
             </button>
-            <button onclick="deleteTransaction('${t.id}')" class="text-red-600 hover:text-red-800">
+            <button onclick="deleteTransaction('${t.id}')" class="text-red-600 hover:text-red-800" title="Supprimer">
               <i class="fas fa-trash-alt"></i>
             </button>
           </td>
@@ -3422,6 +3557,42 @@
       if (totalSpan) {
           totalSpan.textContent = isEmployee ? '' : `Profit total: ${formatCurrency(totalProfit)}`;
       }
+    }
+
+    function exportTransactions() {
+      const rows = [
+        ['Date', 'Client', 'Offre', 'Montant ($)', 'Prix Vente (DZD)', 'Profit (DZD)', 'Durée', 'Payé']
+      ];
+      
+      // Use filtered transactions to respect user's view
+      const transactions = (typeof filterTransactions === 'function' ? filterTransactions() : appState.transactions) || [];
+      
+      transactions.forEach(t => {
+        const date = (t.date || '').slice(0, 10);
+        const clientName = (t.clientName || 'Inconnu').replace(/"/g, '""');
+        const offerName = (t.offerName || 'Inconnu').replace(/"/g, '""');
+        const amount = t.amount || 0;
+        const priceDzd = t.priceDzd || 0;
+        const profit = t.profit || 0;
+        const duration = (t.duration || '').replace(/"/g, '""');
+        const paid = t.paid ? 'Oui' : 'Non';
+        
+        rows.push([date, `"${clientName}"`, `"${offerName}"`, amount, priceDzd, profit, `"${duration}"`, paid]);
+      });
+      
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // Add BOM for Excel support
+      rows.forEach(rowArray => {
+        const row = rowArray.join(",");
+        csvContent += row + "\r\n";
+      });
+      
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `transactions_export_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
 
     let paymentsSortField = 'date';
@@ -3951,6 +4122,141 @@
           });
         }
       }
+
+      // Update Chart
+      renderProfitChart(transactions, expenses);
+    }
+
+    let profitChartInstance = null;
+
+    function renderProfitChart(transactions, expenses) {
+        const ctx = document.getElementById('profitChart');
+        if (!ctx) return; // Canvas might not be in DOM yet or on other tabs
+        
+        // Prepare data: Last 30 days
+        const labels = [];
+        const profitData = [];
+        const expenseData = [];
+        const today = new Date();
+        
+        // Create map for aggregation
+        const profitsMap = {};
+        const expensesMap = {};
+        
+        // Fill maps
+        transactions.forEach(t => {
+            const dateStr = (t.date || '').slice(0, 10);
+            if (!profitsMap[dateStr]) profitsMap[dateStr] = 0;
+            profitsMap[dateStr] += Number(t.profit || 0);
+        });
+        
+        expenses.forEach(e => {
+            const dateStr = (e.date || '').slice(0, 10);
+            if (!expensesMap[dateStr]) expensesMap[dateStr] = 0;
+            expensesMap[dateStr] += Number(e.amount || 0);
+        });
+
+        // Generate last 30 days
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(today.getDate() - i);
+            const dateStr = d.toISOString().slice(0, 10);
+            labels.push(d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+            profitData.push(profitsMap[dateStr] || 0);
+            expenseData.push(expensesMap[dateStr] || 0);
+        }
+
+        if (profitChartInstance) {
+            profitChartInstance.data.labels = labels;
+            profitChartInstance.data.datasets[0].data = profitData;
+            profitChartInstance.data.datasets[1].data = expenseData;
+            profitChartInstance.update();
+        } else {
+            profitChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Profit Net',
+                            data: profitData,
+                            borderColor: '#3B82F6', // Blue 500
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 2
+                        },
+                        {
+                            label: 'Dépenses',
+                            data: expenseData,
+                            borderColor: '#F87171', // Red 400
+                            backgroundColor: 'rgba(248, 113, 113, 0.05)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 2,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false 
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('fr-DZ', { style: 'currency', currency: 'DZD' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    if (Math.abs(value) >= 1000) {
+                                        return (value / 1000) + 'k';
+                                    }
+                                    return value;
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                maxTicksLimit: 10,
+                                maxRotation: 0
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
     }
 
             function applyEmployeeRestrictions() {
@@ -6881,9 +7187,50 @@ window.openModal = openModal;
 window.closeModal = closeModal;
 window.exportPDF = exportPDF;
 window.backupData = backupData;
-window.importData = importData;
+window.restoreData = restoreData;
+window.generateInvoice = generateInvoice;
 
 window.exportClientsCSV = exportClientsCSV;
+        const data = JSON.stringify(appState, null, 2);
+        const blob = new Blob([data], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `backup_sponsor_manager_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast("Sauvegarde téléchargée", "success");
+    }
+
+    function restoreData(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data && data.clients && data.transactions) {
+                    if(confirm("Attention : Cela va remplacer toutes vos données actuelles. Êtes-vous sûr ?")) {
+                        appState = data;
+                        saveToLocalStorage();
+                        // Reset sync state to force full sync if needed or just keep as is
+                        appState.sync = { pendingCloudSave: true }; 
+                        window.location.reload();
+                    }
+                } else {
+                    showToast("Fichier de sauvegarde invalide", "error");
+                }
+            } catch(err) {
+                console.error(err);
+                showToast("Erreur lors de la lecture du fichier", "error");
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    // === APPLICATION START ===
 window.showStats = showStats;
 window.resetCalculator = resetCalculator;
 window.filterTransactions = filterTransactions;
