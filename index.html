@@ -7191,44 +7191,46 @@ window.restoreData = restoreData;
 window.generateInvoice = generateInvoice;
 
 window.exportClientsCSV = exportClientsCSV;
-        const data = JSON.stringify(appState, null, 2);
-        const blob = new Blob([data], {type: "application/json"});
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `backup_sponsor_manager_${new Date().toISOString().slice(0,10)}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast("Sauvegarde téléchargée", "success");
-    }
 
-    function restoreData(input) {
-        const file = input.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const data = JSON.parse(e.target.result);
-                if (data && data.clients && data.transactions) {
-                    if(confirm("Attention : Cela va remplacer toutes vos données actuelles. Êtes-vous sûr ?")) {
-                        appState = data;
-                        saveToLocalStorage();
-                        // Reset sync state to force full sync if needed or just keep as is
-                        appState.sync = { pendingCloudSave: true }; 
-                        window.location.reload();
-                    }
-                } else {
-                    showToast("Fichier de sauvegarde invalide", "error");
+function backupData() {
+    const data = JSON.stringify(appState, null, 2);
+    const blob = new Blob([data], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `backup_sponsor_manager_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Sauvegarde téléchargée", "success");
+}
+
+function restoreData(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data && data.clients && data.transactions) {
+                if(confirm("Attention : Cela va remplacer toutes vos données actuelles. Êtes-vous sûr ?")) {
+                    appState = data;
+                    saveToLocalStorage();
+                    // Reset sync state to force full sync if needed or just keep as is
+                    appState.sync = { pendingCloudSave: true }; 
+                    window.location.reload();
                 }
-            } catch(err) {
-                console.error(err);
-                showToast("Erreur lors de la lecture du fichier", "error");
+            } else {
+                showToast("Fichier de sauvegarde invalide", "error");
             }
-        };
-        reader.readAsText(file);
-    }
+        } catch(err) {
+            console.error(err);
+            showToast("Erreur lors de la lecture du fichier", "error");
+        }
+    };
+    reader.readAsText(file);
+}
     
     // === APPLICATION START ===
 window.showStats = showStats;
