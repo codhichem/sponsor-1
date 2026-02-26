@@ -4707,11 +4707,17 @@
     }
 
     function addOffer() {
-      const name = document.getElementById('newOfferName').value.trim();
-      const desc = document.getElementById('newOfferDesc').value.trim();
-      const price = Number(document.getElementById('newOfferPrice').value || 0);
-      const costPerUnit = Number(document.getElementById('newOfferCostPerUnit').value || 0);
-      const duration = document.getElementById('newOfferDuration').value.trim();
+      const nameInput = document.getElementById('newOfferName');
+      const descInput = document.getElementById('newOfferDesc');
+      const priceInput = document.getElementById('newOfferPrice');
+      const costPerUnitInput = document.getElementById('newOfferCostPerUnit');
+      const durationInput = document.getElementById('newOfferDuration');
+
+      const name = nameInput ? nameInput.value.trim() : '';
+      const desc = descInput ? descInput.value.trim() : '';
+      const price = Number(priceInput ? priceInput.value : 0);
+      const costPerUnit = Number(costPerUnitInput ? costPerUnitInput.value : 0);
+      const duration = durationInput ? durationInput.value.trim() : '';
 
       if (!name || !price || !costPerUnit) {
         showToast('Nom, prix et montant $ requis', 'error');
@@ -4745,11 +4751,11 @@
         showToast('Offre ajoutée', 'success');
       }
 
-      document.getElementById('newOfferName').value = '';
-      document.getElementById('newOfferDesc').value = '';
-      document.getElementById('newOfferPrice').value = '';
-      document.getElementById('newOfferCostPerUnit').value = '';
-      document.getElementById('newOfferDuration').value = '';
+      if(nameInput) nameInput.value = '';
+      if(descInput) descInput.value = '';
+      if(priceInput) priceInput.value = '';
+      if(costPerUnitInput) costPerUnitInput.value = '';
+      if(durationInput) durationInput.value = '';
       editingOfferId = null;
 
       closeModal('offerModal');
@@ -4837,10 +4843,12 @@
 
     function addPayment() {
       const clientId = document.getElementById('paymentClientSelect').value;
-      const amount = Number(document.getElementById('paymentAmount').value || 0);
+      const amountInput = document.getElementById('paymentAmount');
+      const amount = Number(amountInput ? amountInput.value : 0);
       const method = document.getElementById('paymentMethod').value;
       const status = document.getElementById('paymentStatus').value;
-      const note = document.getElementById('paymentNote').value.trim();
+      const noteInput = document.getElementById('paymentNote');
+      const note = noteInput ? noteInput.value.trim() : '';
 
       if (!clientId || !amount) {
         showToast('Client et montant requis', 'error');
@@ -4862,7 +4870,7 @@
       const payment = {
         id: generateId('pay'),
         date: getLocalDateString(),
-        clientId,
+        clientId: client.id,
         clientName: client.name,
         amount,
         method,
@@ -4877,18 +4885,26 @@
       renderPaymentsTable();
       const tbody = document.getElementById('paymentsTableBody');
       if (tbody) {
-        const row = tbody.querySelector(`tr[data-payment-id="${payment.id}"]`);
-        if (row) {
-          row.classList.add('animate-pulse');
-          setTimeout(() => {
-            row.classList.remove('animate-pulse');
-          }, 800);
-        }
+        // Wait for render to complete
+        setTimeout(() => {
+            const row = tbody.querySelector(`tr[data-payment-id="${payment.id}"]`);
+            if (row) {
+              row.classList.add('animate-pulse');
+              setTimeout(() => {
+                row.classList.remove('animate-pulse');
+              }, 800);
+            }
+        }, 50);
       }
       closeModal('paymentModal');
       renderClientsTable();
       autoSave();
       showToast('Paiement enregistré', 'success');
+      
+      // Reset form
+      if(amountInput) amountInput.value = '';
+      if(noteInput) noteInput.value = '';
+      document.getElementById('paymentClientSelect').value = '';
     }
 
     function addUsdtExpense() {
@@ -7443,14 +7459,108 @@ function renderDuplicates(duplicates) {
         
         html += `
                 </div>
-                <div class="mt-3 text-right">
-                    <p class="text-xs text-gray-400 italic">Vérifiez manuellement et supprimez les doublons si nécessaire.</p>
+                <div class="mt-3 text-right flex justify-end gap-2">
+                    <button onclick="mergeDuplicates(${idx})" class="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">Fusionner (Garder 1er)</button>
+                    <p class="text-xs text-gray-400 italic self-center">Vérifiez manuellement et supprimez les doublons si nécessaire.</p>
                 </div>
             </div>
         `;
     });
     
     content.innerHTML = html;
+}
+
+function mergeDuplicates(groupIdx) {
+    // Re-run detection to get fresh groups
+    const clients = appState.clients || [];
+    const duplicates = [];
+    const processed = new Set();
+    const normalize = str => (str || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+
+    for (let i = 0; i < clients.length; i++) {
+      if (processed.has(clients[i].id)) continue;
+      const c1 = clients[i];
+      const group = [c1];
+      const n1 = normalize(c1.name);
+
+      for (let j = i + 1; j < clients.length; j++) {
+        if (processed.has(clients[j].id)) continue;
+        const c2 = clients[j];
+        const n2 = normalize(c2.name);
+        let isDuplicate = false;
+        if (n1 && n2 && n1 === n2) isDuplicate = true;
+        if (!isDuplicate && n1.length > 4 && n2.length > 4) {
+             const dist = levenshtein(n1, n2);
+             if (dist <= 2) isDuplicate = true;
+        }
+        if (!isDuplicate && c1.contact && c2.contact) {
+            const cont1 = normalize(c1.contact);
+            const cont2 = normalize(c2.contact);
+            if (cont1.length > 5 && cont2.length > 5 && (cont1.includes(cont2) || cont2.includes(cont1))) {
+                isDuplicate = true;
+            }
+        }
+        if (isDuplicate) {
+            group.push(c2);
+            processed.add(c2.id);
+        }
+      }
+      if (group.length > 1) {
+        duplicates.push(group);
+        processed.add(c1.id);
+      }
+    }
+
+    const group = duplicates[groupIdx];
+    if (!group || group.length < 2) return;
+
+    if(!confirm(`Fusionner ${group.length} clients en un seul ? Les transactions seront transférées vers le premier client du groupe (${group[0].name}).`)) return;
+
+    const masterClient = group[0];
+    const clientsToRemove = group.slice(1);
+
+    // Merge logic
+    clientsToRemove.forEach(c => {
+        // 1. Reassign Transactions
+        appState.transactions.forEach(t => {
+            if (t.clientId === c.id) {
+                t.clientId = masterClient.id;
+                t.clientName = masterClient.name;
+            }
+        });
+        // 2. Reassign Payments
+        appState.payments.forEach(p => {
+            if (p.clientId === c.id) {
+                p.clientId = masterClient.id;
+                p.clientName = masterClient.name;
+            }
+        });
+        // 3. Reassign Requests
+        (appState.clientRequests || []).forEach(r => {
+            // Requests might not have clientId but use token/name
+            // If we had clientId in requests, we'd update it. 
+            // For now, assume requests are linked by token or created txn.
+        });
+        
+        // 4. Update Master Client Stats
+        masterClient.totalSpent = (Number(masterClient.totalSpent || 0) + Number(c.totalSpent || 0));
+        masterClient.transactionsCount = (Number(masterClient.transactionsCount || 0) + Number(c.transactionsCount || 0));
+        masterClient.unpaid = (Number(masterClient.unpaid || 0) + Number(c.unpaid || 0));
+        
+        // Merge notes/contact if master is empty
+        if (!masterClient.contact && c.contact) masterClient.contact = c.contact;
+        if (!masterClient.notes && c.notes) masterClient.notes = c.notes;
+        if (!masterClient.instagram && c.instagram) masterClient.instagram = c.instagram;
+        
+        // Remove client
+        appState.clients = appState.clients.filter(client => client.id !== c.id);
+    });
+
+    showToast(`${clientsToRemove.length} doublons fusionnés avec succès`, 'success');
+    detectDuplicateClients(); // Refresh modal
+    renderClientsTable(); // Refresh table
+    renderRecentTransactions(); // Refresh transactions
+    autoSave();
 }
 
 // === APPLICATION START ===
