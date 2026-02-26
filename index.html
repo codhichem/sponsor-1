@@ -2418,6 +2418,90 @@
     </div> <!-- fin .space-y-6 -->
 
     <!-- MODALS -->
+    
+    <!-- OFFER MODAL -->
+    <div id="offerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-gift text-purple-600"></i>
+            Ajouter une Offre
+          </h3>
+          <button onclick="closeModal('offerModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="space-y-3 mb-4">
+          <input id="newOfferName" type="text" placeholder="Nom de l'offre"
+                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
+          <textarea id="newOfferDesc" placeholder="Description (optionnel)"
+                    class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all" rows="2"></textarea>
+          <div class="grid grid-cols-2 gap-3">
+            <input id="newOfferPrice" type="number" placeholder="Prix de vente ($)"
+                   class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
+            <input id="newOfferCostPerUnit" type="number" placeholder="Coût ($)"
+                   class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
+          </div>
+          <input id="newOfferDuration" type="text" placeholder="Durée (ex: 30 jours)"
+                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none transition-all">
+        </div>
+        <div class="flex justify-end gap-3">
+          <button onclick="closeModal('offerModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+            Annuler
+          </button>
+          <button onclick="addOffer()" class="px-5 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+            Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-money-bill-wave text-orange-600"></i>
+            Enregistrer Paiement
+          </h3>
+          <button onclick="closeModal('paymentModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="space-y-3 mb-4">
+          <select id="paymentClientSelect" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+            <option value="">Sélectionner un client</option>
+          </select>
+          <input id="paymentAmount" type="number" step="0.01" placeholder="Montant reçu ($)"
+                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+          <div class="grid grid-cols-2 gap-3">
+             <select id="paymentMethod" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+               <option value="Cash">Espèces</option>
+               <option value="USDT">USDT</option>
+               <option value="CCP">CCP</option>
+               <option value="BaridiMob">BaridiMob</option>
+               <option value="Paysera">Paysera</option>
+               <option value="Wise">Wise</option>
+             </select>
+             <select id="paymentStatus" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+               <option value="completed">Reçu</option>
+               <option value="pending">En attente</option>
+             </select>
+          </div>
+          <textarea id="paymentNote" placeholder="Note (optionnel)"
+                    class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all" rows="2"></textarea>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button onclick="closeModal('paymentModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+            Annuler
+          </button>
+          <button onclick="addPayment()" class="px-5 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+            Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="clientModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
       <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
         <div class="flex justify-between items-center mb-4">
