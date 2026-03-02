@@ -19,6 +19,68 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
   <script>
+  // === CRITICAL UI HANDLERS (EXPOSED IMMEDIATELY) ===
+  window.openModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+  };
+  window.closeModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+  };
+  window.prepareAddOffer = function() {
+    window.editingOfferId = null;
+    const nameInput = document.getElementById('newOfferName');
+    const descInput = document.getElementById('newOfferDesc');
+    const priceInput = document.getElementById('newOfferPrice');
+    const costInput = document.getElementById('newOfferCostPerUnit');
+    const durInput = document.getElementById('newOfferDuration');
+
+    if(nameInput) nameInput.value = '';
+    if(descInput) descInput.value = '';
+    if(priceInput) priceInput.value = '';
+    if(costInput) costInput.value = '';
+    if(durInput) durInput.value = '';
+    
+    const title = document.querySelector('#offerModal h3');
+    if(title) title.innerHTML = '<i class="fas fa-gift text-purple-600"></i> Ajouter une Offre';
+    
+    window.openModal('offerModal');
+  };
+  window.formatCurrency = function(value) {
+    return `${Number(value || 0).toLocaleString('fr-DZ')} DZD`;
+  };
+  window.calculatePreview = function() {
+    const buyRateEl = document.getElementById('buyRate');
+    const amountEl = document.getElementById('standardDollarAmount');
+    const priceDzdEl = document.getElementById('standardPriceDzd');
+    if (!buyRateEl || !amountEl || !priceDzdEl) return;
+
+    const buyRate = Number(buyRateEl.value || 0);
+    const amount = Number(amountEl.value || 0);
+    const priceDzd = Number(priceDzdEl.value || 0);
+
+    const totalDzd = amount * buyRate;
+    const profit = priceDzd - totalDzd;
+    const percent = totalDzd ? (profit / totalDzd) * 100 : 0;
+
+    const costEl = document.getElementById('previewCost');
+    const revEl = document.getElementById('previewRevenue');
+    const profEl = document.getElementById('previewProfit');
+    const percEl = document.getElementById('profitPercentage');
+
+    if (costEl) costEl.textContent = window.formatCurrency(totalDzd);
+    if (revEl) revEl.textContent = window.formatCurrency(priceDzd);
+    if (profEl) profEl.textContent = window.formatCurrency(profit);
+    if (percEl) percEl.textContent = `Marge: ${percent.toFixed(2)}%`;
+  };
+
   // === TRADUCTIONS ===
   const TRANSLATIONS = {
       fr: {
@@ -372,6 +434,7 @@
       if (!Array.isArray(appState.usdPurchases)) appState.usdPurchases = [];
       if (!Array.isArray(appState.employees)) appState.employees = [];
       if (!appState.settings.workMethodSections) appState.settings.workMethodSections = [];
+      if (!appState.manualBalances) appState.manualBalances = { liquide: 0, baridimob: 0, usdt: 0 };
     }
     window.ensureInitialData = ensureInitialData;
   </script>
@@ -592,6 +655,7 @@
       populateClientDropdown();
       populateOfferSelect();
       populatePaymentClientSelect();
+      recalculateFinanceBalances();
       if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
       showTab('dashboard');
       
@@ -797,6 +861,7 @@
       populateClientDropdown();
       populateOfferSelect();
       populatePaymentClientSelect();
+      recalculateFinanceBalances();
       if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
       showTab('dashboard');
       
@@ -1536,8 +1601,18 @@
         </button>
         <button onclick="showTab('transactions')" id="tab-transactions"
                 class="tab-btn m-1 px-4 md:px-6 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-green-50 rounded-xl transition-all hover-scale flex items-center gap-2">
-          <i class="fas fa-exchange-alt"></i>
-          <span>Transactions</span>
+          <i class="fas fa-list-ul"></i>
+          <span>To-Do List</span>
+        </button>
+        <button onclick="showTab('history')" id="tab-history"
+                class="tab-btn m-1 px-4 md:px-6 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-emerald-50 rounded-xl transition-all hover-scale flex items-center gap-2">
+          <i class="fas fa-history"></i>
+          <span>Historique</span>
+        </button>
+        <button onclick="showTab('todo')" id="tab-todo"
+                class="tab-btn m-1 px-4 md:px-6 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-indigo-50 rounded-xl transition-all hover-scale flex items-center gap-2">
+          <i class="fas fa-plus-circle"></i>
+          <span>Nouvelle To-Do</span>
         </button>
         <button onclick="showTab('offers')" id="tab-offers"
                 class="tab-btn m-1 px-4 md:px-6 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-purple-50 rounded-xl transition-all hover-scale flex items-center gap-2">
@@ -1558,6 +1633,11 @@
                 class="tab-btn m-1 px-4 md:px-6 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-teal-50 rounded-xl transition-all hover-scale flex items-center gap-2">
           <i class="fas fa-dollar-sign"></i>
           <span>Achats USD</span>
+        </button>
+        <button onclick="showTab('ads')" id="tab-ads"
+                class="tab-btn m-1 px-4 md:px-6 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-cyan-50 rounded-xl transition-all hover-scale flex items-center gap-2">
+          <i class="fas fa-ad"></i>
+          <span>Ads</span>
         </button>
         <button onclick="showTab('requests')" id="tab-requests"
                 class="tab-btn m-1 px-4 md:px-6 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-yellow-50 rounded-xl transition-all hover-scale flex items-center gap-2">
@@ -1585,7 +1665,7 @@
 
     <!-- CONTENT AREA -->
     <div class="space-y-6">
-      <!-- DASHBOARD TAB -->
+        <!-- DASHBOARD TAB -->
       <section id="dashboard" class="tab-content fade-in" style="animation-delay: 0.2s;">
         <!-- STATS CARDS -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
@@ -1597,315 +1677,168 @@
               </div>
               <i class="fas fa-sun text-2xl opacity-80"></i>
             </div>
-            <div class="mt-4 text-sm opacity-90">
-              <i class="fas fa-clock mr-1"></i>
-              <span>Chiffres mis à jour en temps réel</span>
-            </div>
           </div>
-          <div class="bg-gradient-to-br from-blue-500 to-cyan-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-sm opacity-90 mb-2">Profit Semaine</p>
-                <p id="weekProfit" class="text-2xl md:text-3xl font-black">0 DZD</p>
-              </div>
-              <i class="fas fa-calendar-week text-2xl opacity-80"></i>
-            </div>
-            <div class="mt-4 text-sm opacity-90">
-              <i class="fas fa-chart-line mr-1"></i>
-              <span id="weekTransactions">0 transactions</span>
-            </div>
-          </div>
-        <div class="bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
-          <div class="flex justify-between items-start">
-            <div>
-              <p class="text-sm opacity-90 mb-2">Profit Mensuel Net</p>
-              <p id="monthProfitNet" class="text-2xl md:text-3xl font-black">0 DZD</p>
-            </div>
-            <i class="fas fa-calendar text-2xl opacity-80"></i>
-          </div>
-          <div class="mt-4 text-sm opacity-90">
-            <i class="fas fa-wallet mr-1"></i>
-            <span>Transactions du mois âˆ’ Frais du mois</span>
-          </div>
-        </div>
-          <div class="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-sm opacity-90 mb-2">Profit Total</p>
-                <p id="totalProfit" class="text-2xl md:text-3xl font-black">0 DZD</p>
-              </div>
-              <i class="fas fa-chart-pie text-2xl opacity-80"></i>
-            </div>
-            <div class="mt-4 text-sm opacity-90">
-              <i class="fas fa-wallet mr-1"></i>
-              <span id="totalTransactions">0 transactions</span>
-            </div>
-          </div>
-          <div class="bg-gradient-to-br from-yellow-50 to-amber-100 text-yellow-900 p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover border border-yellow-200">
-            <div class="flex justify-between items-start">
-              <div>
-                <p class="text-sm opacity-90 mb-2">Clients à relancer</p>
-                <p id="dueRemindersCount" class="text-2xl md:text-3xl font-black">0</p>
-              </div>
-              <i class="fas fa-bell text-2xl text-yellow-500 opacity-80"></i>
-            </div>
-            <div class="mt-4 text-sm opacity-90">
-              <span id="dueRemindersLabel">Aucun rappel aujourd'hui</span>
-            </div>
-          </div>
-          <div class="bg-gradient-to-br from-orange-500 to-red-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
+          <div class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
             <div class="flex justify-between items-start">
               <div>
                 <p class="text-sm opacity-90 mb-2">Total Clients</p>
                 <p id="totalClients" class="text-2xl md:text-3xl font-black">0</p>
               </div>
-              <i class="fas fa-user-friends text-2xl opacity-80"></i>
+              <i class="fas fa-users text-2xl opacity-80"></i>
             </div>
-            <div class="mt-4 text-sm opacity-90">
-              <i class="fas fa-user-plus mr-1"></i>
-              <span id="newClients">0 nouveaux ce mois</span>
+          </div>
+          <div class="bg-gradient-to-br from-orange-500 to-amber-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-sm opacity-90 mb-2">Impayés Total</p>
+                <p id="totalUnpaid" class="text-2xl md:text-3xl font-black">0 DZD</p>
+              </div>
+              <i class="fas fa-exclamation-triangle text-2xl opacity-80"></i>
+            </div>
+          </div>
+          <div class="bg-gradient-to-br from-teal-500 to-cyan-600 text-white p-5 md:p-6 rounded-2xl shadow-xl hover-scale card-hover">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="text-sm opacity-90 mb-2">Stock USD</p>
+                <p id="currentUsdStock" class="text-2xl md:text-3xl font-black">0 $</p>
+              </div>
+              <i class="fas fa-wallet text-2xl opacity-80"></i>
             </div>
           </div>
         </div>
 
-        <!-- FONDS DE SOCIÉTÉ -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 fade-in">
-          <!-- FOND DZD -->
+        <!-- GESTION DES FONDS (FINANCES) -->
+        <div class="flex justify-between items-center mb-4 fade-in">
+          <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-vault text-emerald-600"></i>
+            État de la Caisse
+          </h2>
+          <button onclick="openManualBalanceModal()" 
+                  class="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm text-sm">
+            <i class="fas fa-edit text-blue-600"></i>
+            Ajuster Manuellement
+          </button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 fade-in">
           <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-emerald-500 flex justify-between items-center card-hover">
             <div>
-              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Fond DZD (Trésorerie)</p>
-              <h3 id="fondDzd" class="text-3xl font-bold text-gray-800 mt-1">0 DZD</h3>
-              <p class="text-xs text-gray-400 mt-1">Encaissements - Dépenses - Achats USDT</p>
+              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Espèces (Liquide)</p>
+              <h3 id="balanceLiquide" class="text-2xl font-bold text-gray-800 mt-1">0 DZD</h3>
             </div>
-            <div class="bg-emerald-100 p-4 rounded-full text-emerald-600">
-              <i class="fas fa-coins text-2xl"></i>
+            <div class="bg-emerald-100 p-3 rounded-full text-emerald-600">
+              <i class="fas fa-money-bill-wave text-xl"></i>
             </div>
           </div>
-          <!-- FOND USDT -->
           <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-blue-500 flex justify-between items-center card-hover">
             <div>
-              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Fond USDT (Stock)</p>
-              <h3 id="fondUsdt" class="text-3xl font-bold text-gray-800 mt-1">0 USDT</h3>
-              <p class="text-xs text-gray-400 mt-1">Achats - Ventes - Dépenses</p>
+              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Baridimob</p>
+              <h3 id="balanceBaridimob" class="text-2xl font-bold text-gray-800 mt-1">0 DZD</h3>
             </div>
-            <div class="bg-blue-100 p-4 rounded-full text-blue-600">
-              <i class="fas fa-wallet text-2xl"></i>
+            <div class="bg-blue-100 p-3 rounded-full text-blue-600">
+              <i class="fas fa-university text-xl"></i>
             </div>
           </div>
-          <!-- IMPÔT ESTIMÉ -->
-          <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-red-500 flex justify-between items-center card-hover md:col-span-2 lg:col-span-1">
+          <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-purple-500 flex justify-between items-center card-hover">
             <div>
-              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Impôt à Payer (0.05%)</p>
-              <h3 id="taxAmount" class="text-3xl font-bold text-red-600 mt-1">0 DZD</h3>
-              <p class="text-xs text-gray-400 mt-1">Calculé sur le Fond DZD</p>
+              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Portefeuille USDT</p>
+              <h3 id="balanceUsdt" class="text-2xl font-bold text-gray-800 mt-1">0 USDT</h3>
             </div>
-            <div class="bg-red-100 p-4 rounded-full text-red-600">
-              <i class="fas fa-file-invoice-dollar text-2xl"></i>
+            <div class="bg-purple-100 p-3 rounded-full text-purple-600">
+              <i class="fas fa-wallet text-xl"></i>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-red-500 flex justify-between items-center card-hover">
+            <div>
+              <p class="text-gray-500 text-sm font-semibold uppercase tracking-wider">Impôt (0.05%)</p>
+              <h3 id="taxAmount" class="text-2xl font-bold text-red-600 mt-1">0 DZD</h3>
+            </div>
+            <div class="bg-red-100 p-3 rounded-full text-red-600">
+              <i class="fas fa-file-invoice-dollar text-xl"></i>
             </div>
           </div>
         </div>
 
-        <!-- GRAPH: REVENUS VS DEPENSES -->
-        <div class="bg-white p-6 rounded-2xl shadow-xl mb-8 border border-gray-100 fade-in" style="animation-delay: 0.3s;">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fas fa-chart-line text-blue-600"></i>
-                    Évolution des Profits (30 derniers jours)
-                </h2>
-                <div class="text-sm text-gray-500 hidden md:block">
-                   <span class="inline-block w-3 h-3 rounded-full bg-blue-500 mr-1"></span> Profit Net
-                   <span class="inline-block w-3 h-3 rounded-full bg-red-400 mr-1 ml-3"></span> Dépenses
-                </div>
-            </div>
-            <div class="relative h-72 w-full">
-                <canvas id="profitChart"></canvas>
-            </div>
-        </div>
-
-        <!-- CALCULATOR + RESULTS -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 mb-8">
-          <!-- CALCULATOR -->
-          <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border fade-in card-hover">
-            <div class="flex justify-between items-center mb-6">
-              <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <i class="fas fa-calculator text-blue-600"></i>
-                Nouvelle Transaction
-              </h2>
-              <button onclick="resetCalculator()" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                <i class="fas fa-redo"></i>
-                Réinitialiser
-              </button>
-            </div>
-            <div class="space-y-4">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-shopping-cart text-green-600"></i>
-                    Taux Achat $ (DZD/USD)
-                  </label>
-                  <div class="relative">
-                    <input id="buyRate" type="number" value="255" step="0.01"
-                           class="w-full p-4 border rounded-xl text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                           oninput="calculatePreview()">
-                    <span class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">DZD</span>
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-gift text-purple-600"></i>
-                    Offre
-                  </label>
-                  <select id="offerSelect"
-                          class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                          onchange="selectOfferInTransaction()">
-                    <option value="">Sélectionner une offre...</option>
-                  </select>
-                </div>
-              </div>
-
-              <div id="standardFields" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
-                <div>
-                  <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-dollar-sign text-teal-600"></i>
-                    Montant $ (Standard)
-                  </label>
-                  <input id="standardDollarAmount" type="number" step="0.01"
-                         class="w-full p-4 border rounded-xl text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                         oninput="calculatePreview()">
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-tag text-indigo-600"></i>
-                    Prix Vente Standard (DZD)
-                  </label>
-                  <input id="standardPriceDzd" type="number" step="0.01"
-                         class="w-full p-4 border rounded-xl text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                         oninput="calculatePreview()">
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-clock text-gray-600"></i>
-                    Durée
-                  </label>
-                  <input id="standardDuration" type="text"
-                         class="w-full p-4 border rounded-xl text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                         placeholder="Ex: 30 jours, 3 mois">
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-user text-blue-600"></i>
-                    Client
-                  </label>
-                  <div class="relative">
-                    <input id="clientSearch" type="text" placeholder="Chercher un client..."
-                           class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                           oninput="filterClients()">
-                    <input id="clientSelect" type="hidden" value="">
-                    <div id="clientDropdown" class="absolute z-50 w-full mt-1 bg-white border border-blue-200 rounded-xl shadow-xl hidden max-h-64 overflow-y-auto">
-                      <!-- Rempli dynamiquement par JavaScript -->
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
-                    <i class="fas fa-info-circle text-blue-600"></i>
-                    Détails Offre
-                  </label>
-                  <div class="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <p id="offerDetails" class="text-sm text-gray-600">Sélectionnez une offre</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div class="flex items-center gap-3">
-                  <input id="transactionPaid" type="checkbox" class="w-5 h-5 accent-blue-600" checked>
-                  <label for="transactionPaid" class="text-sm font-semibold text-gray-700">Payée</label>
-                </div>
-                <div class="flex items-center gap-2">
-                  <label for="transactionReminderDate" class="text-sm text-gray-700">Rappel si impayée</label>
-                  <input id="transactionReminderDate" type="date" class="p-2 border rounded-lg text-sm">
-                </div>
-              </div>
-
-              <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-2xl border border-blue-100 space-y-3">
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-700 font-medium">CoÃ»t (Achat):</span>
-                  <span id="previewCost" class="font-bold text-red-600 text-lg">0 DZD</span>
-                </div>
-                <div class="flex justify-between items-center">
-                  <span class="text-gray-700 font-medium">Vente:</span>
-                  <span id="previewRevenue" class="font-bold text-green-600 text-lg">0 DZD</span>
-                </div>
-                <div class="border-t border-blue-200 pt-3 flex justify-between items-center">
-                  <span class="text-gray-800 font-bold text-lg">Marge:</span>
-                  <span id="previewProfit" class="font-bold text-blue-700 text-xl">0 DZD</span>
-                </div>
-                <div class="pt-2">
-                  <div id="profitPercentage" class="text-center text-sm font-medium text-gray-600">
-                    Marge: 0.00%
-                  </div>
-                </div>
-              </div>
-
-              <button onclick="addTransaction()"
-                      class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg hover:shadow-2xl hover-scale transition-all text-lg flex items-center justify-center gap-3">
-                <i class="fas fa-check-circle"></i>
-                Valider la Transaction
-              </button>
-            </div>
-          </div>
-          <!-- RECENT ACTIVITY + DUE REMINDERS -->
+        <!-- ACTIVITY & TODO PREVIEW -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border fade-in card-hover">
             <div class="flex justify-between items-center mb-6">
               <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
                 <i class="fas fa-history text-purple-600"></i>
                 Activité Récente
               </h2>
-              <div class="flex items-center gap-3">
-                <select id="recentFilter" onchange="renderRecentTransactions()" class="p-2 border rounded-xl text-sm">
-                  <option value="today">Aujourd'hui</option>
-                  <option value="week">Cette semaine</option>
-                  <option value="month">Ce mois</option>
-                </select>
-                <span class="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full" id="activityCount">0 transactions</span>
-              </div>
+              <select id="recentFilter" onchange="renderRecentTransactions()" class="p-2 border rounded-xl text-sm">
+                <option value="today">Aujourd'hui</option>
+                <option value="week">Semaine</option>
+                <option value="month">Mois</option>
+              </select>
             </div>
-            <div id="recentTransactions" class="space-y-4 max-h-[320px] overflow-y-auto pr-2">
+            <div id="recentTransactions" class="space-y-4 max-h-[400px] overflow-y-auto pr-2">
               <div class="text-center py-10">
                 <i class="fas fa-exchange-alt text-gray-300 text-4xl mb-3"></i>
-                <p class="text-gray-400 italic">Aucune transaction récente</p>
-                <p class="text-sm text-gray-500 mt-2">Les transactions apparaÃ®tront ici</p>
+                <p class="text-gray-400 italic">Aucune transaction</p>
               </div>
             </div>
-            <div class="mt-6 border-t pt-4">
-              <div class="flex justify-between items-center mb-3">
-                <h3 class="text-base md:text-lg font-semibold text-gray-800 flex items-center gap-2">
+          </div>
+
+          <div class="space-y-6">
+            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border fade-in card-hover">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
                   <i class="fas fa-bell text-yellow-500"></i>
-                  Clients à relancer
+                  Relances
                 </h3>
-                <span id="dueRemindersListCount" class="text-xs text-gray-500"></span>
+                <span id="dueRemindersListCount" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">0</span>
               </div>
               <div id="dueRemindersList" class="space-y-2 max-h-40 overflow-y-auto pr-1 text-sm">
-                <p class="text-gray-400 italic">Aucun rappel programmé</p>
+                <p class="text-gray-400 italic text-center py-4">Aucun rappel</p>
+              </div>
+            </div>
+
+            <div class="bg-indigo-600 p-6 md:p-8 rounded-2xl shadow-xl text-white fade-in card-hover">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold flex items-center gap-2">
+                  <i class="fas fa-tasks"></i>
+                  To-Do
+                </h3>
+                <button onclick="showTab('todo')" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-all">Voir tout</button>
+              </div>
+              <div id="todoPreviewList" class="space-y-3 text-sm">
+                <p class="text-indigo-200 italic text-center py-4">Tout est à jour !</p>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- GRAPH: REVENUS VS DEPENSES -->
+        <div class="bg-white p-6 rounded-2xl shadow-xl mb-8 border border-gray-100 fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-chart-line text-blue-600"></i>
+                    Évolution des Profits (30 derniers jours)
+                </h2>
+            </div>
+            <div class="relative h-72 w-full">
+                <canvas id="profitChart"></canvas>
+            </div>
+        </div>
+
         <!-- TOP CLIENTS -->
-        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border fade-in card-hover mt-6">
-          <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <i class="fas fa-trophy text-yellow-500"></i>
-              Top 10 Clients
-            </h2>
-          </div>
-          <div id="topClientsList" class="space-y-3">
-            <!-- Rempli par JavaScript -->
-          </div>
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border fade-in card-hover mt-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fas fa-crown text-yellow-500"></i>
+                    Top 10 Clients
+                </h2>
+                <div class="bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full text-xs font-bold border border-yellow-100">
+                    Classement par Score
+                </div>
+            </div>
+            <div id="topClientsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="text-center py-10 col-span-full">
+                    <i class="fas fa-users text-gray-300 text-4xl mb-3"></i>
+                    <p class="text-gray-400 italic">Chargement du classement...</p>
+                </div>
+            </div>
         </div>
       </section>
 
@@ -1973,24 +1906,6 @@
             <span id="clientsSummary">0 clients</span>
             <span id="clientsTotalSpent">Total dépensé: 0 DZD</span>
           </div>
-          <div class="mb-4 text-sm text-gray-500 flex flex-wrap gap-2 justify-between items-center">
-            <span id="usdPurchasesSummary">0 achats</span>
-            <div class="flex items-center gap-2">
-              <span>Tri:</span>
-              <select id="usdSortField"
-                      class="border rounded-lg px-2 py-1 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      onchange="changeUsdSortField(this.value)">
-                <option value="date">Date</option>
-                <option value="amount">Montant</option>
-              </select>
-              <button onclick="toggleUsdSortDirection()"
-                      class="p-2 border rounded-lg text-gray-600 hover:bg-gray-50">
-                <i class="fas fa-arrow-up"></i>
-                <i class="fas fa-arrow-down ml-1"></i>
-              </button>
-              <span id="usdPurchasesTotal" class="font-bold text-blue-600">Total USD: 0</span>
-            </div>
-          </div>
           <div class="overflow-x-auto rounded-xl border">
             <table class="w-full text-left">
               <thead>
@@ -2021,55 +1936,215 @@
         </div>
       </section>
 
-      <!-- TRANSACTIONS TAB -->
+      <!-- TRANSACTIONS TAB (To-Do List) -->
       <section id="transactions" class="tab-content hidden fade-in">
-        <div class="bg-white p-6 md:p-8 rounded-3xl shadow-xl border card-hover">
-          <div class="mb-6">
-            <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2 mb-4">
-              <i class="fas fa-exchange-alt text-green-600"></i>
-              Toutes les Transactions
+        <div class="bg-white p-6 md:p-8 rounded-3xl shadow-xl border border-indigo-100">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2">
+              <i class="fas fa-tasks text-indigo-600"></i>
+              Transactions en Attente (To-Do List)
             </h2>
-            <div class="flex flex-col md:flex-row gap-4">
-              <input id="transactionSearch" oninput="renderTransactionsTable()" type="text" placeholder="Rechercher..."
-                     class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none">
-              <select id="transactionFilter"
-                      class="p-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none">
-                <option value="all">Toutes les périodes</option>
-                <option value="today">Aujourd'hui</option>
-                <option value="week">Cette semaine</option>
-                <option value="month">Ce mois</option>
-              </select>
-              <button onclick="exportTransactions()" class="p-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition flex items-center gap-2 whitespace-nowrap">
-                <i class="fas fa-file-csv"></i>
-                Exporter
-              </button>
+            <div class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl font-bold text-sm">
+               <span id="todoCountTransactions">0</span> en attente
             </div>
           </div>
-          <div class="mb-4 text-sm text-gray-500 flex justify-between items-center">
-            <span id="transactionsSummary">0 transactions</span>
-            <span id="transactionsTotalProfit">Profit total: 0 DZD</span>
+          
+          <div class="overflow-x-auto rounded-xl border">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="bg-gradient-to-r from-gray-50 to-indigo-50 text-gray-700">
+                  <th class="p-4 font-semibold">Date</th>
+                  <th class="p-4 font-semibold">Client</th>
+                  <th class="p-4 font-semibold">Offre</th>
+                  <th class="p-4 font-semibold text-right">Vente</th>
+                  <th class="p-4 text-center font-semibold">Paiement</th>
+                  <th class="p-4 text-center font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="todoTableBodyTransactions" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+          
+          <div id="todoEmptyStateTransactions" class="text-center py-20 hidden">
+             <i class="fas fa-check-circle text-gray-200 text-6xl mb-4"></i>
+             <p class="text-gray-400 italic text-lg">Aucune transaction en attente. Bon travail !</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- HISTORY TAB -->
+      <section id="history" class="tab-content hidden fade-in">
+        <div class="bg-white p-6 md:p-8 rounded-3xl shadow-xl border">
+          <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2">
+              <i class="fas fa-history text-green-600"></i>
+              Historique des Transactions
+            </h2>
+            <div class="flex gap-2">
+              <input type="text" id="transactionSearch" oninput="renderTransactionsTable()" placeholder="Chercher..." class="p-2 border rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none">
+              <select id="transactionFilter" onchange="renderTransactionsTable()" class="p-2 border rounded-xl text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                <option value="all">Tout</option>
+                <option value="today">Aujourd'hui</option>
+                <option value="week">Semaine</option>
+                <option value="month">Mois</option>
+              </select>
+            </div>
           </div>
           <div class="overflow-x-auto rounded-xl border">
             <table class="w-full text-left text-sm">
               <thead>
-                <tr class="bg-gradient-to-r from-gray-50 to-green-50">
-                  <th class="p-4 rounded-l-lg font-semibold text-gray-700">Date</th>
-                  <th class="p-4 font-semibold text-gray-700">Client</th>
-                  <th class="p-4 font-semibold text-gray-700">Offre</th>
-                  <th class="p-4 font-semibold text-gray-700">Montant</th>
-                  <th class="p-4 font-semibold text-gray-700">Prix Vente</th>
-                  <th class="p-4 font-semibold text-gray-700">Total</th>
-                  <th id="th-profit" class="p-4 font-semibold text-gray-700">Profit</th>
-                  <th class="p-4 font-semibold text-gray-700">Durée</th>
-                  <th class="p-4 rounded-r-lg font-semibold text-gray-700">Actions</th>
+                <tr class="bg-gradient-to-r from-gray-50 to-green-50 text-gray-700">
+                  <th class="p-4 font-semibold">Date</th>
+                  <th class="p-4 font-semibold">Client</th>
+                  <th class="p-4 font-semibold">Offre</th>
+                  <th class="p-4 font-semibold text-right">Montant $</th>
+                  <th class="p-4 font-semibold text-right">Vente DZD</th>
+                  <th class="p-4 font-semibold text-right">Achat DZD</th>
+                  <th id="profitHeaderHistory" class="p-4 font-semibold text-right">Profit</th>
+                  <th class="p-4 font-semibold">Durée</th>
+                  <th class="p-4 font-semibold text-center">Payé</th>
+                  <th class="p-4 text-center font-semibold">Action</th>
                 </tr>
               </thead>
-              <tbody id="transactionsTableBody" class="divide-y divide-gray-100">
-                <!-- Rempli par JavaScript -->
-              </tbody>
+              <tbody id="transactionsTableBody" class="divide-y divide-gray-100"></tbody>
             </table>
           </div>
-          <div class="mt-4"></div>
+        </div>
+      </section>
+
+      <!-- TODO TAB (Nouvelle To-Do) -->
+      <section id="todo" class="tab-content hidden fade-in">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-xl border">
+          <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+            <i class="fas fa-plus-circle text-blue-600"></i>
+            Nouvelle Transaction (To-Do)
+          </h2>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-semibold mb-2">Offre</label>
+                <select id="offerSelect" onchange="selectOfferInTransaction()" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                  <option value="">-- Choisir une offre --</option>
+                </select>
+              </div>
+
+              <div id="offerDetailsContainer" class="p-3 bg-blue-50 rounded-xl border border-blue-100 text-xs text-gray-600">
+                <i class="fas fa-info-circle text-blue-500 mr-1"></i>
+                <span id="offerDetails">Sélectionnez une offre</span>
+              </div>
+
+              <div id="standardFields" class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-semibold mb-2">Montant ($)</label>
+                  <input id="standardDollarAmount" type="number" step="0.01" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" oninput="calculatePreview()">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold mb-2">Prix Vente (DZD)</label>
+                  <input id="standardPriceDzd" type="number" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" oninput="calculatePreview()">
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-semibold mb-2">Taux Achat USD</label>
+                  <input id="buyRate" type="number" step="0.01" value="340" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600 bg-blue-50" oninput="calculatePreview()">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold mb-2">Durée</label>
+                  <input id="standardDuration" type="text" placeholder="ex: 30 jours" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
+                  <i class="fas fa-ad text-cyan-600"></i>
+                  Compte Publicitaire (Ad Account)
+                </label>
+                <select id="adAccountSelect" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                  <option value="">-- Choisir un compte Ad --</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold mb-2 flex items-center gap-2">
+                  <i class="fas fa-user text-blue-600"></i>
+                  Client
+                </label>
+                <div class="relative">
+                  <input id="clientSearch" type="text" placeholder="Chercher un client..."
+                         class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                         oninput="filterClients()">
+                  <input id="clientSelect" type="hidden" value="">
+                  <div id="clientDropdown" class="absolute z-50 w-full mt-1 bg-white border border-blue-200 rounded-xl shadow-xl hidden max-h-64 overflow-y-auto"></div>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <input id="transactionPaid" type="checkbox" class="w-5 h-5 accent-blue-600">
+                <label for="transactionPaid" class="text-sm font-semibold text-gray-700">Payée</label>
+              </div>
+
+              <div class="flex gap-3">
+                <button onclick="addTodoTransaction()" class="flex-1 py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all flex items-center justify-center gap-2">
+                  <i class="fas fa-clock"></i> Ajouter à la To-Do List
+                </button>
+                <button onclick="addTransaction()" class="px-6 py-4 bg-green-600 text-white font-bold rounded-xl shadow-lg hover:bg-green-700 transition-all flex items-center justify-center gap-2" title="Valider directement">
+                  <i class="fas fa-check"></i> Direct
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-gray-50 p-6 rounded-2xl border flex flex-col justify-center">
+              <h3 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Aperçu du Profit</h3>
+              <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                   <span class="text-gray-600">Coût estimé:</span>
+                   <span id="previewCost" class="font-bold text-lg">0 DZD</span>
+                </div>
+                <div class="flex justify-between items-center">
+                   <span class="text-gray-600">Prix de vente:</span>
+                   <span id="previewRevenue" class="font-bold text-lg">0 DZD</span>
+                </div>
+                <div class="flex justify-between items-center pt-4 border-t border-gray-200">
+                   <span class="text-gray-800 font-bold">Marge brute:</span>
+                   <span id="previewProfit" class="text-2xl font-black text-indigo-600">0 DZD</span>
+                </div>
+                <div id="profitPercentage" class="text-right text-sm font-semibold text-gray-500">Marge: 0.00%</div>
+              </div>
+              <div class="mt-8 p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-sm text-indigo-700">
+                <i class="fas fa-info-circle mr-2"></i>
+                Cette transaction sera ajoutée à la <strong>To-Do List</strong> pour être validée plus tard par un employé ou vous-même.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+            <div class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl font-bold text-sm">
+               <span id="todoCount">0</span> en attente
+            </div>
+          </div>
+          
+          <div class="overflow-x-auto rounded-xl border">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="bg-gradient-to-r from-gray-50 to-indigo-50 text-gray-700">
+                  <th class="p-4 font-semibold">Date</th>
+                  <th class="p-4 font-semibold">Client</th>
+                  <th class="p-4 font-semibold">Offre</th>
+                  <th class="p-4 font-semibold text-right">Vente</th>
+                  <th class="p-4 text-center font-semibold">Paiement</th>
+                  <th class="p-4 text-center font-semibold">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="todoTableBody" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+          
+          <div id="todoEmptyState" class="text-center py-20 hidden">
+             <i class="fas fa-check-circle text-gray-200 text-6xl mb-4"></i>
+             <p class="text-gray-400 italic text-lg">Aucune transaction en attente. Bon travail !</p>
+          </div>
         </div>
       </section>
 
@@ -2107,11 +2182,18 @@
               </h2>
               <p class="text-gray-600 text-sm mt-1">Suivez les paiements de vos clients</p>
             </div>
-            <button onclick="openModal('paymentModal')"
-                    class="px-4 md:px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center gap-2">
-              <i class="fas fa-plus"></i>
-              Enregistrer Paiement
-            </button>
+            <div class="flex gap-2">
+              <div class="relative min-w-[200px]">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+                <input type="text" id="paymentSearchClient" oninput="renderPaymentsTable()" placeholder="Chercher client..." 
+                       class="pl-9 p-2 border rounded-xl text-sm focus:ring-2 focus:ring-orange-500 outline-none w-full bg-gray-50">
+              </div>
+              <button onclick="openModal('paymentModal')"
+                      class="px-4 md:px-6 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center gap-2 whitespace-nowrap text-sm">
+                <i class="fas fa-plus"></i>
+                Nouveau Paiement
+              </button>
+            </div>
           </div>
           <div class="overflow-x-auto rounded-xl border">
             <table class="w-full text-left text-sm">
@@ -2122,7 +2204,8 @@
                   <th class="p-4 font-semibold text-gray-700">Montant</th>
                   <th class="p-4 font-semibold text-gray-700">Méthode</th>
                   <th class="p-4 font-semibold text-gray-700">Statut</th>
-                  <th class="p-4 rounded-r-lg font-semibold text-gray-700">Note</th>
+                  <th class="p-4 font-semibold text-gray-700">Note</th>
+                  <th class="p-4 rounded-r-lg font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody id="paymentsTableBody" class="divide-y divide-gray-100">
@@ -2256,6 +2339,69 @@
           <div class="mt-4"></div>
         </div>
       </section>
+
+      <!-- ADS TAB -->
+      <section id="ads" class="tab-content hidden fade-in">
+        <div class="bg-white p-6 md:p-8 rounded-3xl shadow-xl border card-hover">
+          <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+            <div>
+              <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-ad text-cyan-600"></i>
+                Gestion des Publicités (Ads)
+              </h2>
+              <div class="flex items-center gap-4 mt-1">
+                <p class="text-gray-600 text-sm">Suivi des campagnes et comptes publicitaires</p>
+                <span id="activeAdsCount" class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-xs font-bold border border-cyan-200">
+                  0 Pubs Actives
+                </span>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="openModal('adAccountModal')"
+                      class="px-4 md:px-6 py-2 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center gap-2">
+                <i class="fas fa-plus-circle"></i>
+                Gérer Comptes Ad
+              </button>
+            </div>
+          </div>
+
+          <!-- Filtres Ads -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 bg-gray-50 p-4 rounded-2xl border">
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Filtrer par Compte Ad</label>
+              <select id="adFilterAccount" onchange="renderAdsTable()" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none bg-white">
+                <option value="">-- Tous les comptes --</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-500 uppercase mb-1 ml-1">Rechercher un Client</label>
+              <div class="relative">
+                <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="adSearchClient" oninput="renderAdsTable()" placeholder="Nom du client..." 
+                       class="w-full pl-10 p-3 border rounded-xl focus:ring-2 focus:ring-cyan-500 outline-none bg-white">
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border">
+            <table class="w-full text-left text-sm">
+              <thead>
+                <tr class="bg-gradient-to-r from-gray-50 to-cyan-50">
+                  <th class="p-4 rounded-l-lg font-semibold text-gray-700">Client</th>
+                  <th class="p-4 font-semibold text-gray-700">Compte Ad</th>
+                  <th class="p-4 font-semibold text-gray-700">Date de Fin</th>
+                  <th class="p-4 font-semibold text-gray-700">Budget (DZD)</th>
+                  <th class="p-4 rounded-r-lg font-semibold text-gray-700">Status</th>
+                </tr>
+              </thead>
+              <tbody id="adsTableBody" class="divide-y divide-gray-100">
+                <!-- Rempli par JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- FRAIS TAB -->
       <section id="frais" class="tab-content hidden fade-in">
         <div class="bg-white p-6 md:p-8 rounded-3xl shadow-xl border card-hover">
@@ -2475,19 +2621,24 @@
           <input id="paymentAmount" type="number" step="0.01" placeholder="Montant reçu ($)"
                  class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
           <div class="grid grid-cols-2 gap-3">
-             <select id="paymentMethod" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
-               <option value="Cash">Espèces</option>
-               <option value="USDT">USDT</option>
-               <option value="CCP">CCP</option>
-               <option value="BaridiMob">BaridiMob</option>
-               <option value="Paysera">Paysera</option>
-               <option value="Wise">Wise</option>
+             <select id="paymentAccount" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+               <option value="liquide">Vers Liquide</option>
+               <option value="baridimob">Vers BaridiMob</option>
+               <option value="usdt">Vers USDT</option>
              </select>
              <select id="paymentStatus" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
                <option value="completed">Reçu</option>
                <option value="pending">En attente</option>
              </select>
           </div>
+          <select id="paymentMethod" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all">
+             <option value="Cash">Espèces</option>
+             <option value="USDT">USDT</option>
+             <option value="CCP">CCP</option>
+             <option value="BaridiMob">BaridiMob</option>
+             <option value="Paysera">Paysera</option>
+             <option value="Wise">Wise</option>
+          </select>
           <textarea id="paymentNote" placeholder="Note (optionnel)"
                     class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all" rows="2"></textarea>
         </div>
@@ -2635,6 +2786,11 @@
         <select id="expenseCategory"
                 class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all">
         </select>
+        <select id="expenseAccount"
+                class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all">
+          <option value="liquide">Depuis Liquide</option>
+          <option value="baridimob">Depuis BaridiMob</option>
+        </select>
         <input id="expenseAmount" type="number" placeholder="Montant (DZD)"
                class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all">
         <textarea id="expenseNote" placeholder="Note (optionnel)"
@@ -2695,6 +2851,11 @@
                class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
         <input id="usdRate" type="number" step="0.01" placeholder="Taux d'achat (DZD/USD)"
                class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
+        <select id="usdAccountSource"
+                class="w-full p-4 border rounded-xl mb-3 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
+          <option value="liquide">Payé via Liquide</option>
+          <option value="baridimob">Payé via BaridiMob</option>
+        </select>
         <input id="usdSource" type="text" placeholder="Source (ex: Banque, Marché noir...)"
                class="w-full p-4 border rounded-xl mb-4 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all">
         <div class="flex justify-end gap-3">
@@ -2708,9 +2869,846 @@
       </div>
     </div>
 
+    <!-- MODAL GESTION COMPTES AD -->
+    <div id="adAccountModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-ad text-cyan-600"></i>
+            Gérer les Comptes Publicitaires
+          </h3>
+          <button onclick="closeModal('adAccountModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <input id="newAdAccountName" type="text" placeholder="Nom du compte (ex: Facebook Ads 1)"
+                 class="flex-1 p-4 border rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition-all">
+          <button onclick="addAdAccount()" class="px-4 py-2 bg-cyan-600 text-white rounded-xl font-bold hover:shadow-lg transition-all">
+            Ajouter
+          </button>
+        </div>
+        <div id="adAccountsList" class="space-y-2 max-h-64 overflow-y-auto">
+          <!-- Rempli par JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL AJUSTEMENT SOLDES MANUELS -->
+    <div id="manualBalanceModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-sliders-h text-indigo-600"></i>
+            Ajuster les Soldes
+          </h3>
+          <button onclick="closeModal('manualBalanceModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+          <p class="text-sm text-gray-500 mb-6 italic">
+            Définissez ici le <strong>montant exact</strong> que vous avez actuellement en caisse. Le système calculera automatiquement la différence avec l'historique pour ajuster vos comptes.
+          </p>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">Solde Réel Liquide (DZD)</label>
+              <input id="manualLiquide" type="number" placeholder="ex: 50000"
+                     class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-lg text-indigo-700">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">Solde Réel Baridimob (DZD)</label>
+              <input id="manualBaridimob" type="number" placeholder="ex: 12000"
+                     class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-lg text-indigo-700">
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">Solde Réel USDT</label>
+              <input id="manualUsdt" type="number" step="0.01" placeholder="ex: 10.50"
+                     class="w-full p-4 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold text-lg text-indigo-700">
+            </div>
+          </div>
+        <div class="flex justify-end gap-3 mt-8">
+          <button onclick="closeModal('manualBalanceModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+            Annuler
+          </button>
+          <button onclick="saveManualBalances()" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+            Appliquer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL MODIFIER TRANSACTION -->
+    <div id="editTransactionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-edit text-blue-600"></i>
+            Modifier Transaction
+          </h3>
+          <button onclick="closeModal('editTransactionModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <input type="hidden" id="editTxId">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Montant ($)</label>
+            <input id="editTxAmount" type="number" step="0.01" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Prix Vente (DZD)</label>
+            <input id="editTxPrice" type="number" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Durée</label>
+            <input id="editTxDuration" type="text" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="editTxPaid" type="checkbox" class="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <label for="editTxPaid" class="text-sm font-semibold text-gray-700">Payée</label>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-8">
+          <button onclick="closeModal('editTransactionModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+            Annuler
+          </button>
+          <button onclick="saveEditTransaction()" class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+            Enregistrer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL RESET PASSWORD EMPLOYE -->
+    <div id="resetPwdModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4 modal-backdrop">
+      <div class="bg-white p-6 md:p-8 rounded-2xl w-full max-w-md modal-show">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold flex items-center gap-2">
+            <i class="fas fa-key text-yellow-600"></i>
+            Nouveau Mot de Passe
+          </h3>
+          <button onclick="closeModal('resetPwdModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <input type="hidden" id="resetPwdEmpId">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Nouveau mot de passe</label>
+            <input id="newEmpPwdInput" type="password" class="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-yellow-500">
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-8">
+          <button onclick="closeModal('resetPwdModal')" class="px-5 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-all">
+            Annuler
+          </button>
+          <button onclick="saveResetEmployeePassword()" class="px-5 py-2 bg-yellow-600 text-white rounded-lg hover:shadow-lg transition-all font-medium">
+            Mettre à jour
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div> <!-- fin #appContainer -->
   <script>
-    // === ETAT GLOBAL DE L'APP ===
+    window.addAdAccount = function() {
+      const input = document.getElementById('newAdAccountName');
+      if (!input) return;
+      const name = input.value.trim();
+      if (!name) {
+        showToast('Nom du compte requis', 'error');
+        return;
+      }
+      if (!appState.adAccounts) appState.adAccounts = [];
+      const id = generateId('adacc');
+      appState.adAccounts.push({ id, name, createdAt: Date.now() });
+      input.value = '';
+      renderAdAccountsList();
+      populateAdAccountSelect();
+      autoSave();
+      showToast('Compte publicitaire ajouté', 'success');
+    };
+
+    window.deleteAdAccount = function(id) {
+      if (!confirm('Supprimer ce compte publicitaire ?')) return;
+      appState.adAccounts = (appState.adAccounts || []).filter(a => a.id !== id);
+      renderAdAccountsList();
+      populateAdAccountSelect();
+      autoSave();
+      showToast('Compte publicitaire supprimé', 'info');
+    };
+
+    function renderAdAccountsList() {
+      const list = document.getElementById('adAccountsList');
+      if (!list) return;
+      list.innerHTML = '';
+      (appState.adAccounts || []).forEach(acc => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center p-3 border rounded-xl bg-gray-50';
+        div.innerHTML = `
+          <span class="font-semibold text-gray-700">${acc.name}</span>
+          <button onclick="deleteAdAccount('${acc.id}')" class="text-red-500 hover:text-red-700 p-2">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function populateAdAccountSelect() {
+      const select = document.getElementById('adAccountSelect');
+      const filterSelect = document.getElementById('adFilterAccount');
+      if (!select) return;
+      
+      const currentVal = select.value;
+      const currentFilterVal = filterSelect ? filterSelect.value : '';
+
+      const options = '<option value="">-- Choisir un compte Ad --</option>';
+      const filterOptions = '<option value="">-- Tous les comptes --</option>';
+      
+      const list = (appState.adAccounts || []).map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
+      
+      select.innerHTML = options + list;
+      if (filterSelect) filterSelect.innerHTML = filterOptions + list;
+
+      select.value = currentVal;
+      if (filterSelect) filterSelect.value = currentFilterVal;
+    }
+
+    function renderAdsTable() {
+      const tbody = document.getElementById('adsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      
+      const filterAccId = document.getElementById('adFilterAccount')?.value || '';
+      const searchClient = document.getElementById('adSearchClient')?.value.toLowerCase() || '';
+
+      // On filtre les transactions qui ont un compte publicitaire ou qui sont en cours (To-Do)
+      let allAdsTx = [...(appState.transactions || []), ...(appState.todoTransactions || [])]
+        .filter(t => t.adAccountId || t.adAccountName);
+
+      // Filtre par compte Ad
+      if (filterAccId) {
+        allAdsTx = allAdsTx.filter(t => t.adAccountId === filterAccId);
+      }
+
+      // Filtre par recherche client
+      if (searchClient) {
+        allAdsTx = allAdsTx.filter(t => (t.clientName || '').toLowerCase().includes(searchClient));
+      }
+
+      // Mettre à jour le compteur de pubs actives
+      const activeCount = allAdsTx.length;
+      const countEl = document.getElementById('activeAdsCount');
+      if (countEl) {
+        countEl.textContent = `${activeCount} Pub${activeCount > 1 ? 's' : ''} Active${activeCount > 1 ? 's' : ''}`;
+      }
+
+      if (allAdsTx.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-500">Aucune publicité correspondante</td></tr>`;
+        return;
+      }
+
+      // Trier par date de fin décroissante
+      allAdsTx.sort((a, b) => new Date(b.endDate || 0) - new Date(a.endDate || 0));
+
+      allAdsTx.forEach(t => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50 transition-colors text-sm';
+        
+        // Calcul de la date de fin si non présente (date + durée)
+        let endDate = t.endDate || 'Non définie';
+        if (!t.endDate && t.duration) {
+          try {
+            const days = parseInt(t.duration.replace(/\D/g, ''));
+            if (!isNaN(days)) {
+              const d = new Date(t.date || Date.now());
+              d.setDate(d.getDate() + days);
+              endDate = d.toLocaleDateString('fr-FR');
+            }
+          } catch(e) {}
+        }
+
+        const adAcc = t.adAccountName || (appState.adAccounts.find(a => a.id === t.adAccountId)?.name) || 'Non spécifié';
+        
+        row.innerHTML = `
+          <td class="p-4 font-medium">${t.clientName}</td>
+          <td class="p-4"><span class="bg-cyan-100 text-cyan-800 px-2 py-1 rounded text-xs font-bold">${adAcc}</span></td>
+          <td class="p-4">${endDate}</td>
+          <td class="p-4 font-bold text-blue-600">${formatCurrency(t.priceDzd)}</td>
+          <td class="p-4">
+            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${t.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}">
+              ${t.status === 'pending' ? 'EN ATTENTE' : 'ACTIF'}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    window.saveManualBalances = function() {
+      const liqInput = document.getElementById('manualLiquide');
+      const barInput = document.getElementById('manualBaridimob');
+      const usdtInput = document.getElementById('manualUsdt');
+      
+      // CRITICAL: Les valeurs saisies par l'utilisateur sont les NOUVEAUX TOTAUX RÉELS
+      const newTotalLiq = Number(liqInput ? liqInput.value : 0);
+      const newTotalBar = Number(barInput ? barInput.value : 0);
+      const newTotalUsdt = Number(usdtInput ? usdtInput.value : 0);
+
+      // Calculer le solde théorique actuel (sans ajustement)
+      const theoretical = calculateTheoreticalBalance();
+
+      // 3. Calcul du Delta (Ajustement nécessaire)
+      // Nouveau Total Désiré = Total Calculé + Ajustement
+      // Donc: Ajustement = Nouveau Total Désiré - Total Calculé
+      const deltaLiq = newTotalLiq - theoretical.liquide;
+      const deltaBar = newTotalBar - theoretical.baridimob;
+      const deltaUsdt = newTotalUsdt - theoretical.usdt;
+
+      appState.manualBalances = {
+        liquide: deltaLiq,
+        baridimob: deltaBar,
+        usdt: deltaUsdt
+      };
+      
+      appState.lastUpdated = Date.now();
+
+      // Forcer le recalcul et la sauvegarde immédiate
+      recalculateFinanceBalances();
+      saveToLocalStorage(); 
+      if (typeof enqueueCloudSave === 'function') enqueueCloudSave(); 
+      
+      closeModal('manualBalanceModal');
+      showToast('Soldes mis à jour sur les valeurs saisies', 'success');
+      
+      // Mettre à jour l'UI globale
+      if (typeof updateDashboard === 'function') updateDashboard();
+    };
+
+    window.openManualBalanceModal = function() {
+      // Afficher les soldes ACTUELS dans les champs, pas les ajustements
+      // Cela permet à l'utilisateur de voir "50 000" et de le changer en "55 000"
+      
+      const currentLiq = appState.balances ? (appState.balances.liquide || 0) : 0;
+      const currentBar = appState.balances ? (appState.balances.baridimob || 0) : 0;
+      const currentUsdt = appState.balances ? (appState.balances.usdt || 0) : 0;
+
+      const elLiq = document.getElementById('manualLiquide');
+      const elBar = document.getElementById('manualBaridimob');
+      const elUsdt = document.getElementById('manualUsdt');
+      
+      if (elLiq) elLiq.value = currentLiq;
+      if (elBar) elBar.value = currentBar;
+      if (elUsdt) elUsdt.value = currentUsdt;
+      
+      openModal('manualBalanceModal');
+    };
+
+    // === GESTION CLIENTS / OFFRES / TRANSACTIONS / PAIEMENTS / USD ===
+    window.addClient = function() {
+      const name = document.getElementById('newClientName').value.trim();
+      const phone = document.getElementById('newClientPhone').value.trim();
+      const instagram = document.getElementById('newClientInstagram').value.trim();
+      const facebook = document.getElementById('newClientFacebook').value.trim();
+      const notes = document.getElementById('newClientNotes').value.trim();
+
+      if (!name) {
+        showToast('Nom du client requis', 'error');
+        return;
+      }
+
+      if (editingClientId) {
+        const client = appState.clients.find(c => c.id === editingClientId);
+        if (!client) {
+          showToast('Client introuvable', 'error');
+        } else {
+          client.name = name;
+          client.phone = phone;
+          client.contact = phone || instagram || facebook || '';
+          client.notes = notes;
+          if (!client.social) client.social = { instagram: [], facebook: [] };
+          const igHandle = instagram ? instagram.replace(/^@+/, '').trim() : '';
+          client.username = igHandle;
+          client.social.instagram = igHandle ? [igHandle] : [];
+          client.social.facebook = facebook ? [facebook.trim()] : [];
+          client.updatedAt = Date.now();
+        }
+        editingClientId = null;
+        showToast('Client modifié', 'success');
+      } else {
+        // Nettoyage automatique des doublons avant ajout
+        const cleanName = name.toLowerCase().trim();
+        const existing = appState.clients.find(c => c.name.toLowerCase().trim() === cleanName);
+        if (existing) {
+          showToast('Ce client existe déjà', 'warning');
+          return;
+        }
+
+        const client = {
+          id: generateId('client'),
+          uid: auth.currentUser ? auth.currentUser.uid : null,
+          name,
+          phone,
+          contact: phone || instagram || facebook || '',
+          notes,
+          totalSpent: 0,
+          unpaid: 0,
+          transactionsCount: 0,
+          updatedAt: Date.now(),
+          social: {
+            instagram: instagram ? [instagram.replace(/^@+/, '').trim()] : [],
+            facebook: facebook ? [facebook.trim()] : []
+          }
+        };
+        appState.clients.push(client);
+        showToast('Client ajouté', 'success');
+      }
+
+      document.getElementById('newClientName').value = '';
+      document.getElementById('newClientPhone').value = '';
+      document.getElementById('newClientInstagram').value = '';
+      document.getElementById('newClientFacebook').value = '';
+      document.getElementById('newClientNotes').value = '';
+
+      closeModal('clientModal');
+      renderClientsTable();
+      populateClientDropdown();
+      autoSave();
+    };
+
+    window.addOffer = function() {
+      const nameInput = document.getElementById('newOfferName');
+      const descInput = document.getElementById('newOfferDesc');
+      const priceInput = document.getElementById('newOfferPrice');
+      const costPerUnitInput = document.getElementById('newOfferCostPerUnit');
+      const durationInput = document.getElementById('newOfferDuration');
+
+      const name = nameInput ? nameInput.value.trim() : '';
+      const desc = descInput ? descInput.value.trim() : '';
+      const price = Number(priceInput ? priceInput.value : 0);
+      const costPerUnit = Number(costPerUnitInput ? costPerUnitInput.value : 0);
+      const duration = durationInput ? durationInput.value.trim() : '';
+
+      if (!name || !price || !costPerUnit) {
+        showToast('Nom, prix et montant $ requis', 'error');
+        return;
+      }
+
+      if (editingOfferId) {
+        const offerIndex = appState.offers.findIndex(o => o.id === editingOfferId);
+        if (offerIndex !== -1) {
+          appState.offers[offerIndex] = {
+            ...appState.offers[offerIndex],
+            name,
+            description: desc,
+            price,
+            costPerUnit,
+            duration,
+            updatedAt: Date.now()
+          };
+          showToast('Offre modifiée', 'success');
+        }
+      } else {
+        appState.offers.push({
+          id: generateId('offer'),
+          name,
+          description: desc,
+          price,
+          costPerUnit,
+          duration,
+          updatedAt: Date.now()
+        });
+        showToast('Offre ajoutée', 'success');
+      }
+
+      if(nameInput) nameInput.value = '';
+      if(descInput) descInput.value = '';
+      if(priceInput) priceInput.value = '';
+      if(costPerUnitInput) costPerUnitInput.value = '';
+      if(durationInput) durationInput.value = '';
+      editingOfferId = null;
+
+      closeModal('offerModal');
+      renderOffersGrid();
+      populateOfferSelect();
+      autoSave();
+    };
+
+    window.addTransaction = function() {
+      const offerId = document.getElementById('offerSelect').value;
+      const clientId = document.getElementById('clientSelect').value;
+      const adAccountId = document.getElementById('adAccountSelect').value;
+      const buyRate = Number(document.getElementById('buyRate').value || 0);
+      const paid = document.getElementById('transactionPaid').checked;
+      const reminderInput = document.getElementById('transactionReminderDate');
+
+      // Toujours utiliser les champs saisis (remplis automatiquement si une offre est sélectionnée)
+      const amount = Number(document.getElementById('standardDollarAmount').value || 0);
+      const priceDzd = Number(document.getElementById('standardPriceDzd').value || 0);
+      let duration = document.getElementById('standardDuration').value || '';
+
+      // Si une offre est sélectionnée, reprendre sa durée par défaut si le champ est vide
+      if (offerId) {
+        const offer = appState.offers.find(o => o.id === offerId);
+        if (!offer) {
+          showToast('Offre introuvable', 'error');
+          return;
+        }
+        if (!duration) duration = offer.duration || '';
+      }
+
+      if (!clientId) {
+        showToast('Sélectionnez un client', 'error');
+        return;
+      }
+      if (!amount || !priceDzd || !buyRate) {
+        showToast('Montant $, prix vente et taux achat requis', 'error');
+        return;
+      }
+
+      const client = appState.clients.find(c => c.id === clientId);
+      if (!client) {
+        showToast('Client introuvable', 'error');
+        return;
+      }
+
+      const totalDzd = amount * buyRate;
+      const profit = priceDzd - totalDzd;
+
+      let reminderAt = null;
+      if (!paid) {
+        if (reminderInput && reminderInput.value) {
+          reminderAt = reminderInput.value;
+        } else {
+          const d = new Date();
+          d.setDate(d.getDate() + 3);
+          reminderAt = getLocalDateString(d);
+        }
+      }
+
+      const adAcc = appState.adAccounts.find(a => a.id === adAccountId);
+
+      const transaction = {
+        id: generateId('txn'),
+        date: getLocalDateString(),
+        createdAt: Date.now(),
+        clientId,
+        clientName: client.name,
+        offerId: offerId || null,
+        offerName: offerId ? (appState.offers.find(o => o.id === offerId)?.name || '') : 'Offre Standard',
+        adAccountId: adAccountId || null,
+        adAccountName: adAcc ? adAcc.name : '',
+        amount,
+        priceDzd,
+        buyRate, // On stocke le taux d'achat spécifique à cette transaction
+        totalDzd,
+        profit,
+        duration,
+        paid,
+        reminderAt,
+      };
+
+      appState.transactions.push(transaction);
+
+      // Les stats client seront recalculées globalement pour robustesse
+
+      renderTables();
+      autoSave();
+      showToast('Transaction ajoutée', 'success');
+      resetCalculator();
+    };
+
+    window.addPayment = function() {
+      const clientId = document.getElementById('paymentClientSelect').value;
+      const amountInput = document.getElementById('paymentAmount');
+      const amount = Number(amountInput ? amountInput.value : 0);
+      const account = document.getElementById('paymentAccount').value;
+      const method = document.getElementById('paymentMethod').value;
+      const status = document.getElementById('paymentStatus').value;
+      const noteInput = document.getElementById('paymentNote');
+      const note = noteInput ? noteInput.value.trim() : '';
+
+      if (!clientId || !amount) {
+        showToast('Client et montant requis', 'error');
+        return;
+      }
+
+      let client = appState.clients.find(c => c.id === clientId);
+      if (!client) {
+        // Fallback: rechercher par nom affiché si l'id ne correspond pas
+        const sel = document.getElementById('paymentClientSelect');
+        const selectedName = sel?.options[sel.selectedIndex]?.text || '';
+        client = appState.clients.find(c => (c.name || '').trim() === selectedName.trim());
+      }
+      if (!client) {
+        showToast('Client introuvable', 'error');
+        return;
+      }
+
+      const payment = {
+        id: generateId('pay'),
+        date: getLocalDateString(),
+        clientId: client.id,
+        clientName: client.name,
+        amount,
+        account,
+        method,
+        status,
+        note,
+      };
+
+      appState.payments.push(payment);
+      recalculateFinanceBalances();
+
+      client.unpaid = Math.max(0, Number(client.unpaid || 0) - amount);
+
+      renderPaymentsTable();
+      const tbody = document.getElementById('paymentsTableBody');
+      if (tbody) {
+        // Wait for render to complete
+        setTimeout(() => {
+            const row = tbody.querySelector(`tr[data-payment-id="${payment.id}"]`);
+            if (row) {
+              row.classList.add('animate-pulse');
+              setTimeout(() => {
+                row.classList.remove('animate-pulse');
+              }, 800);
+            }
+        }, 50);
+      }
+      closeModal('paymentModal');
+      renderClientsTable();
+      autoSave();
+      showToast('Paiement enregistré', 'success');
+      
+      // Reset form
+      if(amountInput) amountInput.value = '';
+      if(noteInput) noteInput.value = '';
+      document.getElementById('paymentClientSelect').value = '';
+    };
+
+    window.addUsdPurchase = function() {
+      const amount = Number(document.getElementById('usdAmount').value || 0);
+      const rate = Number(document.getElementById('usdRate').value || 0);
+      const dzdAccount = document.getElementById('usdAccountSource').value;
+      const source = document.getElementById('usdSource').value.trim();
+
+      if (!amount || !rate) {
+        showToast('Montant USD et taux requis', 'error');
+        return;
+      }
+
+      const totalDzd = amount * rate;
+
+      const purchase = {
+        id: generateId('usd'),
+        date: getLocalDateString(),
+        amount,
+        rate,
+        totalDzd,
+        dzdAccount,
+        source,
+      };
+
+      appState.usdPurchases.push(purchase);
+      recalculateFinanceBalances();
+
+      renderUsdPurchasesTable();
+      const tbody = document.getElementById('usdPurchasesTableBody');
+      if (tbody) {
+        const row = tbody.querySelector(`tr[data-usd-id="${purchase.id}"]`);
+        if (row) {
+          row.classList.add('animate-pulse');
+          setTimeout(() => {
+            row.classList.remove('animate-pulse');
+          }, 800);
+        }
+      }
+      closeModal('usdPurchaseModal');
+       autoSave();
+       showToast('Achat USD enregistré', 'success');
+     };
+
+    window.addExpense = function() {
+      const date = document.getElementById('expenseDate').value || getLocalDateString();
+      const category = document.getElementById('expenseCategory').value || 'Autre';
+      const account = document.getElementById('expenseAccount').value;
+      const amount = Number(document.getElementById('expenseAmount').value || 0);
+      const note = document.getElementById('expenseNote').value.trim();
+      const recurring = !!document.getElementById('expenseRecurring')?.checked;
+      const reminderEmail = document.getElementById('expenseReminderEmail')?.value?.trim() || '';
+      if (!amount) { showToast('Montant requis', 'error'); return; }
+      if (recurring) {
+        const rid = generateId('recur');
+        appState.recurringExpenses.push({
+          id: rid,
+          category,
+          amount,
+          note,
+        });
+        appState.expenses.push({
+          id: generateId('exp'),
+          date,
+          category,
+          account,
+          amount,
+          note,
+          recurringId: rid,
+        });
+        if (reminderEmail) {
+          try {
+            fetch('http://localhost:3000/reminders', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                emailTo: reminderEmail,
+                category,
+                amount,
+                note,
+                dayOfMonth: date && date.includes('-') ? parseInt(date.split('-')[2]) : new Date().getDate()
+              })
+            }).then(() => {}).catch(() => {});
+          } catch (e) {}
+        }
+      } else {
+        appState.expenses.push({
+          id: generateId('exp'),
+          date,
+          category,
+          account,
+          amount,
+          note,
+        });
+      }
+      closeModal('expenseModal');
+      recalculateFinanceBalances();
+      applyRecurringExpensesForCurrentMonth();
+      renderExpensesTable();
+      autoSave();
+      updateDashboard();
+       showToast('Frais ajouté', 'success');
+     };
+
+    window.addTodoTransaction = function() {
+      const offerId = document.getElementById('offerSelect').value;
+      const clientId = document.getElementById('clientSelect').value;
+      const adAccountId = document.getElementById('adAccountSelect').value;
+      const buyRate = Number(document.getElementById('buyRate').value || 0);
+      const paid = document.getElementById('transactionPaid').checked;
+
+      const amount = Number(document.getElementById('standardDollarAmount').value || 0);
+      const priceDzd = Number(document.getElementById('standardPriceDzd').value || 0);
+      let duration = document.getElementById('standardDuration').value || '';
+
+      if (!clientId) {
+        showToast('Sélectionnez un client', 'error');
+        return;
+      }
+      if (!amount || !priceDzd) {
+        showToast('Montant $ et prix vente requis', 'error');
+        return;
+      }
+
+      const client = appState.clients.find(c => c.id === clientId);
+      if (!client) {
+        showToast('Client introuvable', 'error');
+        return;
+      }
+
+      const adAcc = appState.adAccounts.find(a => a.id === adAccountId);
+
+      const todo = {
+        id: generateId('todo'),
+        date: getLocalDateString(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        uid: auth.currentUser ? auth.currentUser.uid : null,
+        clientId,
+        clientName: client.name,
+        offerId: offerId || null,
+        offerName: offerId ? (appState.offers.find(o => o.id === offerId)?.name || '') : 'Offre Standard',
+        adAccountId: adAccountId || null,
+        adAccountName: adAcc ? adAcc.name : '',
+        amount,
+        priceDzd,
+        buyRate,
+        duration,
+        paid,
+        status: 'pending' // pending, done, problem
+      };
+
+      if (!Array.isArray(appState.todoTransactions)) appState.todoTransactions = [];
+      appState.todoTransactions.push(todo);
+
+      renderTodoTable();
+      autoSave();
+      showToast('Transaction mise en attente (To-Do)', 'info');
+      resetCalculator();
+    };
+
+    window.toggleTodoPayment = function(id) {
+      const todo = (appState.todoTransactions || []).find(t => t.id === id);
+      if (todo) {
+        todo.paid = !todo.paid;
+        todo.updatedAt = Date.now();
+        renderTodoTable();
+        autoSave();
+      }
+    };
+
+    window.validateTodoTransaction = function(id, status) {
+      const idx = appState.todoTransactions.findIndex(t => t.id === id);
+      if (idx === -1) return;
+      
+      const todo = appState.todoTransactions[idx];
+      
+      // Calculate profit if possible
+      const totalDzd = todo.amount * (todo.buyRate || 340);
+      const profit = todo.priceDzd - totalDzd;
+      
+      let reminderAt = null;
+      if (!todo.paid) {
+        const d = new Date();
+        d.setDate(d.getDate() + 3);
+        reminderAt = getLocalDateString(d);
+      }
+
+      const transaction = {
+        id: generateId('txn'),
+        date: getLocalDateString(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        uid: auth.currentUser ? auth.currentUser.uid : null,
+        clientId: todo.clientId,
+        clientName: todo.clientName,
+        offerId: todo.offerId,
+        offerName: todo.offerName,
+        amount: todo.amount,
+        priceDzd: todo.priceDzd,
+        totalDzd,
+        profit,
+        duration: todo.duration,
+        paid: todo.paid,
+        reminderAt,
+        status: status // 'done' or 'problem'
+      };
+
+      appState.transactions.push(transaction);
+      appState.todoTransactions.splice(idx, 1);
+      
+      if (status === 'done') {
+        showToast('Transaction validée et enregistrée', 'success');
+      } else {
+        showToast('Transaction enregistrée avec mention "Problème"', 'warning');
+      }
+      
+      renderTables();
+      autoSave();
+    };
+
+     // === ETAT GLOBAL DE L'APP ===
     let editingOfferId = null;
     let editingClientId = null;
     let appState = {
@@ -2737,6 +3735,9 @@
       recurringExpenses: [],
       clientRequests: [],
       usdtExpenses: [],
+      todoTransactions: [],
+      adAccounts: [],
+      manualBalances: { liquide: 0, baridimob: 0, usdt: 0 }, // Initial or manual adjustment
     };
     window.appState = appState;
 
@@ -2745,10 +3746,6 @@
       return `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     }
     window.generateId = generateId;
-
-    function formatCurrency(value) {
-      return `${Number(value || 0).toLocaleString('fr-DZ')} DZD`;
-    }
 
     function safeToFixed(value, digits = 2) {
       const num = Number(value || 0);
@@ -2792,6 +3789,94 @@
         month: '2-digit',
         day: '2-digit',
       });
+    }
+
+    // NOUVELLE FONCTION CENTRALE DE CALCUL (SANS AJUSTEMENT MANUEL)
+    function calculateTheoreticalBalance() {
+      let liq = 0;
+      let bar = 0;
+      let usdt = 0;
+
+      // 1. Entrées (Paiements)
+      (appState.payments || []).forEach(p => {
+          const amt = Number(p.amount || 0);
+          const method = (p.method || '').toLowerCase();
+          const account = p.account || (method === 'baridimob' ? 'baridimob' : (method === 'usdt' ? 'usdt' : 'liquide'));
+          
+          if (account === 'baridimob') bar += amt;
+          else if (account === 'usdt') usdt += amt;
+          else liq += amt;
+      });
+
+      // 2. Sorties (Dépenses)
+      (appState.expenses || []).forEach(e => {
+          const amt = Number(e.amount || 0);
+          const account = e.account || 'liquide';
+          
+          if (account === 'baridimob') bar -= amt;
+          else if (account === 'usdt') usdt -= amt;
+          else liq -= amt;
+      });
+
+      // 3. Achats USD (DZD -> USDT)
+      (appState.usdPurchases || []).forEach(u => {
+          const dzdAmt = Number(u.totalDzd || 0);
+          const usdtAmt = Number(u.amount || 0);
+          const dzdAccount = u.dzdAccount || 'liquide';
+          
+          if (dzdAccount === 'baridimob') bar -= dzdAmt;
+          else liq -= dzdAmt;
+          
+          usdt += usdtAmt;
+      });
+
+      // 4. Ventes USD (Transactions) - Diminue le stock USDT
+      (appState.transactions || []).forEach(t => {
+          const usdtAmt = Number(t.amount || 0);
+          usdt -= usdtAmt;
+      });
+
+      // 5. Dépenses USDT
+      (appState.usdtExpenses || []).forEach(e => {
+          const usdtAmt = Number(e.amount || 0);
+          usdt -= usdtAmt;
+      });
+
+      return { liquide: liq, baridimob: bar, usdt: usdt };
+    }
+
+    function recalculateFinanceBalances() {
+      const manual = appState.manualBalances || { liquide: 0, baridimob: 0, usdt: 0 };
+      const theoretical = calculateTheoreticalBalance();
+
+      const balances = { 
+        liquide: theoretical.liquide + Number(manual.liquide || 0), 
+        baridimob: theoretical.baridimob + Number(manual.baridimob || 0), 
+        usdt: theoretical.usdt + Number(manual.usdt || 0) 
+      };
+
+      appState.balances = balances;
+      updateFinanceUI();
+    }
+
+    function updateFinanceUI() {
+      const b = appState.balances || { liquide: 0, baridimob: 0, usdt: 0 };
+      const isEmployee = (appState.session && appState.session.type === 'employee');
+      
+      const elLiq = document.getElementById('balanceLiquide');
+      const elBar = document.getElementById('balanceBaridimob');
+      const elUsdt = document.getElementById('balanceUsdt');
+      
+      if (elLiq) elLiq.textContent = isEmployee ? '***' : formatCurrency(b.liquide);
+      if (elBar) elBar.textContent = isEmployee ? '***' : formatCurrency(b.baridimob);
+      if (elUsdt) elUsdt.textContent = isEmployee ? '***' : `${b.usdt.toFixed(2)} USDT`;
+      
+      // Update Dashboard colors if negative
+      if (!isEmployee) {
+        if (elLiq) elLiq.classList.toggle('text-red-600', b.liquide < 0);
+        if (elBar) elBar.classList.toggle('text-red-600', b.baridimob < 0);
+        if (elUsdt) elUsdt.classList.toggle('text-red-600', b.usdt < 0);
+      }
     }
 
     function getLocalDateString(date = new Date()) {
@@ -2856,16 +3941,6 @@
       el.classList.remove('bg-red-50','text-red-700','border-red-200');
       el.classList.remove('bg-blue-50','text-blue-700','border-blue-200');
       el.classList.add('bg-gray-50','text-gray-700','border-gray-200');
-    }
-
-    function openModal(id) {
-      const modal = document.getElementById(id);
-      if (modal) modal.classList.remove('hidden');
-    }
-
-    function closeModal(id) {
-      const modal = document.getElementById(id);
-      if (modal) modal.classList.add('hidden');
     }
 
   function openImagePreview(src) {
@@ -2971,15 +4046,28 @@
     showToast('Employé supprimé', 'success');
   }
   function resetEmployeePassword(id) {
-    const newPwd = prompt('Nouveau mot de passe:');
-    if (!newPwd) return;
+    const input = document.getElementById('newEmpPwdInput');
+    const hiddenId = document.getElementById('resetPwdEmpId');
+    if (input) input.value = '';
+    if (hiddenId) hiddenId.value = id;
+    openModal('resetPwdModal');
+  }
+
+  window.saveResetEmployeePassword = function() {
+    const id = document.getElementById('resetPwdEmpId').value;
+    const newPwd = document.getElementById('newEmpPwdInput').value;
+    if (!newPwd) {
+      showToast('Mot de passe requis', 'error');
+      return;
+    }
     const emp = appState.employees.find(e => e.id === id);
     if (!emp) return;
     emp.password = newPwd;
     autoSave();
     renderSettingsAdmin();
+    closeModal('resetPwdModal');
     showToast('Mot de passe mis à jour', 'success');
-  }
+  };
   function closeImagePreview() {
     const modal = document.getElementById('imagePreviewModal');
     const img = document.getElementById('imagePreviewContent');
@@ -3082,146 +4170,118 @@
   }
     // Normaliser les données (ajouter des id manquants, valeurs par défaut)
     function normalizeAppState() {
+      const currentUid = auth.currentUser ? auth.currentUser.uid : null;
+      const now = Date.now();
       let changed = false;
-      const ensureId = (item, prefix) => {
-        if (!item.id) {
-          item.id = generateId(prefix);
-          changed = true;
-        }
+
+      if (!appState.balances) {
+        appState.balances = { liquide: 0, baridimob: 0, usdt: 0 };
+        changed = true;
+      }
+      
+      const ensureIdAndMeta = (item, prefix) => {
+        if (!item.id) { item.id = generateId(prefix); changed = true; }
+        if (!item.updatedAt) { item.updatedAt = now; changed = true; }
+        if (!item.uid && currentUid) { item.uid = currentUid; changed = true; }
       };
 
-      // Initialisation des tableaux manquants
-      if (!Array.isArray(appState.offers)) { appState.offers = []; changed = true; }
-      if (!Array.isArray(appState.clients)) { appState.clients = []; changed = true; }
-      if (!Array.isArray(appState.transactions)) { appState.transactions = []; changed = true; }
-      if (!Array.isArray(appState.payments)) { appState.payments = []; changed = true; }
-      if (!Array.isArray(appState.usdPurchases)) { appState.usdPurchases = []; changed = true; }
-      if (!Array.isArray(appState.expenses)) { appState.expenses = []; changed = true; }
-      if (!Array.isArray(appState.usdtExpenses)) { appState.usdtExpenses = []; changed = true; }
-      if (!Array.isArray(appState.recurringExpenses)) { appState.recurringExpenses = []; changed = true; }
-      if (!Array.isArray(appState.clientRequests)) { appState.clientRequests = []; changed = true; }
+      const ensureArray = (key) => {
+        if (!Array.isArray(appState[key])) { appState[key] = []; changed = true; }
+      };
 
-      try {
-        appState.offers.forEach(o => {
-          ensureId(o, 'offer');
-          if (typeof o.price !== 'number') { o.price = Number(o.price || 0); changed = true; }
-          if (typeof o.costPerUnit !== 'number') { o.costPerUnit = Number(o.costPerUnit || 0); changed = true; }
-          if (!('description' in o)) { o.description = ''; changed = true; }
-          if (!('duration' in o)) { o.duration = 'N/A'; changed = true; }
-        });
-        appState.clients.forEach(c => {
-          ensureId(c, 'client');
-          if (!('contact' in c)) { c.contact = ''; changed = true; }
-          if (!('notes' in c)) { c.notes = ''; changed = true; }
-        });
-        appState.transactions.forEach(t => {
-          ensureId(t, 'txn');
-          if (!t.date || t.date.includes('T')) { 
-            t.date = getLocalDateString(t.date ? new Date(t.date) : new Date()); 
-            changed = true; 
-          }
-          if (t.reminderAt && t.reminderAt.includes('T')) {
-             t.reminderAt = getLocalDateString(new Date(t.reminderAt));
-             changed = true;
-          }
-          if (!('createdAt' in t)) { t.createdAt = Date.now(); changed = true; }
-        });
-        appState.payments.forEach(p => {
-          ensureId(p, 'pay');
-          if (!p.date || p.date.includes('T')) { 
-            p.date = getLocalDateString(p.date ? new Date(p.date) : new Date()); 
-            changed = true; 
-          }
-        });
-        appState.usdPurchases.forEach(u => {
-          ensureId(u, 'usd');
-          if (!u.date || u.date.includes('T')) { 
-            u.date = getLocalDateString(u.date ? new Date(u.date) : new Date()); 
-            changed = true; 
-          }
-        });
-        appState.expenses.forEach(e => {
-          ensureId(e, 'exp');
-          if (!e.date || e.date.includes('T')) { 
-            e.date = getLocalDateString(e.date ? new Date(e.date) : new Date()); 
-            changed = true; 
-          }
-          if (typeof e.amount !== 'number') { e.amount = Number(e.amount || 0); changed = true; }
-          if (!('category' in e)) { e.category = 'Autre'; changed = true; }
-        });
+      ['offers', 'clients', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'usdtExpenses', 'recurringExpenses', 'clientRequests'].forEach(ensureArray);
 
-        appState.usdtExpenses.forEach(e => {
-          ensureId(e, 'usdt');
-          if (!e.date || e.date.includes('T')) { 
-            e.date = getLocalDateString(e.date ? new Date(e.date) : new Date()); 
-            changed = true; 
-          }
-        });
-
-        appState.recurringExpenses.forEach(r => {
-          ensureId(r, 'recur');
-          if (!('category' in r)) { r.category = 'Autre'; changed = true; }
-          if (typeof r.amount !== 'number') { r.amount = Number(r.amount || 0); changed = true; }
-        });
-        
-        appState.clientRequests.forEach(r => {
-          if (typeof r.read !== 'boolean') { r.read = false; changed = true; }
-          if (typeof r.processed !== 'boolean') { r.processed = false; changed = true; }
-          if (!r.date) { r.date = getLocalDateString(); changed = true; }
-          if (!r.status) {
-            r.status = r.processed ? 'processed' : 'pending';
-            changed = true;
-          }
-          const validStatuses = ['pending','in_progress','problematic','processed'];
-          if (!validStatuses.includes(r.status)) {
-            r.status = r.processed ? 'processed' : 'pending';
-            changed = true;
-          }
-        });
-        if (!appState.customSection) {
-            appState.customSection = {
-                title: "Nos Réalisations",
-                categories: [] 
-            };
-            changed = true;
+      appState.offers.forEach(o => {
+        ensureIdAndMeta(o, 'offer');
+        if (typeof o.price !== 'number') { o.price = Number(o.price || 0); changed = true; }
+        if (typeof o.costPerUnit !== 'number') { o.costPerUnit = Number(o.costPerUnit || 0); changed = true; }
+        if (!('description' in o)) { o.description = ''; changed = true; }
+        if (!('duration' in o)) { o.duration = 'N/A'; changed = true; }
+      });
+      appState.clients.forEach(c => {
+        ensureIdAndMeta(c, 'client');
+        if (!('contact' in c)) { c.contact = ''; changed = true; }
+        if (!('notes' in c)) { c.notes = ''; changed = true; }
+      });
+      appState.transactions.forEach(t => {
+        ensureIdAndMeta(t, 'txn');
+        if (!t.date || t.date.includes('T')) { 
+          t.date = getLocalDateString(t.date ? new Date(t.date) : new Date()); 
+          changed = true;
         }
-        if (!appState.settings.workMethodText) {
-             appState.settings.workMethodText = `
-<div class="space-y-4">
-  <div class="flex items-start gap-4">
-    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold">1</div>
-    <div>
-      <h3 class="font-bold text-gray-800">Choix de l'offre</h3>
-      <p class="text-gray-600">Vous sélectionnez le pack qui correspond à vos besoins (Instagram, Facebook, TikTok...).</p>
-    </div>
-  </div>
-  <div class="flex items-start gap-4">
-    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold">2</div>
-    <div>
-      <h3 class="font-bold text-gray-800">Configuration</h3>
-      <p class="text-gray-600">Vous remplissez les détails de votre campagne : liens, objectifs, cibles.</p>
-    </div>
-  </div>
-  <div class="flex items-start gap-4">
-    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold">3</div>
-    <div>
-      <h3 class="font-bold text-gray-800">Paiement</h3>
-      <p class="text-gray-600">Vous effectuez le paiement et envoyez la preuve directement via le formulaire.</p>
-    </div>
-  </div>
-  <div class="flex items-start gap-4">
-    <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold">4</div>
-    <div>
-      <h3 class="font-bold text-gray-800">Lancement</h3>
-      <p class="text-gray-600">Notre équipe valide votre commande et lance la campagne sous 24-48h.</p>
-    </div>
-  </div>
-</div>`;
-             changed = true;
+        if (t.reminderAt && t.reminderAt.includes('T')) {
+           t.reminderAt = getLocalDateString(new Date(t.reminderAt));
+           changed = true;
         }
-      } catch (e) {
-        console.warn('Normalisation échouée', e);
+        if (!('createdAt' in t)) { t.createdAt = now; changed = true; }
+      });
+      appState.todoTransactions.forEach(t => {
+        ensureIdAndMeta(t, 'todo');
+        if (!t.date || t.date.includes('T')) { 
+          t.date = getLocalDateString(t.date ? new Date(t.date) : new Date()); 
+          changed = true;
+        }
+        if (!('createdAt' in t)) { t.createdAt = now; changed = true; }
+      });
+      appState.payments.forEach(p => {
+        ensureIdAndMeta(p, 'pay');
+        if (!p.date || p.date.includes('T')) { 
+          p.date = getLocalDateString(p.date ? new Date(p.date) : new Date()); 
+          changed = true;
+        }
+      });
+      appState.usdPurchases.forEach(u => {
+        ensureIdAndMeta(u, 'usd');
+        if (!u.date || u.date.includes('T')) { 
+          u.date = getLocalDateString(u.date ? new Date(u.date) : new Date()); 
+          changed = true;
+        }
+      });
+      appState.expenses.forEach(e => {
+        ensureIdAndMeta(e, 'exp');
+        if (!e.date || e.date.includes('T')) { 
+          e.date = getLocalDateString(e.date ? new Date(e.date) : new Date()); 
+          changed = true;
+        }
+        if (typeof e.amount !== 'number') { e.amount = Number(e.amount || 0); changed = true; }
+        if (!('category' in e)) { e.category = 'Autre'; changed = true; }
+      });
+      appState.usdtExpenses.forEach(e => {
+        ensureIdAndMeta(e, 'usdt');
+        if (!e.date || e.date.includes('T')) { 
+          e.date = getLocalDateString(e.date ? new Date(e.date) : new Date()); 
+          changed = true;
+        }
+      });
+      appState.recurringExpenses.forEach(r => {
+        ensureIdAndMeta(r, 'recur');
+        if (!('category' in r)) { r.category = 'Autre'; changed = true; }
+        if (typeof r.amount !== 'number') { r.amount = Number(r.amount || 0); changed = true; }
+      });
+      appState.clientRequests.forEach(r => {
+        if (typeof r.read !== 'boolean') { r.read = false; changed = true; }
+        if (typeof r.processed !== 'boolean') { r.processed = false; changed = true; }
+        if (!r.date) { r.date = getLocalDateString(); changed = true; }
+        if (!r.status) {
+          r.status = r.processed ? 'processed' : 'pending';
+          changed = true;
+        }
+        const validStatuses = ['pending','in_progress','problematic','processed'];
+        if (!validStatuses.includes(r.status)) {
+          r.status = r.processed ? 'processed' : 'pending';
+          changed = true;
+        }
+      });
+
+      if (!appState.customSection) {
+          appState.customSection = { title: "Nos Réalisations", categories: [] };
+          changed = true;
       }
+      if (!appState.settings.workMethodText) {
+           appState.settings.workMethodText = `<div class="space-y-4">...</div>`;
+           changed = true;
+      }
+
       if (changed) {
         try { saveToLocalStorage(); } catch (e) {}
       }
@@ -3255,7 +4315,13 @@
         if (doc.exists) {
           const raw = doc.data();
           const data = raw?.data ?? raw;
-          Object.assign(appState, data);
+          
+          // CRITICAL: Filter keys to avoid overwriting collections with snapshot
+          const snapshotKeys = ['settings', 'manualBalances', 'lastUpdated', 'sync'];
+          snapshotKeys.forEach(k => {
+            if (data[k] !== undefined) appState[k] = data[k];
+          });
+          
           console.log('☁️ Données utilisateur chargées depuis Firebase');
           
           // Charger les données granulaires pour compléter/mettre à jour
@@ -3263,28 +4329,63 @@
           
           normalizeAppState();
           
-          // Force recalculation of stats and dashboard update after cloud load
-          recalculateClientStats();
-          updateDashboard();
-          renderClientsTable();
-          renderTransactionsTable();
-          renderPaymentsTable();
-          
           try {
             const localStr = localStorage.getItem('hichemSponsor');
             if (localStr) {
               const localData = JSON.parse(localStr);
-              const localUpdated = Number(localData?.lastUpdated || 0);
-              const cloudUpdated = Number(appState?.lastUpdated || 0);
-              if (localUpdated > cloudUpdated) {
-                Object.assign(appState, localData);
+              
+              // 1. Fusion des collections granulaires (Arrays)
+              const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses'];
+              let mergeCount = 0;
+              
+              collections.forEach(col => {
+                  if (Array.isArray(localData[col])) {
+                      if (!appState[col]) appState[col] = [];
+                      const cloudMap = new Map(appState[col].map(i => [i.id, i]));
+                      
+                      localData[col].forEach(localItem => {
+                          if (!localItem.id) return;
+                          const cloudItem = cloudMap.get(localItem.id);
+                          
+                          if (!cloudItem) {
+                              // Item exists locally but not in cloud
+                              appState[col].push(localItem);
+                              mergeCount++;
+                          } else {
+                              // Item exists in both, use newest by updatedAt
+                              const localTs = Number(localItem.updatedAt || 0);
+                              const cloudTs = Number(cloudItem.updatedAt || 0);
+                              if (localTs > cloudTs) {
+                                  Object.assign(cloudItem, localItem);
+                                  mergeCount++;
+                              }
+                          }
+                      });
+                  }
+              });
+              
+              // 2. Fusion des données scalaires/objets (Manual Balances)
+              if (localData.manualBalances) {
+                  const localTs = Number(localData.lastUpdated || 0);
+                  const cloudTs = Number(appState.lastUpdated || 0);
+                  if (localTs > cloudTs) {
+                      appState.manualBalances = localData.manualBalances;
+                      mergeCount++;
+                  }
+              }
+              
+              if (mergeCount > 0) {
+                console.log(`☁️ Fusion effectuée: ${mergeCount} éléments synchronisés.`);
+                appState.lastUpdated = Date.now();
                 await saveToCloud();
-                console.log('â˜ï¸ Fusion locale > cloud effectuée');
               }
             }
           } catch (e) {
             console.warn('Fusion locale/cloud impossible', e);
           }
+          
+          // Refresh UI after all data loaded and merged
+          if (typeof renderTables === 'function') renderTables();
         } else {
           console.log('â˜ï¸ Aucun document cloud pour cet identifiant, initialisation...');
           ensureInitialData();
@@ -3314,6 +4415,7 @@
             clients: appState.clients,
             offers: appState.offers,
             transactions: appState.transactions,
+            todoTransactions: appState.todoTransactions,
             payments: appState.payments,
             usdPurchases: appState.usdPurchases,
             expenses: appState.expenses,
@@ -3334,8 +4436,12 @@
             items.forEach(item => {
                 if (!item || typeof item !== 'object') return;
                 
-                // Generate ID if missing (should not happen usually but safe to have)
+                // Generate ID if missing
                 if (!item.id) item.id = generateId();
+                
+                // CRITICAL: Ensure item is scoped to current user
+                item.uid = auth.currentUser ? auth.currentUser.uid : null;
+                if (!item.updatedAt) item.updatedAt = Date.now();
 
                 // Compute signature of current item
                 const currentSig = JSON.stringify(item);
@@ -3377,8 +4483,23 @@
                 console.log(`Sending ${promises.length} updates to Cloud...`);
                 await Promise.all(promises);
                 console.log(`Delta Sync Complete: ${totalWrites} written, ${totalSkipped} skipped.`);
-            } else {
-                console.log("Delta Sync: No changes detected (100% synced).");
+            }
+
+            // --- Handle Deletions ---
+            if (appState.sync && appState.sync.pendingDeletions && appState.sync.pendingDeletions.length > 0) {
+                console.log(`Processing ${appState.sync.pendingDeletions.length} deletions...`);
+                const deletePromises = appState.sync.pendingDeletions.map(async (del) => {
+                    try {
+                        await db.collection(del.col).doc(del.id).delete();
+                        if (appState.sync.itemSnapshots[del.col]) {
+                            delete appState.sync.itemSnapshots[del.col][del.id];
+                        }
+                    } catch(e) {
+                        console.error(`Failed to delete ${del.id} from ${del.col}:`, e);
+                    }
+                });
+                await Promise.all(deletePromises);
+                appState.sync.pendingDeletions = []; // Clear queue after success
             }
         } catch(e) {
             if (e.code === 'resource-exhausted') {
@@ -3390,28 +4511,53 @@
 
     async function loadGranularFromCloud() {
         const db = getDb();
-        if (!db) return;
+        const uid = auth.currentUser ? auth.currentUser.uid : null;
+        if (!db || !uid) return;
+
         const loadCol = async (col) => {
+            const resultsMap = new Map();
             try {
-                const snap = await db.collection(col).get();
-                return snap.docs.map(d => d.data());
-            } catch (e) { console.warn('Error loading ' + col, e); return []; }
+                // 1. Charger les données taguées avec l'UID de l'utilisateur
+                const snapUid = await db.collection(col).where('uid', '==', uid).get();
+                snapUid.forEach(d => resultsMap.set(d.id || d.ref.id, d.data()));
+                
+                // 2. Fallback Legacy : Charger toutes les données qui n'ont PAS d'UID
+                // C'est nécessaire pour récupérer les données créées avant la mise à jour multi-utilisateur.
+                const snapAll = await db.collection(col).get();
+                snapAll.forEach(d => {
+                    const data = d.data();
+                    if (!data.uid && !resultsMap.has(d.id || d.ref.id)) {
+                        resultsMap.set(d.id || d.ref.id, data);
+                    }
+                });
+                
+                return Array.from(resultsMap.values());
+            } catch (e) { 
+                console.warn('Error loading ' + col + ':', e); 
+                return [];
+            }
         };
-        const [clients, offers, transactions, payments, usdPurchases, expenses, clientRequests, recurringExpenses, usdtExpenses] = await Promise.all([
-            loadCol('clients'), loadCol('offers'), loadCol('transactions'),
+        const [clients, offers, transactions, todoTransactions, payments, usdPurchases, expenses, clientRequests, recurringExpenses, usdtExpenses] = await Promise.all([
+            loadCol('clients'), loadCol('offers'), loadCol('transactions'), loadCol('todoTransactions'),
             loadCol('payments'), loadCol('usdPurchases'), loadCol('expenses'),
             loadCol('clientRequests'), loadCol('recurringExpenses'), loadCol('usdtExpenses')
         ]);
         
         const merge = (local, cloud) => {
             if (!Array.isArray(local)) local = [];
-            // Map local items by ID for easy access
             const localMap = new Map(local.map(i => [i.id, i]));
             
             cloud.forEach(cItem => {
-                // Always update local with cloud data (Cloud is truth during load)
                 if (cItem && cItem.id) {
-                    localMap.set(cItem.id, cItem);
+                    if (!localMap.has(cItem.id)) {
+                        localMap.set(cItem.id, cItem);
+                    } else {
+                        // Conflict resolution: keep the newest one
+                        const localItem = localMap.get(cItem.id);
+                        if ((cItem.updatedAt || 0) > (localItem.updatedAt || 0)) {
+                            localMap.set(cItem.id, cItem);
+                        }
+                    }
                 }
             });
             
@@ -3421,6 +4567,7 @@
         appState.clients = merge(appState.clients, clients);
         appState.offers = merge(appState.offers, offers);
         appState.transactions = merge(appState.transactions, transactions);
+        appState.todoTransactions = merge(appState.todoTransactions, todoTransactions);
         appState.payments = merge(appState.payments, payments);
         appState.usdPurchases = merge(appState.usdPurchases, usdPurchases);
         appState.expenses = merge(appState.expenses, expenses);
@@ -3433,6 +4580,7 @@
     function buildCloudSnapshot() {
       const snapshot = {
         settings: appState.settings || {},
+        manualBalances: appState.manualBalances || { liquide: 0, baridimob: 0, usdt: 0 },
         lastUpdated: appState.lastUpdated || Date.now(),
         sync: {
           retryDelayMs: appState.sync?.retryDelayMs || 5000,
@@ -3450,6 +4598,7 @@
         const db = getDb();
         if (!db) throw new Error('Base de données non initialisée');
         
+        normalizeAppState();
         appState.lastUpdated = Date.now();
         const data = buildCloudSnapshot();
         await db.collection('users').doc(uid).set({ data }, { merge: true });
@@ -3457,13 +4606,13 @@
         console.log('☁️ Données sauvegardées sur Firebase');
         appState.sync.pendingCloudSave = false;
         updateSyncIndicator();
-        showToast('Synchronisation Cloud réussie', 'success');
+        // showToast('Synchronisation Cloud réussie', 'success'); // Moins intrusif
       } catch (err) {
         console.error('Erreur sauvegarde cloud:', err);
         if (err.code === 'resource-exhausted') {
             showToast('Quota Firebase dépassé (Trop de synchronisations). Réessayez demain.', 'error');
         } else {
-            showToast('Mode hors ligne : sauvegarde locale effectuée', 'warning');
+            // showToast('Mode hors ligne : sauvegarde locale effectuée', 'warning');
         }
         saveToLocalStorage();
         appState.sync.pendingCloudSave = true;
@@ -3657,27 +4806,44 @@
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         const profit = Number(t.profit || 0);
+        const buyRate = Number(t.buyRate || (t.amount ? (t.totalDzd / t.amount) : 340));
         totalProfit += profit;
         
-        const profitCell = isEmployee ? '' : `<td class="p-4 text-emerald-600 font-semibold">${formatCurrency(profit)}</td>`;
+        const profitCell = isEmployee ? '' : `<td class="p-4 text-emerald-600 font-semibold text-right">${formatCurrency(profit)}</td>`;
         
+        const statusTag = t.status === 'problem' 
+          ? '<span class="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full uppercase">Problème</span>' 
+          : '';
+
+        const paidBadge = t.paid 
+          ? '<span class="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-bold rounded-lg border border-green-200 uppercase">Payé</span>' 
+          : '<span class="px-2 py-1 bg-red-100 text-red-700 text-[10px] font-bold rounded-lg border border-red-200 uppercase">Impayé</span>';
+
         row.innerHTML = `
           <td class="p-4 text-gray-700">${formatDate(t.date)}</td>
-          <td class="p-4 text-gray-800 font-medium">${t.clientName || '-'}</td>
+          <td class="p-4 text-gray-800 font-medium">
+            ${t.clientName || '-'}
+            ${statusTag}
+          </td>
           <td class="p-4 text-gray-700">${t.offerName || '-'}</td>
-          <td class="p-4 text-gray-700">${t.amount || 0} $</td>
-          <td class="p-4 text-gray-700">${formatCurrency(t.priceDzd || 0)}</td>
-          <td class="p-4 text-gray-700">${formatCurrency(t.totalDzd || 0)}</td>
+          <td class="p-4 text-gray-700 text-right font-mono">${t.amount || 0} $ <br><span class="text-[10px] text-gray-400">@ ${buyRate.toFixed(2)}</span></td>
+          <td class="p-4 text-gray-700 text-right font-mono">${formatCurrency(t.priceDzd || 0)}</td>
+          <td class="p-4 text-gray-700 text-right font-mono">${formatCurrency(t.totalDzd || 0)}</td>
           ${profitCell}
           <td class="p-4 text-gray-600">${t.duration || '-'}</td>
-          <td class="p-4 flex gap-2">
-            <button onclick="generateInvoice('${t.id}')" class="text-gray-600 hover:text-gray-800" title="Facture PDF">
+          <td class="p-4 text-center">
+            <button onclick="toggleTransactionPayment('${t.id}')" title="Cliquer pour changer le statut" class="hover:scale-105 transition-transform">
+              ${paidBadge}
+            </button>
+          </td>
+          <td class="p-4 flex gap-2 justify-center">
+            <button onclick="generateInvoice('${t.id}')" class="text-gray-600 hover:text-blue-600 transition-colors" title="Facture PDF">
               <i class="fas fa-file-invoice"></i>
             </button>
-            <button onclick="editTransaction('${t.id}')" class="text-blue-600 hover:text-blue-800" title="Modifier">
+            <button onclick="editTransaction('${t.id}')" class="text-blue-600 hover:text-blue-800 transition-colors" title="Modifier">
               <i class="fas fa-edit"></i>
             </button>
-            <button onclick="deleteTransaction('${t.id}')" class="text-red-600 hover:text-red-800" title="Supprimer">
+            <button onclick="deleteTransaction('${t.id}')" class="text-red-600 hover:text-red-800 transition-colors" title="Supprimer">
               <i class="fas fa-trash-alt"></i>
             </button>
           </td>
@@ -3691,6 +4857,11 @@
       if (summary) summary.textContent = `${filteredTransactions.length} transactions`;
       if (totalSpan) {
           totalSpan.textContent = isEmployee ? '' : `Profit total: ${formatCurrency(totalProfit)}`;
+      }
+      
+      const profitHeader = document.getElementById('profitHeaderHistory');
+      if (profitHeader) {
+        profitHeader.style.display = isEmployee ? 'none' : '';
       }
     }
 
@@ -3761,8 +4932,18 @@
       tbody.innerHTML = '';
 
       let total = 0;
+      // CRITICAL: Utiliser le bon ID de l'input de recherche
+      const search = document.getElementById('paymentSearchClient')?.value.toLowerCase() || '';
 
-      const payments = [...(appState.payments || [])];
+      // Copier proprement le tableau
+      let payments = [...(appState.payments || [])];
+      
+      // Filtrage
+      if (search) {
+        payments = payments.filter(p => (p.clientName || '').toLowerCase().includes(search));
+      }
+
+      // Tri
       payments.sort((a, b) => {
         let cmp = 0;
         if (paymentsSortField === 'amount') {
@@ -3782,18 +4963,35 @@
       });
 
       const frag = document.createDocumentFragment();
+      
+      if (payments.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-500">Aucun paiement trouvé</td></tr>`;
+        return;
+      }
+
       payments.forEach(p => {
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         const amount = Number(p.amount || 0);
         total += amount;
+        
+        // Formatter la date
+        const dateStr = formatDate(p.date);
+        
         row.innerHTML = `
-          <td class="p-4 text-gray-700">${formatDate(p.date)}</td>
-          <td class="p-4 text-gray-800">${p.clientName || '-'}</td>
+          <td class="p-4 text-gray-700 whitespace-nowrap">${dateStr}</td>
+          <td class="p-4 text-gray-800 font-medium">${p.clientName || '-'}</td>
           <td class="p-4 text-green-600 font-semibold">${formatCurrency(amount)}</td>
           <td class="p-4 text-gray-700">${p.method || '-'}</td>
-          <td class="p-4 text-gray-700">${p.status || '-'}</td>
-          <td class="p-4 text-gray-500">${p.note || '-'}</td>
+          <td class="p-4 text-gray-700">
+             <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-lg border border-green-200 uppercase">Reçu</span>
+          </td>
+          <td class="p-4 text-gray-500 text-sm max-w-xs truncate" title="${p.note || ''}">${p.note || '-'}</td>
+          <td class="p-4 text-center">
+             <button onclick="deletePayment('${p.id}')" class="text-red-500 hover:text-red-700 transition-colors" title="Supprimer">
+                <i class="fas fa-trash-alt"></i>
+             </button>
+          </td>
         `;
         row.dataset.paymentId = p.id;
         frag.appendChild(row);
@@ -3966,7 +5164,7 @@
         return true;
       };
       const latest = [...(appState.transactions || [])]
-        .filter(t => isInPeriod(t.date))
+        .filter(t => t.status !== 'problem' && isInPeriod(t.date))
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
       const isEmployee = (appState.session && appState.session.type === 'employee');
@@ -4009,32 +5207,36 @@
       const container = document.getElementById('topClientsList');
       if (!container) return;
       container.innerHTML = '';
+      
       const w = appState.settings?.topClientsWeights || { spent: 0.7, transactions: 0.3, unpaid: -0.2 };
       const score = c => (Number(c.totalSpent || 0) * w.spent) + (Number(c.transactionsCount || 0) * w.transactions) + (Number(c.unpaid || 0) * w.unpaid);
+      
       const clients = [...(appState.clients || [])]
         .sort((a, b) => score(b) - score(a))
         .slice(0, 10);
+
       if (!clients.length) {
         container.innerHTML = `
-          <div class="text-center py-6 text-gray-400">Pas de clients à classer pour l'instant</div>
+          <div class="text-center py-6 text-gray-400 col-span-full text-sm">Pas de clients à classer pour l'instant</div>
         `;
         return;
       }
       clients.forEach((c, idx) => {
         const div = document.createElement('div');
-        div.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-2xl';
+        div.className = 'flex flex-col items-center justify-center p-4 bg-gray-50 rounded-2xl hover:bg-yellow-50 transition-all border border-transparent hover:border-yellow-100 group';
+        
+        let medalColor = 'text-gray-300';
+        if (idx === 0) medalColor = 'text-yellow-500 text-xl';
+        else if (idx === 1) medalColor = 'text-gray-400 text-lg';
+        else if (idx === 2) medalColor = 'text-orange-400 text-lg';
+
         div.innerHTML = `
-          <div class="flex items-center gap-3">
-            <span class="w-8 h-8 flex items-center justify-center rounded-full bg-yellow-100 text-yellow-700 font-bold">${idx + 1}</span>
-            <div>
-              <p class="font-semibold text-gray-800">${c.name}</p>
-              <p class="text-xs text-gray-500">${c.transactionsCount || 0} transactions</p>
-            </div>
+          <div class="mb-2 relative">
+            <span class="w-10 h-10 flex items-center justify-center rounded-full bg-white shadow-sm font-black text-gray-800 border-2 border-gray-100 group-hover:border-yellow-200 transition-colors">${idx + 1}</span>
+            ${idx < 3 ? `<i class="fas fa-crown absolute -top-3 -right-3 ${medalColor} transform rotate-12"></i>` : ''}
           </div>
-          <div class="text-right">
-            <p class="font-bold text-emerald-600">${formatCurrency(c.totalSpent || 0)}</p>
-            <p class="text-xs text-red-600">Impayé: ${formatCurrency(c.unpaid || 0)}</p>
-          </div>
+          <p class="font-bold text-gray-800 text-center line-clamp-1 text-xs w-full">${c.name}</p>
+          <p class="text-[10px] font-bold text-emerald-600 mt-1 uppercase tracking-wider">${formatCurrency(c.totalSpent || 0)}</p>
         `;
         container.appendChild(div);
       });
@@ -4049,6 +5251,7 @@
 
       txns.forEach(t => {
         const cid = t.clientId;
+        if (!cid) return;
         const price = Number(t.priceDzd || 0);
         spentMap[cid] = (spentMap[cid] || 0) + price;
         countMap[cid] = (countMap[cid] || 0) + 1;
@@ -4058,11 +5261,13 @@
       });
       pays.forEach(p => {
         const cid = p.clientId;
+        if (!cid) return;
         const amt = Number(p.amount || 0);
         payMap[cid] = (payMap[cid] || 0) + amt;
       });
 
       (appState.clients || []).forEach(c => {
+        if (!c) return;
         const cid = c.id;
         const totalSpent = spentMap[cid] || 0;
         const txnCount = countMap[cid] || 0;
@@ -4073,6 +5278,78 @@
         c.unpaid = Math.max(0, unpaidFromTxns - paidAmounts);
       });
     }
+
+    window.detectDuplicateClients = function() {
+      const clients = appState.clients || [];
+      const map = new Map();
+      const duplicates = [];
+
+      clients.forEach(c => {
+        if (!c || !c.name) return;
+        const key = c.name.toLowerCase().trim();
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(c);
+      });
+
+      map.forEach((list, key) => {
+        if (list.length > 1) {
+          duplicates.push(list);
+        }
+      });
+
+      if (duplicates.length === 0) {
+        showToast('Aucun doublon détecté', 'success');
+        return;
+      }
+
+      if (!confirm(`Détecté ${duplicates.length} groupes de doublons (même nom). Voulez-vous les fusionner automatiquement ?`)) return;
+
+      let mergedCount = 0;
+      duplicates.forEach(list => {
+        // Trier par date de création ou activité (garder le plus complet)
+        // On garde celui qui a le plus d'infos (email, phone, etc.) ou le plus récent
+        list.sort((a, b) => {
+           const scoreA = (a.email ? 1 : 0) + (a.phone ? 1 : 0) + (Number(a.totalSpent) > 0 ? 1 : 0);
+           const scoreB = (b.email ? 1 : 0) + (b.phone ? 1 : 0) + (Number(b.totalSpent) > 0 ? 1 : 0);
+           return scoreB - scoreA;
+        });
+        
+        const master = list[0];
+        const others = list.slice(1);
+        
+        others.forEach(other => {
+          // Fusionner les données
+          master.totalSpent = Number(master.totalSpent || 0) + Number(other.totalSpent || 0);
+          master.transactionsCount = Number(master.transactionsCount || 0) + Number(other.transactionsCount || 0);
+          master.unpaid = Number(master.unpaid || 0) + Number(other.unpaid || 0);
+          if (other.notes) master.notes = (master.notes || '') + '\n' + other.notes;
+          if (other.email && !master.email) master.email = other.email;
+          if (other.phone && !master.phone) master.phone = other.phone;
+
+          // Mettre à jour les références dans Transactions, Paiements, Requests
+          if (appState.transactions) {
+            appState.transactions.forEach(t => { if (t.clientId === other.id) t.clientId = master.id; });
+          }
+          if (appState.payments) {
+            appState.payments.forEach(p => { if (p.clientId === other.id) p.clientId = master.id; });
+          }
+          if (appState.clientRequests) {
+            appState.clientRequests.forEach(r => { if (r.clientId === other.id) r.clientId = master.id; });
+          }
+          
+          // Supprimer le doublon
+          const idx = appState.clients.indexOf(other);
+          if (idx > -1) appState.clients.splice(idx, 1);
+        });
+        mergedCount++;
+      });
+      
+      recalculateClientStats();
+      saveToLocalStorage();
+      if (typeof enqueueCloudSave === 'function') enqueueCloudSave();
+      renderTables();
+      showToast(`${mergedCount} groupes de doublons fusionnés`, 'success');
+    };
 
     function updateDashboard() {
       const transactions = appState.transactions || [];
@@ -4192,24 +5469,8 @@
           totalRevenue += Math.max(paidTxn, payment);
       });
 
-      const totalUsdPurchaseCost = usdPurchases.reduce((sum, p) => sum + Number(p.totalDzd || 0), 0);
-      
-      // Calculer le fond DZD (Base)
-      const fondDzd = totalRevenue - totalGeneralExpenses - totalUsdPurchaseCost;
-      
-      // Calculer l'Impôt sur le Fond DZD (0.05%)
-      const taxRate = 0.0005; // 0.05%
-      // On applique l'impôt sur le fond positif uniquement (si c'est un "Capital" positif)
-      const taxAmount = fondDzd > 0 ? fondDzd * taxRate : 0;
-
-
-      // Fond USDT = (Achats USD Qty) - (Ventes USD Qty + Dépenses USDT Qty)
-      const totalUsdBought = usdPurchases.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-      const totalUsdSpent = usdtExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-      const totalUsdSold = transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
-      
-      const fondUsdt = totalUsdBought - totalUsdSpent - totalUsdSold;
-
+      // Recalculate Finance Balances
+      recalculateFinanceBalances();
 
       // === AFFICHAGE ===
       const isEmployee = (appState.session && appState.session.type === 'employee');
@@ -4218,18 +5479,18 @@
       const weekProfitEl = document.getElementById('weekProfit');
       const totalProfitEl = document.getElementById('totalProfit');
       const monthProfitEl = document.getElementById('monthProfitNet');
-      const fondDzdEl = document.getElementById('fondDzd');
-      const fondUsdtEl = document.getElementById('fondUsdt');
       const taxAmountEl = document.getElementById('taxAmount');
+      const currentUsdStockEl = document.getElementById('currentUsdStock');
+      const totalUnpaidEl = document.getElementById('totalUnpaid');
 
       if (isEmployee) {
         if (todayProfitEl) todayProfitEl.textContent = '***';
         if (weekProfitEl) weekProfitEl.textContent = '***';
         if (totalProfitEl) totalProfitEl.textContent = '***';
         if (monthProfitEl) monthProfitEl.textContent = '***';
-        if (fondDzdEl) fondDzdEl.textContent = '***';
-        if (fondUsdtEl) fondUsdtEl.textContent = '***';
         if (taxAmountEl) taxAmountEl.textContent = '***';
+        if (currentUsdStockEl) currentUsdStockEl.textContent = '***';
+        if (totalUnpaidEl) totalUnpaidEl.textContent = '***';
       } else {
         if (todayProfitEl) todayProfitEl.textContent = formatCurrency(todayProfit);
         if (weekProfitEl) weekProfitEl.textContent = formatCurrency(weekProfit);
@@ -4237,18 +5498,21 @@
         if (totalProfitEl) totalProfitEl.textContent = formatCurrency(globalNetProfit);
         if (monthProfitEl) monthProfitEl.textContent = formatCurrency(monthNet);
         
-        // Affichage des fonds
-        if (fondDzdEl) {
-          fondDzdEl.textContent = formatCurrency(fondDzd);
-          fondDzdEl.className = `text-3xl font-bold mt-1 ${fondDzd >= 0 ? 'text-gray-800' : 'text-red-600'}`;
-        }
-        if (fondUsdtEl) {
-          fondUsdtEl.textContent = `${safeToFixed(fondUsdt, 2)} USDT`;
-          fondUsdtEl.className = `text-3xl font-bold mt-1 ${fondUsdt >= 0 ? 'text-gray-800' : 'text-red-600'}`;
-        }
-        // Affichage de l'impôt
+        // Calculate and display tax (0.05% of total revenue)
+        const taxRate = 0.0005;
+        const taxAmount = totalRevenue * taxRate;
         if (taxAmountEl) {
           taxAmountEl.textContent = formatCurrency(taxAmount);
+        }
+
+        // Update Stock USD and Total Unpaid
+        if (currentUsdStockEl) {
+            const usdtBalance = appState.balances ? appState.balances.usdt : 0;
+            currentUsdStockEl.textContent = `${usdtBalance.toFixed(2)} $`;
+        }
+        if (totalUnpaidEl) {
+            const totalUnpaid = (appState.clients || []).reduce((sum, c) => sum + Number(c.unpaid || 0), 0);
+            totalUnpaidEl.textContent = formatCurrency(totalUnpaid);
         }
       }
 
@@ -4264,8 +5528,35 @@
       const weekTransactionsEl = document.getElementById('weekTransactions');
       if (weekTransactionsEl) weekTransactionsEl.textContent = `${weekCount} transactions`;
 
-      const dueReminders = transactions.filter(t => !t.paid && t.reminderAt && t.reminderAt <= todayIso);
-      const dueCount = dueReminders.length;
+      // Inclure TOUTES les transactions impayées dans les relances
+      const dueReminders = transactions.filter(t => !t.paid);
+      
+      // Group reminders by client
+      const groupedReminders = [];
+      const clientMap = new Map();
+
+      dueReminders.forEach(t => {
+        if (!clientMap.has(t.clientId)) {
+          const client = (appState.clients || []).find(c => c.id === t.clientId) || {};
+          clientMap.set(t.clientId, {
+            clientId: t.clientId,
+            clientName: client.name || t.clientName || 'Client inconnu',
+            totalDue: Number(client.unpaid || 0), // Utiliser la balance réelle du client
+            transactionCount: 0,
+            client: client
+          });
+          groupedReminders.push(clientMap.get(t.clientId));
+        }
+        const group = clientMap.get(t.clientId);
+        group.transactionCount++;
+      });
+
+      // Trier par montant total dû (le plus gros en premier) et filtrer les soldes à 0
+      const finalRelances = groupedReminders
+        .filter(g => g.totalDue > 0)
+        .sort((a, b) => b.totalDue - a.totalDue);
+
+      const dueCount = finalRelances.length;
       const dueCountEl = document.getElementById('dueRemindersCount');
       const dueLabelEl = document.getElementById('dueRemindersLabel');
       const dueListEl = document.getElementById('dueRemindersList');
@@ -4274,31 +5565,31 @@
       if (dueCountEl) dueCountEl.textContent = String(dueCount);
       if (dueLabelEl) {
         if (dueCount === 0) {
-          dueLabelEl.textContent = "Aucun rappel aujourd'hui";
+          dueLabelEl.textContent = "Tous les clients sont à jour";
         } else {
           dueLabelEl.textContent = `${dueCount} client${dueCount > 1 ? 's' : ''} à relancer`;
         }
       }
       if (dueListCountEl) {
-        dueListCountEl.textContent = dueCount ? `${dueCount} rappel${dueCount > 1 ? 's' : ''}` : '';
+        dueListCountEl.textContent = dueCount ? `${dueCount} client${dueCount > 1 ? 's' : ''}` : '';
       }
       if (dueListEl) {
         dueListEl.innerHTML = '';
         if (!dueCount) {
           dueListEl.innerHTML = '<p class="text-gray-400 italic">Aucun rappel programmé</p>';
         } else {
-          dueReminders.slice(0, 20).forEach(t => {
-            const client = (appState.clients || []).find(c => c.id === t.clientId) || {};
-            const name = client.name || t.clientName || 'Client';
+          finalRelances.slice(0, 20).forEach(group => {
+            const client = group.client;
             const wa = buildClientWhatsAppLink(client);
             const ig = buildClientInstagramLink(client);
-            const amount = formatCurrency(t.priceDzd || t.totalDzd || 0);
+            const amount = formatCurrency(group.totalDue);
+            const countText = group.transactionCount > 1 ? ` (${group.transactionCount} tx)` : '';
             const li = document.createElement('div');
             li.className = 'flex justify-between items-center p-2 bg-gray-50 rounded-lg';
             li.innerHTML = `
               <div>
-                <p class="font-medium text-gray-800">${name}</p>
-                <p class="text-xs text-gray-500">Impayé: ${amount}</p>
+                <p class="font-medium text-gray-800">${group.clientName}</p>
+                <p class="text-xs text-gray-500">Total dû: ${amount}${countText}</p>
               </div>
               <div class="flex items-center gap-2">
                 ${wa ? `<a href="${wa}" target="_blank" class="text-green-600 hover:text-green-800" title="WhatsApp"><i class="fab fa-whatsapp"></i></a>` : ''}
@@ -4561,8 +5852,10 @@
           syncAdminRequests();
       }
       recalculateClientStats();
+      recalculateFinanceBalances();
       renderClientsTable();
       renderTransactionsTable();
+      renderTodoTable();
       renderOffersGrid();
       renderPaymentsTable();
       renderUsdPurchasesTable();
@@ -4570,9 +5863,39 @@
       renderExpensesTable();
       renderRecentTransactions();
       renderTopClients();
+      renderAdsTable();
+      populateAdAccountSelect();
       updateDashboard();
       if(typeof renderRequests === 'function') renderRequests();
       applyEmployeeRestrictions();
+    }
+
+    function resetCalculator() {
+      const select = document.getElementById('offerSelect');
+      const amount = document.getElementById('standardDollarAmount');
+      const price = document.getElementById('standardPriceDzd');
+      const duration = document.getElementById('standardDuration');
+      const clientSearch = document.getElementById('clientSearch');
+      const clientSelect = document.getElementById('clientSelect');
+      const adAccountSelect = document.getElementById('adAccountSelect');
+      const paid = document.getElementById('transactionPaid');
+
+      if (select) select.value = '';
+      if (amount) amount.value = '';
+      if (price) price.value = '';
+      if (duration) duration.value = '';
+      if (clientSearch) clientSearch.value = '';
+      if (clientSelect) clientSelect.value = '';
+      if (adAccountSelect) adAccountSelect.value = '';
+      if (paid) paid.checked = false;
+
+      const details = document.getElementById('offerDetails');
+      if (details) details.textContent = 'Sélectionnez une offre';
+
+      const fields = document.getElementById('standardFields');
+      if (fields) fields.classList.add('hidden');
+
+      calculatePreview();
     }
 
     let renderTablesScheduled = false;
@@ -4590,124 +5913,13 @@
 
 // ensureInitialData moved up
 
-    // Exposer les fonctions en global pour les attributs onclick
-    window.showTab = showTab;
-    window.openModal = openModal;
-    window.closeModal = closeModal;
-    window.backupData = backupData;
-    window.importData = importData;
-    window.showStats = showStats;
-    window.logout = logout;
-    window.exportPDF = exportPDF;
-    window.exportClientsCSV = exportClientsCSV;
-    window.manualSave = manualSave;
-    window.purgeAllData = purgeAllData;
-    window.addExpense = addExpense;
-    window.deleteExpense = deleteExpense;
-    window.populateExpenseCategorySelect = populateExpenseCategorySelect;
-    window.openModal = openModal;
-    window.addExpenseCategory = addExpenseCategory;
-    window.deleteExpenseCategory = deleteExpenseCategory;
-    window.handleLoginClick = handleLoginClick;
-    window.handleGithubClick = handleGithubClick;
-    window.copyToClipboard = copyToClipboard;
-    window.openImagePreview = openImagePreview;
-    window.closeImagePreview = closeImagePreview;
-    window.showClientSpace = showClientSpace;
-    window.hideClientSpace = hideClientSpace;
-    window.showClientTab = showClientTab;
-    window.forceCloudSave = forceCloudSave;
-    window.signupClient = signupClient;
-    window.loginClientQuick = loginClientQuick;
-    window.logoutClient = logoutClient;
-    window.saveClientIdentifiers = saveClientIdentifiers;
-    window.addClientInstagram = addClientInstagram;
-    window.addClientFacebook = addClientFacebook;
-    window.removeClientInstagram = removeClientInstagram;
-    window.removeClientFacebook = removeClientFacebook;
-    window.loadFromCloud = loadFromCloud;
-    window.saveToCloud = saveToCloud;
-    window.loadFromLocalStorage = loadFromLocalStorage;
-    window.saveToLocalStorage = saveToLocalStorage;
-    window.normalizeAppState = normalizeAppState;
-    window.ensureInitialData = ensureInitialData;
-    // Actions tables
-    window.addClient = addClient;
-    window.addOffer = addOffer;
-    window.editClient = editClient;
-    window.prepareAddOffer = prepareAddOffer;
-    window.editOffer = editOffer;
-    window.deleteOffer = deleteOffer;
-    window.deleteClient = deleteClient;
-    window.addTransaction = addTransaction;
-    window.deleteTransaction = deleteTransaction;
-    window.addPayment = addPayment;
-    window.addUsdPurchase = addUsdPurchase;
-    window.deleteUsdPurchase = deleteUsdPurchase;
-    window.editTransaction = editTransaction;
-
     // === GESTION CLIENTS / OFFRES / TRANSACTIONS / PAIEMENTS / USD ===
-    function addClient() {
-      const name = document.getElementById('newClientName').value.trim();
-      const phone = document.getElementById('newClientPhone').value.trim();
-      const instagram = document.getElementById('newClientInstagram').value.trim();
-      const facebook = document.getElementById('newClientFacebook').value.trim();
-      const notes = document.getElementById('newClientNotes').value.trim();
-
-      if (!name) {
-        showToast('Nom du client requis', 'error');
-        return;
-      }
-
-      if (editingClientId) {
-        const client = appState.clients.find(c => c.id === editingClientId);
-        if (!client) {
-          showToast('Client introuvable', 'error');
-        } else {
-          client.name = name;
-          client.phone = phone;
-          client.contact = phone || instagram || facebook || '';
-          client.notes = notes;
-          if (!client.social) client.social = { instagram: [], facebook: [] };
-          const igHandle = instagram ? instagram.replace(/^@+/, '').trim() : '';
-          client.username = igHandle;
-          client.social.instagram = igHandle ? [igHandle] : [];
-          client.social.facebook = facebook ? [facebook.trim()] : [];
-        }
-        editingClientId = null;
-        showToast('Client modifié', 'success');
-      } else {
-        const client = {
-          id: generateId('client'),
-          name,
-          phone,
-          contact: phone || instagram || facebook || '',
-          notes,
-          totalSpent: 0,
-          unpaid: 0,
-          transactionsCount: 0,
-          social: {
-            instagram: instagram ? [instagram.replace(/^@+/, '').trim()] : [],
-            facebook: facebook ? [facebook.trim()] : []
-          }
-        };
-        appState.clients.push(client);
-        showToast('Client ajouté', 'success');
-      }
-
-      document.getElementById('newClientName').value = '';
-      document.getElementById('newClientPhone').value = '';
-      document.getElementById('newClientInstagram').value = '';
-      document.getElementById('newClientFacebook').value = '';
-      document.getElementById('newClientNotes').value = '';
-
-      closeModal('clientModal');
-      renderClientsTable();
-      populateClientDropdown();
-      autoSave();
-    }
-
     function deleteClient(id) {
+      if(!confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) return;
+      if (!appState.sync) appState.sync = {};
+      if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+      appState.sync.pendingDeletions.push({ col: 'clients', id: id });
+      
       appState.clients = appState.clients.filter(c => c.id !== id);
       renderClientsTable();
       populateClientDropdown();
@@ -4743,20 +5955,6 @@
       openModal('clientModal');
     }
 
-    function prepareAddOffer() {
-      editingOfferId = null;
-      document.getElementById('newOfferName').value = '';
-      document.getElementById('newOfferDesc').value = '';
-      document.getElementById('newOfferPrice').value = '';
-      document.getElementById('newOfferCostPerUnit').value = '';
-      document.getElementById('newOfferDuration').value = '';
-      
-      const title = document.querySelector('#offerModal h3');
-      if(title) title.innerHTML = '<i class="fas fa-gift text-purple-600"></i> Ajouter une Offre';
-      
-      openModal('offerModal');
-    }
-
     function editOffer(id) {
       const offer = appState.offers.find(o => o.id === id);
       if (!offer) return;
@@ -4776,6 +5974,10 @@
 
     function deleteOffer(id) {
       if(!confirm('Voulez-vous vraiment supprimer cette offre ?')) return;
+      if (!appState.sync) appState.sync = {};
+      if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+      appState.sync.pendingDeletions.push({ col: 'offers', id: id });
+      
       const before = appState.offers.length;
       const offerById = appState.offers.find(o => o.id === id);
       appState.offers = appState.offers.filter(o => o.id !== id);
@@ -4790,205 +5992,173 @@
       showToast('Offre supprimée', 'success');
     }
 
-    function addOffer() {
-      const nameInput = document.getElementById('newOfferName');
-      const descInput = document.getElementById('newOfferDesc');
-      const priceInput = document.getElementById('newOfferPrice');
-      const costPerUnitInput = document.getElementById('newOfferCostPerUnit');
-      const durationInput = document.getElementById('newOfferDuration');
+    function renderTodoTable() {
+      const tbodyTransactions = document.getElementById('todoTableBodyTransactions');
+      const countElTx = document.getElementById('todoCountTransactions');
+      const emptyStateTx = document.getElementById('todoEmptyStateTransactions');
+      
+      const todos = (appState.todoTransactions || []).filter(t => t.status === 'pending');
+      const count = todos.length;
 
-      const name = nameInput ? nameInput.value.trim() : '';
-      const desc = descInput ? descInput.value.trim() : '';
-      const price = Number(priceInput ? priceInput.value : 0);
-      const costPerUnit = Number(costPerUnitInput ? costPerUnitInput.value : 0);
-      const duration = durationInput ? durationInput.value.trim() : '';
-
-      if (!name || !price || !costPerUnit) {
-        showToast('Nom, prix et montant $ requis', 'error');
-        return;
+      if (countElTx) countElTx.textContent = count;
+      
+      const badge = document.getElementById('todoBadge');
+      if (badge) {
+        badge.textContent = count;
+        if (count > 0) badge.classList.remove('hidden');
+        else badge.classList.add('hidden');
       }
 
-      if (editingOfferId) {
-        // Mode édition
-        const offerIndex = appState.offers.findIndex(o => o.id === editingOfferId);
-        if (offerIndex !== -1) {
-          appState.offers[offerIndex] = {
-            ...appState.offers[offerIndex],
-            name,
-            description: desc,
-            price,
-            costPerUnit,
-            duration
-          };
-          showToast('Offre modifiée', 'success');
-        }
-      } else {
-        // Mode ajout
-        appState.offers.push({
-          id: generateId('offer'),
-          name,
-          description: desc,
-          price,
-          costPerUnit,
-          duration,
-        });
-        showToast('Offre ajoutée', 'success');
-      }
+      // Helper to render a row
+      const createRow = (t) => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        
+        // Badge pour les transactions "Problème"
+        const typeBadge = t.isProblem 
+          ? '<span class="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded uppercase ml-2">Problème</span>'
+          : '';
 
-      if(nameInput) nameInput.value = '';
-      if(descInput) descInput.value = '';
-      if(priceInput) priceInput.value = '';
-      if(costPerUnitInput) costPerUnitInput.value = '';
-      if(durationInput) durationInput.value = '';
-      editingOfferId = null;
-
-      closeModal('offerModal');
-      renderOffersGrid();
-      populateOfferSelect();
-      autoSave();
-    }
-
-    function addTransaction() {
-      const offerId = document.getElementById('offerSelect').value;
-      const clientId = document.getElementById('clientSelect').value;
-      const buyRate = Number(document.getElementById('buyRate').value || 0);
-      const paid = document.getElementById('transactionPaid').checked;
-      const reminderInput = document.getElementById('transactionReminderDate');
-
-      // Toujours utiliser les champs saisis (remplis automatiquement si une offre est sélectionnée)
-      const amount = Number(document.getElementById('standardDollarAmount').value || 0);
-      const priceDzd = Number(document.getElementById('standardPriceDzd').value || 0);
-      let duration = document.getElementById('standardDuration').value || '';
-
-      // Si une offre est sélectionnée, reprendre sa durée par défaut si le champ est vide
-      if (offerId) {
-        const offer = appState.offers.find(o => o.id === offerId);
-        if (!offer) {
-          showToast('Offre introuvable', 'error');
-          return;
-        }
-        if (!duration) duration = offer.duration || '';
-      }
-
-      if (!clientId) {
-        showToast('Sélectionnez un client', 'error');
-        return;
-      }
-      if (!amount || !priceDzd || !buyRate) {
-        showToast('Montant $, prix vente et taux achat requis', 'error');
-        return;
-      }
-
-      const client = appState.clients.find(c => c.id === clientId);
-      if (!client) {
-        showToast('Client introuvable', 'error');
-        return;
-      }
-
-      const totalDzd = amount * buyRate;
-      const profit = priceDzd - totalDzd;
-
-      let reminderAt = null;
-      if (!paid) {
-        if (reminderInput && reminderInput.value) {
-          reminderAt = reminderInput.value;
+        const dateStr = `<td class="p-4 text-gray-600">${formatDate(t.date)}</td>`;
+        const clientName = `<td class="p-4 font-bold text-gray-800">${t.clientName}${typeBadge}</td>`;
+        const offerName = `<td class="p-4 text-gray-700">${t.offerName}</td>`;
+        const price = `<td class="p-4 text-right font-bold text-blue-600">${formatCurrency(t.priceDzd)}</td>`;
+        const payment = `
+          <td class="p-4 text-center">
+            <button onclick="toggleTodoPayment('${t.id}')" class="px-3 py-1 rounded-full text-[10px] font-bold transition-all ${t.paid ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'}">
+              ${t.paid ? '<i class="fas fa-check-circle"></i> PAYÉ' : '<i class="fas fa-times-circle"></i> NON'}
+            </button>
+          </td>`;
+        
+        // Actions différentes si c'est un problème
+        let actions = '';
+        if (t.isProblem) {
+          actions = `
+          <td class="p-4 text-center flex justify-center gap-2">
+            <button onclick="resolveProblem('${t.id}')" class="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-[10px] font-bold shadow-sm" title="Résoudre (Remettre en actif)">
+              <i class="fas fa-check-circle"></i>
+            </button>
+            <button onclick="editTransaction('${t.id}')" class="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-[10px] font-bold shadow-sm" title="Modifier">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button onclick="deleteTransaction('${t.id}')" class="p-2 text-gray-400 hover:text-red-600 transition-colors">
+              <i class="fas fa-trash-alt text-[10px]"></i>
+            </button>
+          </td>`;
         } else {
-          const d = new Date();
-          d.setDate(d.getDate() + 3);
-          reminderAt = getLocalDateString(d);
+          actions = `
+          <td class="p-4 text-center flex justify-center gap-2">
+            <button onclick="validateTodoTransaction('${t.id}', 'done')" class="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-[10px] font-bold shadow-sm" title="Valider">
+              <i class="fas fa-check"></i>
+            </button>
+            <button onclick="validateTodoTransaction('${t.id}', 'problem')" class="p-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-[10px] font-bold shadow-sm" title="Problème">
+              <i class="fas fa-exclamation-triangle"></i>
+            </button>
+            <button onclick="deleteTodoTransaction('${t.id}')" class="p-2 text-gray-400 hover:text-red-600 transition-colors">
+              <i class="fas fa-trash-alt text-[10px]"></i>
+            </button>
+          </td>`;
+        }
+
+        row.innerHTML = dateStr + clientName + offerName + price + payment + actions;
+        return row;
+      };
+
+      // Combiner les To-Do transactions normales ET les transactions avec statut "problem"
+      const normalTodos = appState.todoTransactions || [];
+      const problemTransactions = (appState.transactions || []).filter(t => t.status === 'problem');
+      
+      const allTodos = [
+        ...normalTodos.map(t => ({ ...t, isProblem: false })),
+        ...problemTransactions.map(t => ({ ...t, isProblem: true }))
+      ];
+
+      if (tbodyTransactions) {
+        tbodyTransactions.innerHTML = '';
+        if (allTodos.length === 0) {
+          if (emptyStateTx) emptyStateTx.classList.remove('hidden');
+        } else {
+          if (emptyStateTx) emptyStateTx.classList.add('hidden');
+          allTodos.sort((a, b) => b.createdAt - a.createdAt).forEach(t => {
+            tbodyTransactions.appendChild(createRow(t));
+          });
         }
       }
-
-      const transaction = {
-        id: generateId('txn'),
-        date: getLocalDateString(),
-        createdAt: Date.now(),
-        clientId,
-        clientName: client.name,
-        offerId: offerId || null,
-        offerName: offerId ? (appState.offers.find(o => o.id === offerId)?.name || '') : 'Offre Standard',
-        amount,
-        priceDzd,
-        totalDzd,
-        profit,
-        duration,
-        paid,
-        reminderAt,
-      };
-
-      appState.transactions.push(transaction);
-
-      // Les stats client seront recalculées globalement pour robustesse
-
-      renderTables();
-      autoSave();
-      showToast('Transaction ajoutée', 'success');
+      
+      renderTodoPreview();
     }
 
-    function addPayment() {
-      const clientId = document.getElementById('paymentClientSelect').value;
-      const amountInput = document.getElementById('paymentAmount');
-      const amount = Number(amountInput ? amountInput.value : 0);
-      const method = document.getElementById('paymentMethod').value;
-      const status = document.getElementById('paymentStatus').value;
-      const noteInput = document.getElementById('paymentNote');
-      const note = noteInput ? noteInput.value.trim() : '';
+    function renderTodoPreview() {
+      const preview = document.getElementById('todoPreviewList');
+      if (!preview) return;
+      
+      const normalTodos = (appState.todoTransactions || []).filter(t => t.status === 'pending');
+      const problems = (appState.transactions || []).filter(t => t.status === 'problem');
+      
+      const allPreview = [
+          ...problems.map(t => ({ ...t, isProblem: true })),
+          ...normalTodos.map(t => ({ ...t, isProblem: false }))
+      ];
 
-      if (!clientId || !amount) {
-        showToast('Client et montant requis', 'error');
+      if (allPreview.length === 0) {
+        preview.innerHTML = '<p class="text-indigo-200 italic text-center py-4">Tout est à jour !</p>';
         return;
       }
+      
+      preview.innerHTML = '';
+      allPreview.slice(0, 3).forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'bg-white/10 p-3 rounded-xl border border-white/20 flex justify-between items-center cursor-pointer hover:bg-white/20 transition';
+        div.onclick = () => showTab('todo');
+        
+        const icon = t.isProblem ? '<i class="fas fa-exclamation-triangle text-red-300"></i>' : '<i class="fas fa-clock text-indigo-300"></i>';
+        const problemTag = t.isProblem ? '<span class="text-[10px] font-bold text-red-300 ml-2">PROBLÈME</span>' : '';
 
-      let client = appState.clients.find(c => c.id === clientId);
-      if (!client) {
-        // Fallback: rechercher par nom affiché si l'id ne correspond pas
-        const sel = document.getElementById('paymentClientSelect');
-        const selectedName = sel?.options[sel.selectedIndex]?.text || '';
-        client = appState.clients.find(c => (c.name || '').trim() === selectedName.trim());
+        div.innerHTML = `
+          <div class="flex items-center gap-3">
+            ${icon}
+            <div>
+              <div class="font-bold text-white text-xs">${t.clientName} ${problemTag}</div>
+              <div class="text-[10px] text-indigo-200 opacity-75">${t.offerName}</div>
+            </div>
+          </div>
+          <div class="text-right">
+             <span class="text-xs font-bold text-white">${t.amount}$</span>
+          </div>
+        `;
+        preview.appendChild(div);
+      });
+    }
+
+    // Nouvelle fonction pour résoudre un problème et remettre la transaction en "normal"
+    window.resolveProblem = function(id) {
+      const t = appState.transactions.find(x => x.id === id);
+      if (t) {
+        t.status = 'active'; // Remettre en statut normal
+        t.updatedAt = Date.now();
+        renderTables();
+        // Forcer le rafraîchissement de la ToDo list car elle dépend de renderTables()
+        if (typeof renderTodoTransactions === 'function') renderTodoTransactions();
+        autoSave();
+        showToast('Problème résolu, transaction rétablie', 'success');
       }
-      if (!client) {
-        showToast('Client introuvable', 'error');
-        return;
+    };
+
+    function deletePayment(id) {
+      if(!confirm('Supprimer ce paiement ? Cela augmentera la dette du client.')) return;
+      const payment = appState.payments.find(p => p.id === id);
+      if (payment) {
+          const client = appState.clients.find(c => c.id === payment.clientId);
+          if (client) {
+              client.unpaid = (Number(client.unpaid || 0) + Number(payment.amount || 0));
+          }
       }
-
-      const payment = {
-        id: generateId('pay'),
-        date: getLocalDateString(),
-        clientId: client.id,
-        clientName: client.name,
-        amount,
-        method,
-        status,
-        note,
-      };
-
-      appState.payments.push(payment);
-
-      client.unpaid = Math.max(0, Number(client.unpaid || 0) - amount);
-
+      appState.payments = appState.payments.filter(p => p.id !== id);
+      recalculateFinanceBalances();
       renderPaymentsTable();
-      const tbody = document.getElementById('paymentsTableBody');
-      if (tbody) {
-        // Wait for render to complete
-        setTimeout(() => {
-            const row = tbody.querySelector(`tr[data-payment-id="${payment.id}"]`);
-            if (row) {
-              row.classList.add('animate-pulse');
-              setTimeout(() => {
-                row.classList.remove('animate-pulse');
-              }, 800);
-            }
-        }, 50);
-      }
-      closeModal('paymentModal');
       renderClientsTable();
       autoSave();
-      showToast('Paiement enregistré', 'success');
-      
-      // Reset form
-      if(amountInput) amountInput.value = '';
-      if(noteInput) noteInput.value = '';
-      document.getElementById('paymentClientSelect').value = '';
+      showToast('Paiement supprimé', 'info');
     }
 
     function addUsdtExpense() {
@@ -5036,6 +6206,7 @@
       };
 
       appState.usdtExpenses.push(expense);
+      recalculateFinanceBalances();
 
       renderUsdtExpensesTable();
       autoSave();
@@ -5044,45 +6215,6 @@
       document.getElementById('usdtExpenseMonth').value = '';
       document.getElementById('usdtExpenseNote').value = '';
       showToast('Dépense USDT enregistrée', 'success');
-    }
-
-    function addUsdPurchase() {
-      const amount = Number(document.getElementById('usdAmount').value || 0);
-      const rate = Number(document.getElementById('usdRate').value || 0);
-      const source = document.getElementById('usdSource').value.trim();
-
-      if (!amount || !rate) {
-        showToast('Montant USD et taux requis', 'error');
-        return;
-      }
-
-      const totalDzd = amount * rate;
-
-      const purchase = {
-        id: generateId('usd'),
-        date: getLocalDateString(),
-        amount,
-        rate,
-        totalDzd,
-        source,
-      };
-
-      appState.usdPurchases.push(purchase);
-
-      renderUsdPurchasesTable();
-      const tbody = document.getElementById('usdPurchasesTableBody');
-      if (tbody) {
-        const row = tbody.querySelector(`tr[data-usd-id="${purchase.id}"]`);
-        if (row) {
-          row.classList.add('animate-pulse');
-          setTimeout(() => {
-            row.classList.remove('animate-pulse');
-          }, 800);
-        }
-      }
-      closeModal('usdPurchaseModal');
-      autoSave();
-      showToast('Achat USD enregistré', 'success');
     }
 
     function renderExpensesTable() {
@@ -5121,10 +6253,12 @@
     }
 
     function deleteUsdtExpense(id) {
+      if(!confirm('Supprimer cette dépense USDT ?')) return;
       if (!Array.isArray(appState.usdtExpenses)) {
         appState.usdtExpenses = [];
       }
       appState.usdtExpenses = appState.usdtExpenses.filter(e => e.id !== id);
+      recalculateFinanceBalances();
       renderUsdtExpensesTable();
       autoSave();
     }
@@ -5173,68 +6307,14 @@
       });
     }
 
-    function addExpense() {
-      const date = document.getElementById('expenseDate').value || getLocalDateString();
-      const category = document.getElementById('expenseCategory').value || 'Autre';
-      const amount = Number(document.getElementById('expenseAmount').value || 0);
-      const note = document.getElementById('expenseNote').value.trim();
-      const recurring = !!document.getElementById('expenseRecurring')?.checked;
-      const reminderEmail = document.getElementById('expenseReminderEmail')?.value?.trim() || '';
-      if (!amount) { showToast('Montant requis', 'error'); return; }
-      if (recurring) {
-        const rid = generateId('recur');
-        appState.recurringExpenses.push({
-          id: rid,
-          category,
-          amount,
-          note,
-        });
-        appState.expenses.push({
-          id: generateId('exp'),
-          date,
-          category,
-          amount,
-          note,
-          recurringId: rid,
-        });
-        if (reminderEmail) {
-          try {
-            fetch('http://localhost:3000/reminders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-              body: JSON.stringify({
-                emailTo: reminderEmail,
-                category,
-                amount,
-                note,
-                dayOfMonth: date && date.includes('-') ? parseInt(date.split('-')[2]) : new Date().getDate()
-              })
-            }).then(() => {}).catch(() => {});
-          } catch (e) {}
-        }
-      } else {
-        appState.expenses.push({
-          id: generateId('exp'),
-          date,
-          category,
-          amount,
-          note,
-        });
-      }
-      closeModal('expenseModal');
-      applyRecurringExpensesForCurrentMonth();
-      renderExpensesTable();
-      autoSave();
-      updateDashboard();
-      showToast('Frais ajouté', 'success');
-    }
-
     function deleteExpense(id) {
+      if(!confirm('Êtes-vous sûr de vouloir supprimer cette dépense ?')) return;
       appState.expenses = (appState.expenses || []).filter(e => e.id !== id);
+      recalculateFinanceBalances();
       renderExpensesTable();
       autoSave();
       updateDashboard();
+      showToast('Frais supprimé', 'info');
     }
 
     function addExpenseCategory() {
@@ -5277,38 +6357,69 @@
     }
 
     function deleteTransaction(id) {
+      if(!confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) return;
+      if (!appState.sync) appState.sync = {};
+      if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+      appState.sync.pendingDeletions.push({ col: 'transactions', id: id });
+      
       appState.transactions = appState.transactions.filter(t => t.id !== id);
       renderTables();
       autoSave();
     }
 
+    window.toggleTransactionPayment = function(id) {
+      const t = appState.transactions.find(x => x.id === id);
+      if (t) {
+        t.paid = !t.paid;
+        t.updatedAt = Date.now();
+        renderTables();
+        autoSave();
+        showToast(t.paid ? 'Marquée comme payée' : 'Marquée comme impayée', 'info');
+      }
+    };
+
     function editTransaction(id) {
       const t = appState.transactions.find(x => x.id === id);
       if (!t) { showToast('Transaction introuvable', 'error'); return; }
-      const amountStr = prompt('Montant $', String(t.amount || 0));
-      if (amountStr === null) return;
-      const priceStr = prompt('Prix vente (DZD)', String(t.priceDzd || 0));
-      if (priceStr === null) return;
-      const durationStr = prompt('Durée', String(t.duration || ''));
-      if (durationStr === null) return;
-      const paidStr = prompt('Payée ? (oui/non)', (t.paid ? 'oui' : 'non'));
-      if (paidStr === null) return;
-      const amount = Number(amountStr);
-      const priceDzd = Number(priceStr);
-      const paid = /^oui$/i.test((paidStr || '').trim());
+      
+      document.getElementById('editTxId').value = id;
+      document.getElementById('editTxAmount').value = t.amount || 0;
+      document.getElementById('editTxPrice').value = t.priceDzd || 0;
+      document.getElementById('editTxDuration').value = t.duration || '';
+      document.getElementById('editTxPaid').checked = !!t.paid;
+      
+      openModal('editTransactionModal');
+    }
+
+    window.saveEditTransaction = function() {
+      const id = document.getElementById('editTxId').value;
+      const amount = Number(document.getElementById('editTxAmount').value || 0);
+      const priceDzd = Number(document.getElementById('editTxPrice').value || 0);
+      const durationStr = document.getElementById('editTxDuration').value || '';
+      const paid = document.getElementById('editTxPaid').checked;
+
+      const t = appState.transactions.find(x => x.id === id);
+      if (!t) return;
+
       if (!amount || !priceDzd) { showToast('Valeurs invalides', 'error'); return; }
-      // Recalculer total et profit en conservant le taux dâ€™achat existant si possible
+      
+      // Recalculer total et profit en conservant le taux d’achat existant si possible
       const buyRateGuess = t.amount ? (Number(t.totalDzd || 0) / Number(t.amount || 1)) : Number(document.getElementById('buyRate')?.value || 0);
       const totalDzd = amount * Number(buyRateGuess || 0);
       const profit = priceDzd - totalDzd;
+      
       Object.assign(t, { amount, priceDzd, totalDzd, profit, duration: durationStr, paid });
+      
       renderTables();
       autoSave();
+      closeModal('editTransactionModal');
       showToast('Transaction mise à jour', 'success');
-    }
+    };
 
     function deleteUsdPurchase(id) {
+      if(!confirm('Supprimer cet achat USD ?')) return;
       appState.usdPurchases = appState.usdPurchases.filter(t => t.id !== id);
+      recalculateFinanceBalances();
       renderUsdPurchasesTable();
       autoSave();
     }
@@ -5366,17 +6477,21 @@
       const select = document.getElementById('offerSelect');
       const details = document.getElementById('offerDetails');
       const standardFields = document.getElementById('standardFields');
-      if (!select || !details || !standardFields) return;
+      if (!select) return;
 
+      const currentVal = select.value;
       select.innerHTML = '<option value="">Offre Standard (saisie manuelle)</option>';
 
-      appState.offers.forEach(offer => {
-        const option = document.createElement('option');
-        option.value = offer.id;
-        option.textContent = offer.name;
-        select.appendChild(option);
-      });
-
+      if (Array.isArray(appState.offers)) {
+          appState.offers.forEach(offer => {
+            const option = document.createElement('option');
+            option.value = offer.id;
+            option.textContent = offer.name;
+            select.appendChild(option);
+          });
+      }
+      
+      if (currentVal) select.value = currentVal;
       selectOfferInTransaction();
     }
 
@@ -5434,7 +6549,7 @@
     }
 
     function resetCalculator() {
-      document.getElementById('buyRate').value = 255;
+      document.getElementById('buyRate').value = appState.settings.defaultBuyRate || 340;
       document.getElementById('offerSelect').value = '';
       document.getElementById('standardDollarAmount').value = '';
       document.getElementById('standardPriceDzd').value = '';
@@ -6888,50 +8003,67 @@
 
   // === INITIALISATION GLOBALE ===
   document.addEventListener('DOMContentLoaded', async function () {
-    const userLang = navigator.language.startsWith('ar') ? 'ar' : 'fr';
-    setLanguage(userLang);
+    try {
+        const userLang = (navigator.language && navigator.language.startsWith('ar')) ? 'ar' : 'fr';
+        if (typeof setLanguage === 'function') setLanguage(userLang);
 
-    console.log('🚀 Sponsoring Manager PRO - Initialisation');
+        console.log('🚀 Sponsoring Manager PRO - Initialisation');
 
-    updateAuthUI(auth.currentUser);
-    loadFromLocalStorage();
-    if (typeof newClient !== 'undefined') {
-      await syncClientAccount(newClient);
-    }
-    if (appState.settings.storageMode === 'cloud' && auth.currentUser) {
-      if (typeof window.loadFromCloud === 'function') {
-        await window.loadFromCloud();
-      } else if (typeof loadFromCloud === 'function') {
-        await loadFromCloud();
-      }
-    }
-    applyRecurringExpensesForCurrentMonth();
+        if (typeof updateAuthUI === 'function') updateAuthUI(auth ? auth.currentUser : null);
+        if (typeof loadFromLocalStorage === 'function') loadFromLocalStorage();
+        
+        if (typeof newClient !== 'undefined') {
+          if (typeof syncClientAccount === 'function') await syncClientAccount(newClient);
+        }
+        
+        if (auth && auth.currentUser && appState.settings && appState.settings.storageMode === 'cloud') {
+          if (typeof window.loadFromCloud === 'function') {
+            await window.loadFromCloud();
+          } else if (typeof loadFromCloud === 'function') {
+            await loadFromCloud();
+          }
+        }
+        
+        if (typeof applyRecurringExpensesForCurrentMonth === 'function') applyRecurringExpensesForCurrentMonth();
 
-    if (auth.currentUser || (appState.session && appState.session.type === 'employee')) {
-      showTab('dashboard');
-    } else {
-      const appContainer = document.getElementById('appContainer');
-      const loginContainer = document.getElementById('loginContainer');
-      if (appContainer) appContainer.style.display = 'none';
-      if (loginContainer) loginContainer.style.display = 'flex';
+        const isEmp = (appState.session && appState.session.type === 'employee');
+        if ((auth && auth.currentUser) || isEmp) {
+          if (typeof showTab === 'function') showTab('dashboard');
+        } else {
+          const appContainer = document.getElementById('appContainer');
+          const loginContainer = document.getElementById('loginContainer');
+          if (appContainer) appContainer.style.display = 'none';
+          if (loginContainer) loginContainer.style.display = 'flex';
+        }
+        
+        if (typeof ensureVisibleUI === 'function') ensureVisibleUI();
+        if (typeof ensureAuthVisibility === 'function') ensureAuthVisibility();
+        if (typeof visibilityWatchdog === 'function') visibilityWatchdog(3000);
+        
+        if (typeof isAdminSession === 'function' && isAdminSession()) {
+          if (typeof forceAdminView === 'function') forceAdminView();
+        }
+        
+        if (typeof uiGuardLoop === 'function') uiGuardLoop(5000);
+        
+        if (typeof populateClientDropdown === 'function') populateClientDropdown();
+        if (typeof populateOfferSelect === 'function') populateOfferSelect();
+        if (typeof populateExpenseCategorySelect === 'function') populateExpenseCategorySelect();
+        if (typeof populatePaymentClientSelect === 'function') populatePaymentClientSelect();
+        if (typeof populateAdAccountSelect === 'function') populateAdAccountSelect();
+        if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+        if (typeof renderTables === 'function') renderTables();
+        if (typeof renderAdsTable === 'function') renderAdsTable();
+        if (typeof renderAdAccountsList === 'function') renderAdAccountsList();
+        if (typeof calculatePreview === 'function') calculatePreview();
+        if (typeof updateDashboard === 'function') updateDashboard();
+        if (typeof setupEventListeners === 'function') setupEventListeners();
+        if (typeof setupClientSearchListeners === 'function') setupClientSearchListeners();
+        
+        if (typeof showToast === 'function') showToast('Bienvenue dans Sponsoring Manager PRO!', 'success');
+    } catch (err) {
+        console.error('CRITICAL INIT ERROR:', err);
     }
-    ensureVisibleUI();
-    ensureAuthVisibility();
-    visibilityWatchdog(3000);
-    if (isAdminSession()) {
-      forceAdminView();
-    }
-    uiGuardLoop(5000);
-    populateClientDropdown();
-    populateOfferSelect();
-    populateExpenseCategorySelect();
-    populatePaymentClientSelect();
-    renderTables();
-    calculatePreview();
-    updateDashboard();
-    setupEventListeners();
-    setupClientSearchListeners();
-    showToast('Bienvenue dans Sponsoring Manager PRO!', 'success');
     
     const empToggle = document.getElementById('employeeModeToggle');
     const emailLabel = document.querySelector('label[for="loginEmail"]');
@@ -6965,35 +8097,36 @@
     if (durationEl) durationEl.addEventListener('input', updateSummary);
   });
   auth.onAuthStateChanged(async function (user) {
-    updateAuthUI(user);
+    if (typeof updateAuthUI === 'function') updateAuthUI(user);
     if (user) {
-      forceAdminView();
+      if (typeof forceAdminView === 'function') forceAdminView();
       try {
         if (typeof window.loadFromCloud === 'function') {
           await window.loadFromCloud();
         } else if (typeof loadFromCloud === 'function') {
           await loadFromCloud();
-        } else {
+        } else if (typeof loadFromLocalStorage === 'function') {
           loadFromLocalStorage();
         }
       } catch (e) {
         console.error("Erreur init data auth state:", e);
-        loadFromLocalStorage();
+        if (typeof loadFromLocalStorage === 'function') loadFromLocalStorage();
       }
-      ensureInitialData();
-      applyRecurringExpensesForCurrentMonth();
-      renderTablesAsync();
-      populateClientDropdown();
-      populateOfferSelect();
-      populatePaymentClientSelect();
+      if (typeof ensureInitialData === 'function') ensureInitialData();
+      if (typeof applyRecurringExpensesForCurrentMonth === 'function') applyRecurringExpensesForCurrentMonth();
+      if (typeof renderTablesAsync === 'function') renderTablesAsync();
+      if (typeof populateClientDropdown === 'function') populateClientDropdown();
+      if (typeof populateOfferSelect === 'function') populateOfferSelect();
+      if (typeof populatePaymentClientSelect === 'function') populatePaymentClientSelect();
+      if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
       if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
-      showTab('dashboard');
+      if (typeof showTab === 'function') showTab('dashboard');
       
-      forceAdminView();
-      ensureAuthVisibility();
-      visibilityWatchdog(3000);
-      setTimeout(emergencyRevealUI, 500);
-      uiGuardLoop(5000);
+      if (typeof forceAdminView === 'function') forceAdminView();
+      if (typeof ensureAuthVisibility === 'function') ensureAuthVisibility();
+      if (typeof visibilityWatchdog === 'function') visibilityWatchdog(3000);
+      if (typeof emergencyRevealUI === 'function') setTimeout(emergencyRevealUI, 500);
+      if (typeof uiGuardLoop === 'function') uiGuardLoop(5000);
       
       window.authTransitionFlag = false;
     }
@@ -7098,18 +8231,32 @@
 function setupClientSearchListeners() {
   const clientSearch = document.getElementById('clientSearch');
   const dropdown = document.getElementById('clientDropdown');
+  if (!clientSearch || !dropdown) {
+    console.warn('⚠️ setupClientSearchListeners: elements non trouvés');
+    return;
+  }
   
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('.relative') && !e.target.closest('#clientDropdown')) {
-      dropdown.classList.add('hidden');
-    }
-  });
-  
-  clientSearch.addEventListener('focus', function() {
+  // Supprimer les anciens listeners si possible (en ré-assignant les fonctions)
+  clientSearch.onfocus = function() {
     if (this.value.trim()) {
       filterClients();
     }
-  });
+  };
+  
+  clientSearch.oninput = function() {
+    filterClients();
+  };
+
+  // Click outside to hide
+  if (!window._hasSearchGlobalListener) {
+      document.addEventListener('click', function(e) {
+        const dd = document.getElementById('clientDropdown');
+        if (dd && !e.target.closest('.relative') && !e.target.closest('#clientDropdown')) {
+          dd.classList.add('hidden');
+        }
+      });
+      window._hasSearchGlobalListener = true;
+  }
 }
 
 function showTab(tabId) {
@@ -7132,10 +8279,47 @@ function showTab(tabId) {
     activeBtn.classList.remove('text-gray-700', 'bg-gray-100');
     activeBtn.classList.add('active-tab');
   }
-  if (tabId === 'dashboard') { updateDashboard(); } 
-  else if (tabId === 'clients') { updateClientsSummary(); } 
-  else if (tabId === 'transactions') { updateTransactionsSummary(); }
+  if (tabId === 'dashboard') { if (typeof updateDashboard === 'function') updateDashboard(); } 
+  else if (tabId === 'clients') { 
+    if (typeof renderClientsTable === 'function') renderClientsTable();
+    if (typeof updateClientsSummary === 'function') updateClientsSummary(); 
+  } 
+  else if (tabId === 'offers') {
+    if (typeof renderOffersGrid === 'function') renderOffersGrid();
+  }
+  else if (tabId === 'transactions') { 
+    if (typeof renderTodoTable === 'function') renderTodoTable();
+  }
+  else if (tabId === 'history') {
+    if (typeof renderTransactionsTable === 'function') renderTransactionsTable();
+  }
+  else if (tabId === 'paiements') {
+    if (typeof renderPaymentsTable === 'function') renderPaymentsTable();
+  }
+  else if (tabId === 'achats') {
+    if (typeof renderUsdPurchasesTable === 'function') renderUsdPurchasesTable();
+  }
+  else if (tabId === 'ads') {
+    if (typeof renderAdsTable === 'function') renderAdsTable();
+    if (typeof renderAdAccountsList === 'function') renderAdAccountsList();
+  }
+  else if (tabId === 'frais') {
+    if (typeof renderExpensesTable === 'function') renderExpensesTable();
+    if (typeof renderUsdtExpensesTable === 'function') renderUsdtExpensesTable();
+  }
+  else if (tabId === 'requests') {
+    if (typeof renderRequests === 'function') renderRequests();
+  }
+  else if (tabId === 'custom-section-admin') {
+    if (typeof renderCustomSectionAdmin === 'function') renderCustomSectionAdmin();
+  }
+  else if (tabId === 'todo') {
+    if (typeof populateOfferSelect === 'function') populateOfferSelect();
+    if (typeof setupClientSearchListeners === 'function') setupClientSearchListeners();
+    if (typeof calculatePreview === 'function') calculatePreview();
+  }
 }
+window.showTab = showTab;
 
 function setupEventListeners() {
   const searchInput = document.getElementById('transactionSearch');
@@ -7281,30 +8465,8 @@ function renderOffersGrid() {
   });
 }
 
-function renderPaymentsTable() {
-  const tbody = document.getElementById('paymentsTableBody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-  if (appState.payments.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-gray-500"><i class="fas fa-credit-card text-4xl mb-3 text-gray-300"></i><p class="text-lg">Aucun paiement enregistré</p><p class="text-sm mt-2">Enregistrez votre premier paiement</p></td></tr>`;
-    return;
-  }
-  appState.payments.forEach(payment => {
-    const date = new Date(payment.date).toLocaleDateString('fr-FR');
-    const time = new Date(payment.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
-    let statusColor = 'bg-gray-100 text-gray-800';
-    let statusText = 'Inconnu';
-    switch(payment.status) {
-      case 'completed': statusColor = 'bg-green-100 text-green-800'; statusText = 'Complété'; break;
-      case 'pending': statusColor = 'bg-yellow-100 text-yellow-800'; statusText = 'En attente'; break;
-      case 'partial': statusColor = 'bg-blue-100 text-blue-800'; statusText = 'Partiel'; break;
-    }
-    const row = document.createElement('tr');
-    row.className = 'hover:bg-gray-50 transition-colors text-sm';
-    row.innerHTML = `<td class="p-4"><div class="font-medium">${date}</div><div class="text-xs text-gray-500">${time}</div></td><td class="p-4 font-medium">${payment.clientName}</td><td class="p-4 font-bold text-green-600">${formatCurrency(payment.amount)}</td><td class="p-4"><span class="bg-orange-100 text-orange-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">${payment.method}</span></td><td class="p-4"><span class="${statusColor} text-xs font-semibold px-2.5 py-0.5 rounded-full">${statusText}</span></td><td class="p-4 text-gray-600">${payment.note || '-'}</td>`;
-    tbody.appendChild(row);
-  });
-}
+    // Old renderPaymentsTable removed to avoid duplication
+    // See lines ~4900 for the correct implementation
     // updateRecentActivity removed (duplicate of renderRecentTransactions)
 
 
@@ -7331,25 +8493,22 @@ function closeAllModals() {
   document.body.style.overflow = 'auto';
 }
 
-window.showTab = showTab;
 window.calculatePreview = calculatePreview;
-window.addTransaction = addTransaction;
-window.addClient = addClient;
-window.addOffer = addOffer;
-window.addPayment = addPayment;
-window.addUsdPurchase = addUsdPurchase;
-window.deleteClient = deleteClient;
-window.deleteTransaction = deleteTransaction;
-window.deleteOffer = deleteOffer;
-window.deleteUsdPurchase = deleteUsdPurchase;
+window.exportClientsCSV = exportClientsCSV;
+window.formatCurrency = formatCurrency;
+window.updateDashboard = updateDashboard;
+window.recalculateFinanceBalances = recalculateFinanceBalances;
+window.updateClientsSummary = updateClientsSummary;
+window.renderTables = renderTables;
 window.openModal = openModal;
 window.closeModal = closeModal;
-window.exportPDF = exportPDF;
-window.backupData = backupData;
-window.restoreData = restoreData;
-window.generateInvoice = generateInvoice;
-
-window.exportClientsCSV = exportClientsCSV;
+window.closeAllModals = closeAllModals;
+window.addAdAccount = addAdAccount;
+window.deleteAdAccount = deleteAdAccount;
+window.renderAdsTable = renderAdsTable;
+window.populateAdAccountSelect = populateAdAccountSelect;
+window.openManualBalanceModal = openManualBalanceModal;
+window.saveManualBalances = saveManualBalances;
 
 function backupData() {
     const data = JSON.stringify(appState, null, 2);
@@ -7617,6 +8776,13 @@ function mergeDuplicates(groupIdx) {
             if (p.clientId === c.id) {
                 p.clientId = masterClient.id;
                 p.clientName = masterClient.name;
+            }
+        });
+        // 2b. Reassign To-Do Transactions
+        (appState.todoTransactions || []).forEach(t => {
+            if (t.clientId === c.id) {
+                t.clientId = masterClient.id;
+                t.clientName = masterClient.name;
             }
         });
         // 3. Reassign Requests
