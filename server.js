@@ -1,131 +1,215 @@
-require('dotenv').config();
+const crypto = require('crypto');
 const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
-const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-const GitHubStrategy = require('passport-github2').Strategy;
-const bcrypt = require('bcryptjs');
 const path = require('path');
-const { init, findUserByEmail, findUserById, findUserByGithubId, createUser } = require('./db');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const { init, getToken, setToken, clearToken } = require('./db');
 
 init();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const app = express();
+app.set('trust proxy', 1);
+
+app.use(express.json({ limit: '1mb' }));
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'change_me_in_env',
+    secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
     resave: false,
     saveUninitialized: false,
-    store: new SQLiteStore({ db: 'data.sqlite', dir: path.join(__dirname, '..') })
+    cookie: { sameSite: 'lax' },
+    store: new SQLiteStore({ db: 'meta_sessions.sqlite', dir: __dirname }),
   })
 );
 
-passport.serializeUser((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await findUserById(id);
-    done(null, user || false);
-  } catch (e) {
-    done(e);
-  }
-});
-
-passport.use(
-  new LocalStrategy({ usernameField: 'email', passwordField: 'password' }, async (email, password, done) => {
-    try {
-      const user = await findUserByEmail(email);
-      if (!user || !user.password_hash) return done(null, false);
-      const ok = await bcrypt.compare(password, user.password_hash);
-      if (!ok) return done(null, false);
-      return done(null, user);
-    } catch (e) {
-      return done(e);
-    }
-  })
-);
-
-if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
-  passport.use(
-    new GitHubStrategy(
-      {
-        clientID: process.env.GITHUB_CLIENT_ID,
-        clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        callbackURL: process.env.GITHUB_CALLBACK_URL || 'http://localhost:' + PORT + '/auth/github/callback'
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const existing = await findUserByGithubId(profile.id);
-          if (existing) return done(null, existing);
-          const created = await createUser({ email: profile.emails?.[0]?.value || null, passwordHash: null, githubId: profile.id });
-          return done(null, { id: created.id, email: created.email, github_id: created.github_id });
-        } catch (e) {
-          done(e);
-        }
-      }
-    )
+function getRedirectUri(req) {
+  return (
+    process.env.META_REDIRECT_URI ||
+    `${req.protocol}://${req.get('host')}/api/meta/callback`
   );
 }
 
-app.use(passport.initialize());
-app.use(passport.session());
-
-function requireAuth(req, res, next) {
-  if (req.isAuthenticated()) return next();
-  res.status(401).json({ ok: false });
+function getMetaConfigStatus() {
+  const missing = [];
+  if (!process.env.META_APP_ID) missing.push('META_APP_ID');
+  if (!process.env.META_APP_SECRET) missing.push('META_APP_SECRET');
+  return { configOk: missing.length === 0, missing };
 }
 
-app.post('/register', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ ok: false });
-  try {
-    const existing = await findUserByEmail(email);
-    if (existing) return res.status(409).json({ ok: false });
-    const hash = await bcrypt.hash(password, 10);
-    const user = await createUser({ email, passwordHash: hash });
-    res.json({ ok: true, user: { id: user.id, email: user.email } });
-  } catch (e) {
-    res.status(500).json({ ok: false });
+function requireMetaEnv(req, res) {
+  const appId = process.env.META_APP_ID;
+  const appSecret = process.env.META_APP_SECRET;
+  if (!appId || !appSecret) {
+    const cfg = getMetaConfigStatus();
+    res.status(500).json({
+      error: 'META_APP_ID/META_APP_SECRET manquants',
+      missing: cfg.missing,
+      hint: 'Crée meta-ads/.env (copie meta-ads/.env.example) puis redémarre le serveur',
+    });
+    return null;
   }
-});
+  return { appId, appSecret };
+}
 
-app.post('/login', passport.authenticate('local'), (req, res) => {
-  res.json({ ok: true, user: { id: req.user.id, email: req.user.email } });
-});
+async function exchangeCodeForToken({ code, redirectUri, appId, appSecret }) {
+  const u = new URL('https://graph.facebook.com/v19.0/oauth/access_token');
+  u.searchParams.set('client_id', appId);
+  u.searchParams.set('redirect_uri', redirectUri);
+  u.searchParams.set('client_secret', appSecret);
+  u.searchParams.set('code', code);
+  const res = await fetch(u.toString());
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error?.message || 'Token exchange failed');
+  return json;
+}
 
-app.get('/logout', (req, res) => {
-  req.logout(() => {
-    res.json({ ok: true });
+async function metaGet({ pathName, params }) {
+  const token = await getToken();
+  if (!token || !token.access_token) {
+    const err = new Error('Meta non connecté');
+    err.status = 401;
+    throw err;
+  }
+
+  const u = new URL(`https://graph.facebook.com/v19.0/${pathName}`);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    u.searchParams.set(k, String(v));
+  });
+  u.searchParams.set('access_token', token.access_token);
+  const res = await fetch(u.toString());
+  const json = await res.json();
+  if (!res.ok) {
+    const err = new Error(json?.error?.message || 'Meta API error');
+    err.status = res.status;
+    throw err;
+  }
+  return json;
+}
+
+app.get('/api/meta/status', async (req, res) => {
+  const token = await getToken();
+  const connected = !!(token && token.access_token);
+  const cfg = getMetaConfigStatus();
+  res.json({
+    connected,
+    configOk: cfg.configOk,
+    missing: cfg.missing,
+    expiresAt: token?.expires_at || null,
+    updatedAt: token?.updated_at || null,
   });
 });
 
-app.get('/auth/github', (req, res, next) => {
-  if (!passport._strategies.github) return res.status(500).json({ ok: false });
-  next();
-}, passport.authenticate('github', { scope: ['user:email'] }));
+app.get('/api/meta/login', async (req, res) => {
+  const env = requireMetaEnv(req, res);
+  if (!env) return;
 
-app.get('/auth/github/callback', passport.authenticate('github', { failureRedirect: '/' }), (req, res) => {
-  res.redirect('/profile.html');
+  const state = crypto.randomBytes(16).toString('hex');
+  req.session.metaState = state;
+  const redirectUri = getRedirectUri(req);
+
+  const scope =
+    process.env.META_SCOPES ||
+    'ads_read,read_insights,business_management';
+
+  const u = new URL('https://www.facebook.com/v19.0/dialog/oauth');
+  u.searchParams.set('client_id', env.appId);
+  u.searchParams.set('redirect_uri', redirectUri);
+  u.searchParams.set('state', state);
+  u.searchParams.set('response_type', 'code');
+  u.searchParams.set('scope', scope);
+
+  res.redirect(u.toString());
 });
 
-app.get('/me', requireAuth, (req, res) => {
-  res.json({ ok: true, user: { id: req.user.id, email: req.user.email, github_id: req.user.github_id || null } });
+app.get('/api/meta/callback', async (req, res) => {
+  const env = requireMetaEnv(req, res);
+  if (!env) return;
+
+  const { code, state } = req.query || {};
+  const expected = req.session.metaState;
+  if (!code || !state || !expected || String(state) !== String(expected)) {
+    return res.status(400).send('OAuth state invalide');
+  }
+  req.session.metaState = null;
+
+  try {
+    const redirectUri = getRedirectUri(req);
+    const tokenRes = await exchangeCodeForToken({
+      code: String(code),
+      redirectUri,
+      appId: env.appId,
+      appSecret: env.appSecret,
+    });
+    const expiresAt = tokenRes.expires_in ? Date.now() + Number(tokenRes.expires_in) * 1000 : null;
+    await setToken({
+      accessToken: tokenRes.access_token,
+      tokenType: tokenRes.token_type || 'bearer',
+      expiresAt,
+    });
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end(`
+      <html>
+        <head><meta http-equiv="refresh" content="1;url=/" /></head>
+        <body style="font-family: sans-serif; padding: 24px;">
+          <h2>Connexion Meta réussie</h2>
+          <p>Retour à l'application…</p>
+        </body>
+      </html>
+    `);
+  } catch (e) {
+    res.status(500).send(`Erreur OAuth: ${e.message}`);
+  }
 });
 
-app.use(express.static(path.join(__dirname, '..', 'public')));
-app.use(express.static(path.join(__dirname, '..')));
+app.post('/api/meta/disconnect', async (req, res) => {
+  await clearToken();
+  res.json({ ok: true });
+});
 
+app.get('/api/meta/adaccounts', async (req, res) => {
+  try {
+    const data = await metaGet({
+      pathName: 'me/adaccounts',
+      params: { fields: 'id,name,account_status,currency' },
+    });
+    res.json(data);
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+app.get('/api/meta/insights', async (req, res) => {
+  const accountId = String(req.query.accountId || '');
+  if (!accountId) return res.status(400).json({ error: 'accountId requis' });
+  const since = String(req.query.since || '');
+  const until = String(req.query.until || '');
+  const timeRange = since && until ? JSON.stringify({ since, until }) : null;
+  try {
+    const data = await metaGet({
+      pathName: `${accountId}/insights`,
+      params: {
+        fields:
+          'date_start,date_stop,spend,impressions,clicks,reach,frequency,cpm,ctr,cpc,actions,action_values',
+        level: 'account',
+        time_range: timeRange,
+      },
+    });
+    res.json(data);
+  } catch (e) {
+    res.status(e.status || 500).json({ error: e.message });
+  }
+});
+
+app.use(express.static(path.join(__dirname, '..', 'sponsor-v2')));
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'sponsor-v2', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log('Server on http://localhost:' + PORT);
+const port = Number(process.env.PORT || 8082);
+app.listen(port, () => {
+  process.stdout.write(`Meta Ads server running on http://127.0.0.1:${port}/\n`);
 });
