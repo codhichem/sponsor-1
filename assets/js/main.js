@@ -59,6 +59,16 @@
     if (revEl) revEl.textContent = window.formatCurrency(priceDzd);
     if (profEl) profEl.textContent = window.formatCurrency(profit);
     if (percEl) percEl.textContent = `Marge: ${percent.toFixed(2)}%`;
+    
+    // Hide profit/cost/margin details for employees
+    if (appState.session && appState.session.type === 'employee') {
+         if (costEl && costEl.closest('div')) costEl.closest('div').style.display = 'none';
+         if (profEl && profEl.closest('div')) profEl.closest('div').style.display = 'none';
+         if (percEl && percEl.closest('div')) percEl.closest('div').style.display = 'none';
+         // Hide buyRate input container as well if visible
+         const buyRateInput = document.getElementById('buyRate');
+         if(buyRateInput && buyRateInput.closest('div')) buyRateInput.closest('div').style.display = 'none';
+    }
   };
 
   // === TRADUCTIONS ===
@@ -241,13 +251,23 @@
   var auth = null;
   try {
     if (window.firebase && typeof firebase.initializeApp === 'function') {
-      firebase.initializeApp(firebaseConfig);
+      if (!firebase.apps || !firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
       auth = firebase.auth();
       window.auth = auth;
       try {
         auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
       } catch (e) {
       }
+    } else {
+      auth = {
+        currentUser: null,
+        signInWithEmailAndPassword: async function () { throw new Error("Firebase non chargé"); },
+        onAuthStateChanged: function () {},
+        setPersistence: function () {}
+      };
+      window.auth = auth;
     }
   } catch (e) {
     auth = {
@@ -263,6 +283,7 @@
     if (!window.firebase || !firebase.firestore) return null;
     if (!db) {
       db = firebase.firestore();
+      window.db = db;
       try {
         // Configuration robuste pour éviter net::ERR_ABORTED
         db.settings({
@@ -301,6 +322,108 @@
       const isEmployee = !!(window.appState && window.appState.session && window.appState.session.type === 'employee');
       return hasFirebase || isEmployee;
     };
+
+    function getActor() {
+      if (auth && auth.currentUser) {
+        return { type: 'admin', uid: auth.currentUser.uid || null, name: auth.currentUser.email || 'Admin' };
+      }
+      if (appState.session && appState.session.type === 'employee' && appState.session.user) {
+        const u = appState.session.user;
+        return { type: 'employee', uid: u.uid || null, name: u.displayName || u.email || 'Employé' };
+      }
+      return { type: 'unknown', uid: null, name: '' };
+    }
+
+    function logAudit(action, details) {
+      if (!action) return;
+      if (!appState.auditLog) appState.auditLog = [];
+      const actor = getActor();
+      const entry = {
+        id: `log_${Date.now()}_${Math.floor(Math.random() * 100000)}`,
+        ts: Date.now(),
+        date: getLocalDateString(),
+        actorUid: actor.uid,
+        actorName: actor.name,
+        actorType: actor.type,
+        action: String(action),
+        details: details || {}
+      };
+      appState.auditLog.unshift(entry);
+      if (appState.auditLog.length > 300) appState.auditLog.length = 300;
+      try { saveToLocalStorage(); } catch (e) {}
+      if (typeof renderAuditLog === 'function') renderAuditLog();
+    }
+
+    function renderAuditLog() {
+      const body = document.getElementById('auditLogBody');
+      const searchEl = document.getElementById('auditSearch');
+      const actorSel = document.getElementById('auditActorFilter');
+      if (!body) return;
+
+      const logs = Array.isArray(appState.auditLog) ? appState.auditLog : [];
+      const search = (searchEl ? searchEl.value.trim().toLowerCase() : '');
+      const actor = (actorSel ? actorSel.value : '') || '';
+
+      if (actorSel && !window._auditActorOptionsBound) {
+        actorSel.addEventListener('change', () => renderAuditLog());
+        window._auditActorOptionsBound = true;
+      }
+      if (searchEl && !window._auditSearchBound) {
+        searchEl.addEventListener('input', () => renderAuditLog());
+        window._auditSearchBound = true;
+      }
+
+      if (actorSel) {
+        const current = actorSel.value || '';
+        const unique = new Map();
+        logs.forEach(l => {
+          const uid = l && l.actorUid ? String(l.actorUid) : '';
+          const name = l && l.actorName ? String(l.actorName) : '';
+          if (!uid && !name) return;
+          unique.set(uid || name, { uid, name: name || uid });
+        });
+        const opts = ['<option value=\"\">Tous</option>']
+          .concat(Array.from(unique.values()).sort((a, b) => a.name.localeCompare(b.name)).map(u => `<option value=\"${u.uid}\">${u.name}</option>`));
+        actorSel.innerHTML = opts.join('');
+        actorSel.value = current;
+      }
+
+      const filtered = logs.filter(l => {
+        if (!l) return false;
+        if (actor && String(l.actorUid || '') !== String(actor)) return false;
+        if (search) {
+          const blob = `${l.actorName || ''} ${l.action || ''} ${JSON.stringify(l.details || {})}`.toLowerCase();
+          if (!blob.includes(search)) return false;
+        }
+        return true;
+      });
+
+      body.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      filtered.slice(0, 80).forEach(l => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        const when = l.date ? formatDate(l.date) : '';
+        const tdWhen = document.createElement('td');
+        tdWhen.className = 'p-3 text-gray-700 whitespace-nowrap';
+        tdWhen.textContent = when;
+        const tdActor = document.createElement('td');
+        tdActor.className = 'p-3 font-semibold text-gray-800';
+        tdActor.textContent = l.actorName || '-';
+        const tdAction = document.createElement('td');
+        tdAction.className = 'p-3 text-gray-700';
+        tdAction.textContent = l.action || '';
+        const tdDetails = document.createElement('td');
+        tdDetails.className = 'p-3 text-gray-500 text-xs';
+        try { tdDetails.textContent = JSON.stringify(l.details || {}); } catch (e) { tdDetails.textContent = ''; }
+        tr.appendChild(tdWhen);
+        tr.appendChild(tdActor);
+        tr.appendChild(tdAction);
+        tr.appendChild(tdDetails);
+        frag.appendChild(tr);
+      });
+      body.appendChild(frag);
+    }
   
 
     (function () {
@@ -475,18 +598,12 @@
     const loginContainer = document.getElementById('loginContainer');
     const clientSpace    = document.getElementById('clientSpaceContainer');
 
-    console.log('updateAuthUI called with:', user ? user.email : 'no user');
-
     const sess = (typeof window !== 'undefined' && window.appState && window.appState.session) ? window.appState.session : null;
     if (user || (sess && sess.type === 'employee') || window.authTransitionFlag) {
       // Connecté
       if (appContainer)   appContainer.style.display = 'block';
       if (loginContainer) loginContainer.style.display = 'none';
       if (clientSpace)    clientSpace.style.display = 'none';
-    } else if (sess && sess.type === 'client') {
-      if (appContainer)   appContainer.style.display = 'none';
-      if (loginContainer) loginContainer.style.display = 'none';
-      if (clientSpace)    clientSpace.style.display = 'block';
     } else {
       // Déconnecté
       if (appContainer)   appContainer.style.display = 'none';
@@ -539,10 +656,6 @@
       if (client) client.style.display = 'none';
       return;
     }
-    if (sess && sess.type === 'client') {
-      showClientSpace();
-      return;
-    }
     if (login) login.style.display = 'flex';
     if (app) app.style.display = 'none';
     if (client) client.style.display = 'none';
@@ -570,10 +683,50 @@
     if (app) app.style.display = 'block';
     if (login) login.style.display = 'none';
     if (client) client.style.display = 'none';
-    const dash = document.getElementById('dashboard');
-    if (dash) dash.classList.remove('hidden');
+
+    // Employee specific logic
+    const isEmployee = appState.session && appState.session.type === 'employee';
+    
+    // Hide all tabs first
     const allTabs = document.querySelectorAll('.tab-content');
-    allTabs.forEach(el => { if (el.id !== 'dashboard') el.classList.add('hidden'); });
+    allTabs.forEach(el => el.classList.add('hidden'));
+
+    // Apply strict visibility rules
+    if (isEmployee) {
+        // Hide dashboard tab button and content
+        const dashBtn = document.getElementById('tab-dashboard');
+        if (dashBtn) {
+            dashBtn.classList.add('hidden'); // Also add standard hidden class
+            dashBtn.style.display = 'none'; // Force inline style
+        }
+        
+        // Show Clients tab by default for employees
+        const clientTab = document.getElementById('clients');
+        if (clientTab) clientTab.classList.remove('hidden');
+        
+        // Ensure other restricted elements are hidden
+        document.querySelectorAll('.employee-hidden').forEach(el => {
+            el.style.display = 'none';
+            el.classList.add('hidden');
+        });
+        
+        // Update active tab button
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active-tab'));
+        const clientBtn = document.querySelector('button[onclick*="clients"]');
+        if (clientBtn) clientBtn.classList.add('active-tab');
+        
+        appState.currentTab = 'clients';
+    } else {
+        // Admin default view -> Dashboard
+        const dash = document.getElementById('dashboard');
+        if (dash) dash.classList.remove('hidden');
+        const dashBtn = document.getElementById('tab-dashboard');
+        if (dashBtn) {
+            dashBtn.classList.remove('hidden');
+            dashBtn.style.display = '';
+        }
+        appState.currentTab = 'dashboard';
+    }
   }
   function emergencyRevealUI(){
     try {
@@ -633,16 +786,13 @@
   }
 
   async function forceCloudSave() {
-    console.log("forceCloudSave called");
     try {
       if (appState.settings.storageMode === 'cloud') {
         showToast('Début synchronisation...', 'info');
-        console.log("Storage mode is cloud, calling saveToCloud...");
         await saveToCloud();
         scheduleCloudRetry();
         renderSettingsAdmin();
       } else {
-        console.log("Storage mode is local");
         saveToLocalStorage();
         showToast('Sauvegarde locale effectuée (Mode Cloud désactivé)', 'success');
       }
@@ -653,23 +803,32 @@
   }
 
   async function loginWithEmailPassword(email, password) {
+    if (!auth || typeof auth.signInWithEmailAndPassword !== 'function') {
+      const box = document.getElementById('loginError');
+      if (box) box.textContent = "Service d'authentification non disponible";
+      showToast("Service d'authentification non disponible", 'error');
+      return;
+    }
     try {
       window.authTransitionFlag = true;
       await auth.signInWithEmailAndPassword(email, password);
       showToast('Connexion réussie', 'success');
-      
-      // Force UI switch immediately
+
+      if (!window.appState) window.appState = {};
+      window.appState.session = {
+        type: 'admin',
+        user: {
+          uid: auth.currentUser ? auth.currentUser.uid : null,
+          email: auth.currentUser ? auth.currentUser.email : email,
+          displayName: auth.currentUser ? (auth.currentUser.displayName || '') : ''
+        }
+      };
+      if (typeof setEmployeeGuardEnabled === 'function') setEmployeeGuardEnabled(false);
+      try { saveToLocalStorage(); } catch (e) {}
+
       updateAuthUI(auth.currentUser);
       forceAdminView();
-      const loginContainer = document.getElementById('loginContainer');
-      const appContainer = document.getElementById('appContainer');
-      if (loginContainer) loginContainer.style.display = 'none';
-      if (appContainer) appContainer.style.display = 'block';
-      
-      ensureAuthVisibility();
-      visibilityWatchdog(3000);
-      uiGuardLoop(5000);
-      
+
       if (typeof window.loadFromCloud === 'function') {
         await window.loadFromCloud();
       } else if (typeof loadFromCloud === 'function') {
@@ -686,40 +845,21 @@
       recalculateFinanceBalances();
       if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
       showTab('dashboard');
-      
-      // Re-enforce UI state
-      forceAdminView();
+
       ensureAuthVisibility();
       visibilityWatchdog(3000);
       uiGuardLoop(5000);
-      setTimeout(emergencyRevealUI, 500);
-      
     } catch (error) {
       console.error('Erreur de connexion:', error);
       const box = document.getElementById('loginError');
       if (box) box.textContent = firebaseErrorMessage(error);
-      const username = document.getElementById('loginEmail').value.trim();
-      const pwd = document.getElementById('loginPassword').value.trim();
-      // Fallback to local employee login if Firebase fails
-      loginEmployee(username, pwd);
+      showToast(firebaseErrorMessage(error), 'error');
     } finally {
       // Keep transition flag longer to prevent UI flicker
       setTimeout(() => { window.authTransitionFlag = false; }, 5000);
     }
   }
-  
-  function handleLoginClick() {
-    const isEmp = !!document.getElementById('employeeModeToggle') && document.getElementById('employeeModeToggle').checked;
-    const emailOrUser = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value.trim();
-    if (!emailOrUser || !password) { showToast('Identifiants requis', 'error'); return; }
-    const canFirebase = !!auth && typeof auth.signInWithEmailAndPassword === 'function';
-    if (isEmp || !canFirebase) {
-      loginEmployee(emailOrUser, password);
-    } else {
-      loginWithEmailPassword(emailOrUser, password);
-    }
-  }
+  // Removed another duplicate login logic
   
   async function signupClient() {
     const nameEl = document.getElementById('signupClientName');
@@ -817,6 +957,76 @@
     showToast('Déconnecté', 'success');
   }
 
+  async function handleLoginClick() {
+    const isEmp = !!document.getElementById('employeeModeToggle') && document.getElementById('employeeModeToggle').checked;
+    const emailEl = document.getElementById('loginEmail');
+    const passEl = document.getElementById('loginPassword');
+    const btn = document.getElementById('loginButton');
+    const box = document.getElementById('loginError');
+
+    const emailOrUser = emailEl ? emailEl.value.trim() : '';
+    const password = passEl ? passEl.value.trim() : '';
+
+    if (box) box.textContent = '';
+    if (!emailOrUser || !password) { showToast('Identifiants requis', 'error'); return; }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('opacity-60', 'cursor-not-allowed');
+    }
+
+    try {
+      if (isEmp) {
+        loginEmployee(emailOrUser, password);
+      } else {
+        await loginWithEmailPassword(emailOrUser, password);
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-60', 'cursor-not-allowed');
+      }
+    }
+  }
+
+  function loginEmployee(username, password) {
+    if (!Array.isArray(window.appState.employees)) window.appState.employees = [];
+    let emp = window.appState.employees.find(e => (e.username || '').toLowerCase() === username.toLowerCase() && (e.password || '') === password);
+    if (!emp) {
+      // In production we should probably not auto-create employee accounts like this but for now we keep behavior
+      /* 
+      const gen = (typeof window.generateId === 'function') 
+        ? window.generateId 
+        : (prefix) => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+      emp = { id: gen('emp'), username, password, createdAt: Date.now() };
+      window.appState.employees.push(emp);
+      try { saveToLocalStorage(); } catch (e) {}
+      showToast('Compte employé créé en local', 'success'); 
+      */
+     // Fail if not found
+     showToast('Identifiants employés incorrects', 'error');
+     return;
+    }
+    
+    if (emp) {
+        appState.session = { type: 'employee', user: { email: emp.email, uid: emp.id, displayName: emp.username } };
+        showToast('Connexion Employé réussie', 'success');
+        if (typeof setEmployeeGuardEnabled === 'function') setEmployeeGuardEnabled(true);
+        updateAuthUI({ email: emp.email });
+        forceAdminView();
+        loadFromLocalStorage(); 
+        ensureInitialData();
+        renderTablesAsync();
+        updateDashboard(); // Trigger UI hiding logic
+        // Redirect to a safe tab since dashboard is hidden
+        showTab('clients');
+    }
+  }
+
+  // Expose to window
+  window.handleLoginClick = handleLoginClick;
+  window.loginEmployee = loginEmployee;
+
   window.deleteTodoTransaction = function(id) {
     if(!confirm('Supprimer cette transaction en attente ?')) return;
     const idx = (appState.todoTransactions || []).findIndex(t => t.id === id);
@@ -834,40 +1044,8 @@
   function handleGithubClick() {
     loginWithGithub();
   }
+  // Duplicate loginEmployee removed
   
-  function loginEmployee(username, password) {
-    if (!Array.isArray(window.appState.employees)) window.appState.employees = [];
-    let emp = window.appState.employees.find(e => (e.username || '').toLowerCase() === username.toLowerCase() && (e.password || '') === password);
-    if (!emp) {
-      const gen = (typeof window.generateId === 'function') 
-        ? window.generateId 
-        : (prefix) => `${prefix}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-      emp = { id: gen('emp'), username, password, createdAt: Date.now() };
-      window.appState.employees.push(emp);
-      try { saveToLocalStorage(); } catch (e) {}
-      showToast('Compte employé créé en local', 'success');
-    }
-    window.appState.session = { type: 'employee', id: emp.id, username: emp.username, ts: Date.now() };
-    saveToLocalStorage();
-    showToast('Connexion employé réussie', 'success');
-    updateAuthUI(null);
-    ensureAuthVisibility();
-    visibilityWatchdog(3000);
-    uiGuardLoop(5000);
-    ensureInitialData();
-    if(typeof backfillReadableIds === 'function') backfillReadableIds(); // Backfill after load
-    renderTablesAsync();
-    populateClientDropdown();
-    populateOfferSelect();
-    populatePaymentClientSelect();
-    if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
-    showTab('dashboard');
-    forceAdminView();
-    setTimeout(emergencyRevealUI, 500);
-    ensureVisibleUI();
-    uiGuardLoop(5000);
-  }
-
   async function logout() {
     try {
       try { await auth.signOut(); } catch (e) {}
@@ -1356,6 +1534,7 @@
       }
 
       const adAcc = appState.adAccounts.find(a => a.id === adAccountId);
+      const actor = getActor();
 
       // Génération d'un numéro de transaction séquentiel (TX-001)
       if (!appState.settings.txnSeq) appState.settings.txnSeq = 0;
@@ -1381,9 +1560,16 @@
         duration,
         paid,
         reminderAt,
+        uid: actor.uid,
+        handledByUid: actor.uid,
+        handledByName: actor.name,
       };
 
       appState.transactions.push(transaction);
+      if (actor.type === 'employee' && actor.uid) {
+        handleEmployeeMilestone(actor.uid, actor.name);
+      }
+      logAudit('transaction:add', { id: transaction.readableId, client: transaction.clientName, amount: transaction.amount, revenueDzd: transaction.priceDzd, profitDzd: transaction.profit, actor: actor.name });
 
       // CRITICAL: Mettre à jour le timestamp du client pour forcer la synchro de son nouveau solde
       client.updatedAt = Date.now();
@@ -1492,6 +1678,7 @@
       };
 
       appState.usdPurchases.push(purchase);
+      logAudit('usdPurchase:add', { amount: purchase.amount, rate: purchase.rate, totalDzd: purchase.totalDzd, source: purchase.source });
       recalculateFinanceBalances();
 
       renderUsdPurchasesTable();
@@ -1520,8 +1707,9 @@
       const reminderEmail = document.getElementById('expenseReminderEmail')?.value?.trim() || '';
       
       const isEmployee = (appState.session && appState.session.type === 'employee');
-      const addedBy = isEmployee ? (appState.session.user?.displayName || appState.session.user?.email || 'employé') : null;
-      const uid = isEmployee ? appState.session.user.uid : null;
+      // If employee, use username or email. If admin, use 'Admin' or email
+      const addedBy = isEmployee ? (appState.session.user.displayName || appState.session.user.email) : 'Admin';
+      const uid = appState.session && appState.session.user ? appState.session.user.uid : null;
 
       if (!amount) { showToast('Montant requis', 'error'); return; }
       if (recurring) {
@@ -1573,6 +1761,7 @@
           uid // Track creator ID
         });
       }
+      logAudit('expense:add', { date, category, account, amount, addedBy, uid });
       closeModal('expenseModal');
       recalculateFinanceBalances();
       applyRecurringExpensesForCurrentMonth();
@@ -1613,13 +1802,16 @@
       }
 
       const adAcc = appState.adAccounts.find(a => a.id === adAccountId);
+      const actor = getActor();
 
       const todo = {
         id: generateId('todo'),
         date: getLocalDateString(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        uid: auth.currentUser ? auth.currentUser.uid : null,
+        uid: actor.uid,
+        createdByUid: actor.uid,
+        createdByName: actor.name,
         clientId,
         clientName: client.name,
         offerId: offerId || null,
@@ -1658,6 +1850,7 @@
       if (idx === -1) return;
       
       const todo = appState.todoTransactions[idx];
+      const actor = getActor();
       
       // Calculate profit if possible
       const totalDzd = todo.amount * (todo.buyRate || 340);
@@ -1675,13 +1868,16 @@
         date: getLocalDateString(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        uid: auth.currentUser ? auth.currentUser.uid : null,
+        uid: actor.uid,
+        handledByUid: actor.uid,
+        handledByName: actor.name,
         clientId: todo.clientId,
         clientName: todo.clientName,
         offerId: todo.offerId,
         offerName: todo.offerName,
         amount: todo.amount,
         priceDzd: todo.priceDzd,
+        buyRate: todo.buyRate || 0,
         totalDzd,
         profit,
         duration: todo.duration,
@@ -1692,6 +1888,7 @@
 
       appState.transactions.push(transaction);
       appState.todoTransactions.splice(idx, 1);
+      logAudit('todo:validate', { todoId: todo.id, client: todo.clientName, status, revenueDzd: todo.priceDzd, profitDzd: profit, actor: actor.name });
       
       if (status === 'done') {
         showToast('Transaction validée et enregistrée', 'success');
@@ -1700,8 +1897,74 @@
       }
       
       renderTables();
+      if (status === 'done' && actor.type === 'employee' && actor.uid) {
+        handleEmployeeMilestone(actor.uid, actor.name);
+      }
       autoSave();
     };
+
+    function handleEmployeeMilestone(uid, name) {
+      if (!uid) return;
+      if (!appState.employeeGame) appState.employeeGame = {};
+      if (!appState.employeeGame[uid]) appState.employeeGame[uid] = { awarded: [] };
+      const awarded = Array.isArray(appState.employeeGame[uid].awarded) ? appState.employeeGame[uid].awarded : [];
+
+      const completed = (appState.transactions || []).filter(t => {
+        if (!t) return false;
+        const handler = t.handledByUid || t.uid;
+        if (!handler || String(handler) !== String(uid)) return false;
+        if (t.status === 'problem') return false;
+        return true;
+      }).length;
+
+      const thresholds = [5, 9, 20];
+      const hit = thresholds.find(n => completed >= n && !awarded.includes(n));
+      if (!hit) return;
+
+      awarded.push(hit);
+      appState.employeeGame[uid].awarded = awarded;
+      try { saveToLocalStorage(); } catch (e) {}
+
+      showMilestoneOverlay(hit, completed, name);
+    }
+
+    function showMilestoneOverlay(level, total, name) {
+      const existing = document.getElementById('milestoneOverlay');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+      const overlay = document.createElement('div');
+      overlay.id = 'milestoneOverlay';
+      overlay.className = 'milestone-overlay';
+
+      const title = level === 5 ? 'Palier 5 atteint' : (level === 9 ? 'Palier 9 atteint' : 'Palier 20 atteint');
+      const subtitle = name ? `${name} • ${total} transactions validées` : `${total} transactions validées`;
+
+      const card = document.createElement('div');
+      card.className = 'milestone-card';
+      card.innerHTML = `
+        <div class="milestone-title">${title}</div>
+        <div class="milestone-subtitle">${subtitle}</div>
+      `;
+
+      const confetti = document.createElement('div');
+      confetti.className = 'milestone-confetti';
+      const colors = ['#2563eb', '#4f46e5', '#16a34a', '#f59e0b', '#e11d48', '#06b6d4'];
+      for (let i = 0; i < 36; i++) {
+        const p = document.createElement('div');
+        p.className = 'milestone-piece';
+        p.style.left = Math.floor(Math.random() * 100) + '%';
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.animationDelay = (Math.random() * 0.4) + 's';
+        p.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
+        confetti.appendChild(p);
+      }
+
+      overlay.appendChild(confetti);
+      overlay.appendChild(card);
+      overlay.addEventListener('click', () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); });
+      document.body.appendChild(overlay);
+      setTimeout(() => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 3500);
+    }
 
      // === ETAT GLOBAL DE L'APP ===
     let editingOfferId = null;
@@ -1883,7 +2146,9 @@
     }
     
     function isAdminSession() {
-      return !!auth.currentUser || (appState.session && appState.session.type === 'employee');
+      // Check if auth exists before accessing currentUser
+      const hasAuth = (typeof auth !== 'undefined' && auth && auth.currentUser);
+      return hasAuth || (appState.session && appState.session.type === 'employee');
     }
     
     function requireAdmin() {
@@ -1917,7 +2182,7 @@
       const el = document.getElementById('syncIndicator');
       const txt = document.getElementById('syncIndicatorText');
       if (!el || !txt) return;
-      const isCloud = appState.settings.storageMode === 'cloud' && !!auth.currentUser;
+      const isCloud = appState.settings.storageMode === 'cloud' && !!(auth && auth.currentUser);
       const hasQueue = (appState.syncQueue || []).length > 0 || !!appState.syncTimer;
       const hasError = !!(appState.sync && appState.sync.pendingCloudSave);
       if (!isCloud) { el.classList.add('hidden'); return; }
@@ -2297,23 +2562,6 @@
         try {
           const parsed = JSON.parse(data);
           Object.assign(appState, parsed);
-          
-          // Re-apply employee UI guard if session is employee
-          if (appState.session && appState.session.type === 'employee') {
-              const guard = document.getElementById('employee-guard-style');
-              if (!guard) {
-                  const style = document.createElement('style');
-                  style.id = 'employee-guard-style';
-                  style.innerHTML = `
-                      .employee-hidden,
-                      #financeHeaderSection, #financeCardsSection, #taxCard, 
-                      #card-profit-today, #card-stock-usd, #profitChartSection,
-                      #tab-achats, #tab-paiements, #tab-ads,
-                      #employeesSection { display: none !important; }
-                  `;
-                  document.head.appendChild(style);
-              }
-          }
 
           console.log('📦 Données chargées depuis le localStorage');
           normalizeAppState();
@@ -2322,6 +2570,28 @@
           console.error('Erreur parse localStorage', e);
         }
       }
+    }
+
+    function setEmployeeGuardEnabled(enabled) {
+      const existing = document.getElementById('employee-guard-style');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      if (!document.body) return;
+      document.body.classList.toggle('employee-mode', !!enabled);
+    }
+
+    function updateDefaultBuyRateFromLastPurchase() {
+      if (!appState.settings) appState.settings = {};
+      const purchases = Array.isArray(appState.usdPurchases) ? appState.usdPurchases : [];
+      if (!purchases.length) return;
+      const sorted = [...purchases].sort((a, b) => {
+        const da = (a.date || '').toString();
+        const db = (b.date || '').toString();
+        if (db !== da) return db.localeCompare(da);
+        return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+      });
+      const last = sorted.find(p => p && Number(p.rate || 0) > 0);
+      if (!last) return;
+      appState.settings.defaultBuyRate = Number(last.rate);
     }
 
     // === CLOUD (FIRESTORE) ===
@@ -2547,6 +2817,20 @@
                         resultsMap.set(d.id || d.ref.id, data);
                     }
                 });
+
+                // --- FEATURE: Auto-Update BuyRate from Last USD Purchase ---
+                if (col === 'usdPurchases') {
+                    const purchases = Array.from(resultsMap.values());
+                    if (purchases.length > 0) {
+                        // Sort by date desc (assuming date is YYYY-MM-DD or similar sortable string)
+                        purchases.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+                        const lastPurchase = purchases[0];
+                        if (lastPurchase && lastPurchase.rate) {
+                            console.log('Auto-updating BuyRate from last purchase:', lastPurchase.rate);
+                            appState.settings.defaultBuyRate = Number(lastPurchase.rate);
+                        }
+                    }
+                }
                 
                 return Array.from(resultsMap.values());
             } catch (e) { 
@@ -3124,91 +3408,173 @@
       if (totalSpan) totalSpan.textContent = `Total USD: ${safeToFixed(totalUsd, 2)}`;
     }
 
-    function renderUsdtExpensesTable() {
-      try {
-        const tbody = document.getElementById('usdtExpensesTableBody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+  function renderExpensesTable() {
+      const tbody = document.getElementById('expensesTableBody');
+      if (!tbody) return;
+      if (typeof applyRecurringExpensesForCurrentMonth === 'function') applyRecurringExpensesForCurrentMonth();
+      tbody.innerHTML = '';
 
-        const filterMonth = document.getElementById('usdtExpenseFilterMonth')?.value;
-        const search = document.getElementById('usdtExpenseSearch')?.value.toLowerCase() || '';
-        let expenses = appState.usdtExpenses || [];
-        if (!Array.isArray(expenses)) expenses = [];
+      const filterMonth = document.getElementById('expenseFilterMonth')?.value;
+      const search = document.getElementById('expenseSearch')?.value.toLowerCase() || '';
+      
+      const isEmployee = (appState.session && appState.session.type === 'employee');
+      const currentUserId = appState.session && appState.session.user ? appState.session.user.uid : null;
+      const currentUserName = appState.session && appState.session.user ? String(appState.session.user.displayName || appState.session.user.email || '').toLowerCase() : '';
 
-        // Filtrage
-        expenses = expenses.filter(e => {
-            if (!e) return false;
-            let match = true;
-            if (filterMonth) {
-                if (e.month) match = e.month === filterMonth;
-                else if (e.date) match = String(e.date).startsWith(filterMonth);
-                else match = false;
-            }
-            if (match && search) {
-                match = (e.note || '').toLowerCase().includes(search);
-            }
-            return match;
-        });
+      let expenses = appState.expenses || [];
+      if (!Array.isArray(expenses)) expenses = [];
 
-        let totalValueDzd = 0;
-        let totalDiffDzd = 0;
-
-        const frag = document.createDocumentFragment();
-        expenses.forEach(e => {
-          if (!e) return;
-          const amount = Number(e.amount || 0);
-          const buyRate = Number(e.buyRate || 0);
-          const spendRate = Number(e.spendRate || 0);
-          const costDzd = Number(e.costDzd || amount * buyRate);
-          const valueDzd = Number(e.valueDzd || amount * spendRate);
-          const diffDzd = Number(e.diffDzd || (valueDzd - costDzd));
-          totalValueDzd += valueDzd;
-          totalDiffDzd += diffDzd;
-
-          const row = document.createElement('tr');
-          row.className = 'hover:bg-gray-50';
-          const diffColor = diffDzd >= 0 ? 'text-green-600' : 'text-red-600';
-          
-          let dateStr = '-';
-          try {
-            if (e.date) dateStr = formatDate(e.date);
-          } catch (err) { dateStr = e.date || '-'; }
-
-          row.innerHTML = `
-            <td class="p-4 text-gray-700">${dateStr}</td>
-            <td class="p-4 text-gray-800">${safeToFixed(amount, 2)} USDT</td>
-            <td class="p-4 text-gray-700">${safeToFixed(buyRate, 2)}</td>
-            <td class="p-4 text-gray-700">${safeToFixed(spendRate, 2)}</td>
-            <td class="p-4 text-red-600 font-semibold">${formatCurrency(costDzd)}</td>
-            <td class="p-4 text-green-600 font-semibold">${formatCurrency(valueDzd)}</td>
-            <td class="p-4 font-bold ${diffColor}">${formatCurrency(diffDzd)}</td>
-            <td class="p-4 text-gray-700">${e.month || '-'}</td>
-            <td class="p-4 text-gray-600">${e.note || '-'}</td>
-            <td class="p-4">
-              <button onclick="deleteUsdtExpense('${e.id}')" class="text-red-600 hover:text-red-800">
-                <i class="fas fa-trash-alt"></i>
-              </button>
-            </td>
-          `;
-          frag.appendChild(row);
-        });
-        tbody.appendChild(frag);
-
-        const summary = document.getElementById('usdtExpensesSummary');
-        const totalSpan = document.getElementById('usdtExpensesTotal');
-        const diffTotalSpan = document.getElementById('usdtDiffTotal');
-
-        if (summary) summary.textContent = `${expenses.length} dépenses USDT`;
-        if (totalSpan) totalSpan.textContent = `Total valeur: ${formatCurrency(totalValueDzd)}`;
-        if (diffTotalSpan) {
-          diffTotalSpan.textContent = formatCurrency(totalDiffDzd);
-          diffTotalSpan.className = `text-2xl font-bold ${totalDiffDzd >= 0 ? 'text-green-600' : 'text-red-600'}`;
-        }
-      } catch (error) {
-        console.error("Erreur renderUsdtExpensesTable:", error);
-        showToast("Erreur d'affichage des dépenses USDT", "error");
+      // Filter by Month and Search
+      expenses = expenses.filter(e => {
+          let match = true;
+          if (filterMonth) {
+              if (e.date) match = e.date.startsWith(filterMonth);
+              else match = false;
+          }
+          if (match && search) {
+              match = (e.note || '').toLowerCase().includes(search) || (e.category || '').toLowerCase().includes(search);
+          }
+          return match;
+      });
+      
+      if (isEmployee) {
+          expenses = expenses.filter(e => {
+            const byUid = currentUserId && e && e.uid && String(e.uid) === String(currentUserId);
+            const byName = currentUserName && e && e.addedBy && String(e.addedBy).toLowerCase() === currentUserName;
+            return byUid || byName;
+          });
       }
+
+      let total = 0;
+      let monthTotal = 0;
+      const now = new Date();
+      const month = now.getMonth();
+      const year = now.getFullYear();
+      const frag = document.createDocumentFragment();
+      expenses.forEach(e => {
+        const amount = Number(e.amount || 0);
+        total += amount;
+        try {
+          const d = new Date(e.date || now);
+          if (d.getMonth() === month && d.getFullYear() === year) {
+            monthTotal += amount;
+          }
+        } catch (err) {}
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        
+        // Show who added the expense (for admin view)
+        const addedByBadge = e.addedBy ? `<span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded ml-2">${e.addedBy}</span>` : '';
+
+        row.innerHTML = `
+          <td class="p-4 text-gray-700 whitespace-nowrap">${formatDate(e.date)}</td>
+          <td class="p-4 font-medium text-gray-800">${e.category || '-'}${!isEmployee ? addedByBadge : ''}</td>
+          <td class="p-4 text-gray-700">${e.account || '-'}</td>
+          <td class="p-4 font-bold text-red-600">${formatCurrency(amount)}</td>
+          <td class="p-4 text-gray-600 text-sm max-w-xs truncate" title="${e.note || ''}">${e.note || '-'}</td>
+          <td class="p-4 text-center">
+            <button onclick="deleteExpense('${e.id}')" class="text-red-500 hover:text-red-700 transition-colors" title="Supprimer">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </td>
+        `;
+        frag.appendChild(row);
+      });
+      tbody.appendChild(frag);
+
+      const summary = document.getElementById('expensesSummary');
+      const totalSpan = document.getElementById('expensesTotal');
+      const monthSpan = document.getElementById('expensesMonthTotal');
+      if (summary) summary.textContent = `${expenses.length} frais`;
+      if (totalSpan) totalSpan.textContent = `Total: ${formatCurrency(total)}`;
+      if (monthSpan) monthSpan.textContent = `Total mensuel: ${formatCurrency(monthTotal)}`;
     }
+
+  function renderUsdtExpensesTable() {
+    try {
+      const tbody = document.getElementById('usdtExpensesTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      const filterMonth = document.getElementById('usdtExpenseFilterMonth')?.value;
+      const search = document.getElementById('usdtExpenseSearch')?.value.toLowerCase() || '';
+      let expenses = appState.usdtExpenses || [];
+      if (!Array.isArray(expenses)) expenses = [];
+
+      // Filtrage
+      expenses = expenses.filter(e => {
+          if (!e) return false;
+          let match = true;
+          if (filterMonth) {
+              if (e.month) match = e.month === filterMonth;
+              else if (e.date) match = String(e.date).startsWith(filterMonth);
+              else match = false;
+          }
+          if (match && search) {
+              match = (e.note || '').toLowerCase().includes(search);
+          }
+          return match;
+      });
+
+      let totalValueDzd = 0;
+      let totalDiffDzd = 0;
+
+      const frag = document.createDocumentFragment();
+      expenses.forEach(e => {
+        if (!e) return;
+        const amount = Number(e.amount || 0);
+        const buyRate = Number(e.buyRate || 0);
+        const spendRate = Number(e.spendRate || 0);
+        const costDzd = Number(e.costDzd || amount * buyRate);
+        const valueDzd = Number(e.valueDzd || amount * spendRate);
+        const diffDzd = Number(e.diffDzd || (valueDzd - costDzd));
+        totalValueDzd += valueDzd;
+        totalDiffDzd += diffDzd;
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        const diffColor = diffDzd >= 0 ? 'text-green-600' : 'text-red-600';
+        
+        let dateStr = '-';
+        try {
+          if (e.date) dateStr = formatDate(e.date);
+        } catch (err) { dateStr = e.date || '-'; }
+
+        row.innerHTML = `
+          <td class="p-4 text-gray-700">${dateStr}</td>
+          <td class="p-4 text-gray-800">${safeToFixed(amount, 2)} USDT</td>
+          <td class="p-4 text-gray-700">${safeToFixed(buyRate, 2)}</td>
+          <td class="p-4 text-gray-700">${safeToFixed(spendRate, 2)}</td>
+          <td class="p-4 text-red-600 font-semibold">${formatCurrency(costDzd)}</td>
+          <td class="p-4 text-green-600 font-semibold">${formatCurrency(valueDzd)}</td>
+          <td class="p-4 font-bold ${diffColor}">${formatCurrency(diffDzd)}</td>
+          <td class="p-4 text-gray-700">${e.month || '-'}</td>
+          <td class="p-4 text-gray-600">${e.note || '-'}</td>
+          <td class="p-4">
+            <button onclick="deleteUsdtExpense('${e.id}')" class="text-red-600 hover:text-red-800">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </td>
+        `;
+        frag.appendChild(row);
+      });
+      tbody.appendChild(frag);
+
+      const summary = document.getElementById('usdtExpensesSummary');
+      const totalSpan = document.getElementById('usdtExpensesTotal');
+      const diffTotalSpan = document.getElementById('usdtDiffTotal');
+
+      if (summary) summary.textContent = `${expenses.length} dépenses USDT`;
+      if (totalSpan) totalSpan.textContent = `Total valeur: ${formatCurrency(totalValueDzd)}`;
+      if (diffTotalSpan) {
+        diffTotalSpan.textContent = formatCurrency(totalDiffDzd);
+        diffTotalSpan.className = `text-2xl font-bold ${totalDiffDzd >= 0 ? 'text-green-600' : 'text-red-600'}`;
+      }
+    } catch (error) {
+      console.error("Erreur renderUsdtExpensesTable:", error);
+      showToast("Erreur d'affichage des dépenses USDT", "error");
+    }
+  }
 
         function renderRecentTransactions() {
       const container = document.getElementById('recentTransactions');
@@ -3855,33 +4221,46 @@
         if (!isEmp) {
             const tabFrais = document.getElementById('tab-frais');
             if (tabFrais) tabFrais.style.display = '';
+            const tabPaiements = document.getElementById('tab-paiements');
+            if (tabPaiements) tabPaiements.style.display = '';
+            const tabAchats = document.getElementById('tab-achats');
+            if (tabAchats) tabAchats.style.display = '';
+            const tabAds = document.getElementById('tab-ads');
+            if (tabAds) tabAds.style.display = '';
+            const dashBtn = document.getElementById('tab-dashboard');
+            if (dashBtn) dashBtn.style.display = '';
             const thProfit = document.getElementById('th-profit');
             if (thProfit) thProfit.style.display = '';
+            if (typeof setEmployeeGuardEnabled === 'function') setEmployeeGuardEnabled(false);
             return;
         }
+        if (typeof setEmployeeGuardEnabled === 'function') setEmployeeGuardEnabled(true);
         const tabFrais = document.getElementById('tab-frais');
         const tabPaiements = document.getElementById('tab-paiements');
         const tabAchats = document.getElementById('tab-achats');
         const tabAds = document.getElementById('tab-ads');
+        const dashBtn = document.getElementById('tab-dashboard');
+        if (dashBtn) dashBtn.style.display = 'none';
         
         // Hide tabs for employees
-        if (tabFrais) tabFrais.style.display = isEmployee ? 'none' : '';
-        if (tabPaiements) tabPaiements.style.display = isEmployee ? 'none' : '';
-        if (tabAchats) tabAchats.style.display = isEmployee ? 'none' : '';
-        if (tabAds) tabAds.style.display = isEmployee ? 'none' : '';
+        if (tabFrais) tabFrais.style.display = '';
+        if (tabPaiements) tabPaiements.style.display = 'none';
+        if (tabAchats) tabAchats.style.display = 'none';
+        if (tabAds) tabAds.style.display = 'none';
 
-        if (thProfit) thProfit.style.display = isEmployee ? 'none' : '';
+        const thProfit = document.getElementById('th-profit');
+        if (thProfit) thProfit.style.display = 'none';
         const buyRate = document.getElementById('buyRate');
-        if(buyRate && buyRate.closest('div')) buyRate.closest('div').style.display = isEmployee ? 'none' : '';
+        if(buyRate && buyRate.closest('div')) buyRate.closest('div').style.display = 'none';
         
         const previewBlock = document.querySelector('.bg-gradient-to-r.from-blue-50.to-indigo-50');
-        if(previewBlock) previewBlock.style.display = isEmployee ? 'none' : '';
+        if(previewBlock) previewBlock.style.display = 'none';
         
         const stdDollar = document.getElementById('standardDollarAmount');
-        if(stdDollar && stdDollar.closest('div')) stdDollar.closest('div').style.display = isEmployee ? 'none' : '';
+        if(stdDollar && stdDollar.closest('div')) stdDollar.closest('div').style.display = 'none';
         
         const dashboard = document.getElementById('dashboard');
-        if(dashboard && isEmployee) {
+        if(dashboard && isEmp) {
              const profits = Array.from(dashboard.querySelectorAll('p')).filter(p => p.textContent.includes('Profit'));
              profits.forEach(p => {
                  const card = p.closest('.shadow-xl'); 
@@ -3913,6 +4292,8 @@
     const db = getDb();
     if (!db) return;
     if (appState.session && appState.session.type === 'client') return;
+    if (!auth || !auth.currentUser) return;
+    if (!appState.settings || appState.settings.storageMode !== 'cloud') return;
     
     // Unsubscribe previous if exists
     if (adminRequestsUnsubscribe) {
@@ -3921,7 +4302,6 @@
     }
 
     try {
-        console.log('Setting up Admin Real-time Requests Listener...');
         adminRequestsUnsubscribe = db.collection('requests')
             .onSnapshot((snapshot) => {
                 let changes = false;
@@ -4301,14 +4681,17 @@
         return;
       }
 
-      const purchases = appState.usdPurchases || [];
-      const lastPurchase = purchases.length > 0 ? purchases[purchases.length - 1] : null;
-      const buyRate = lastPurchase ? Number(lastPurchase.rate || 0) : 0;
+      if (typeof updateDefaultBuyRateFromLastPurchase === 'function') updateDefaultBuyRateFromLastPurchase();
+      const purchases = Array.isArray(appState.usdPurchases) ? appState.usdPurchases : [];
+      const sortedPurchases = [...purchases].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const lastPurchase = sortedPurchases.find(p => p && Number(p.rate || 0) > 0) || null;
+      const buyRate = lastPurchase ? Number(lastPurchase.rate || 0) : Number(appState.settings?.defaultBuyRate || 0);
       if (!buyRate) {
         showToast('Aucun achat USD trouvé pour calculer le coût', 'error');
+        return;
       }
 
-      const spendRate = 340;
+      const spendRate = buyRate;
       const costDzd = amount * buyRate;
       const valueDzd = amount * spendRate;
       const diffDzd = valueDzd - costDzd;
@@ -4340,41 +4723,6 @@
       document.getElementById('usdtExpenseMonth').value = '';
       document.getElementById('usdtExpenseNote').value = '';
       showToast('Dépense USDT enregistrée', 'success');
-    }
-
-    function renderExpensesTable() {
-      const tbody = document.getElementById('expensesTableBody');
-      if (!tbody) return;
-      applyRecurringExpensesForCurrentMonth();
-      tbody.innerHTML = '';
-      const now = new Date();
-      const month = now.getMonth();
-      const year = now.getFullYear();
-      let monthTotal = 0;
-      (appState.expenses || []).forEach(e => {
-        const d = new Date(e.date || now);
-        if (d.getMonth() === month && d.getFullYear() === year) {
-          monthTotal += Number(e.amount || 0);
-        }
-        const row = document.createElement('tr');
-        row.className = 'hover:bg-gray-50';
-        row.innerHTML = `
-          <td class="p-4 text-gray-700">${formatDate(e.date)}</td>
-          <td class="p-4 text-gray-800">${e.category || '-'}</td>
-          <td class="p-4 text-red-600 font-semibold">${formatCurrency(e.amount || 0)}</td>
-          <td class="p-4 text-gray-600">${e.note || '-'}</td>
-          <td class="p-4">
-            <button onclick="deleteExpense('${e.id}')" class="text-red-600 hover:text-red-800">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-      const summary = document.getElementById('expensesSummary');
-      const monthSpan = document.getElementById('expensesMonthTotal');
-      if (summary) summary.textContent = `${(appState.expenses || []).length} frais`;
-      if (monthSpan) monthSpan.textContent = `Total mensuel: ${formatCurrency(monthTotal)}`;
     }
 
     function deleteUsdtExpense(id) {
@@ -4427,6 +4775,8 @@
             amount: Number(def.amount || 0),
             note: def.note || '',
             recurringId: def.id,
+            addedBy: def.addedBy,
+            uid: def.uid,
           });
         }
       });
@@ -4434,6 +4784,19 @@
 
     function deleteExpense(id) {
       if(!confirm('Êtes-vous sûr de vouloir supprimer cette dépense ?')) return;
+      const isEmp = (appState.session && appState.session.type === 'employee');
+      const currentUid = appState.session && appState.session.user ? String(appState.session.user.uid || '') : '';
+      const currentName = appState.session && appState.session.user ? String(appState.session.user.displayName || appState.session.user.email || '').toLowerCase() : '';
+      const existing = (appState.expenses || []).find(e => e.id === id);
+      if (isEmp && existing) {
+        const byUid = currentUid && existing.uid && String(existing.uid) === currentUid;
+        const byName = currentName && existing.addedBy && String(existing.addedBy).toLowerCase() === currentName;
+        if (!byUid && !byName) {
+          showToast('Vous ne pouvez supprimer que vos frais', 'error');
+          return;
+        }
+      }
+      if (existing) logAudit('expense:delete', { date: existing.date, category: existing.category, account: existing.account, amount: existing.amount, addedBy: existing.addedBy, uid: existing.uid });
       appState.expenses = (appState.expenses || []).filter(e => e.id !== id);
       recalculateFinanceBalances();
       renderExpensesTable();
@@ -5151,16 +5514,7 @@
     // === CLIENT SPACE LOGIC ===
 
     function showClientSpace() {
-    document.getElementById('loginContainer').style.display = 'none';
-    document.getElementById('appContainer').style.display = 'none';
-    document.getElementById('clientSpaceContainer').style.display = 'block';
-    
-    renderClientOffers();
-    populateClientOrderOffers();
-    renderCustomSectionClient();
-    ensureClientToken();
-    renderClientRequests();
-    renderClientAccountInfo();
+    showToast("Espace client temporairement désactivé", 'warning');
   }
 
   function hideClientSpace() {
@@ -5940,7 +6294,7 @@
       if(confirm('Supprimer cette catégorie ?')) {
           appState.customSection.categories = appState.customSection.categories.filter(c => c.id !== id);
           saveToLocalStorage();
-          if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+          if(appState.settings.storageMode === 'cloud' && auth && auth.currentUser) saveToCloud();
           renderCustomSectionAdmin();
           renderCustomSectionClient();
           showToast('Catégorie supprimée', 'success');
@@ -6054,7 +6408,7 @@
           const moved = cat.photos.splice(dragSrcIndex, 1)[0];
           cat.photos.splice(dropIndex, 0, moved);
           saveToLocalStorage();
-          if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+          if(appState.settings.storageMode === 'cloud' && auth && auth.currentUser) saveToCloud();
           renderCustomSectionAdmin();
           renderCustomSectionClient();
         });
@@ -6066,7 +6420,7 @@
       if (!cat) return;
       cat[field] = value;
       saveToLocalStorage();
-      if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+      if(appState.settings.storageMode === 'cloud' && auth && auth.currentUser) saveToCloud();
       renderCustomSectionAdmin();
       renderCustomSectionClient();
   }
@@ -6089,7 +6443,7 @@
           results.forEach(r => { if (r) cat.photos.push(r); });
           if (!cat.image && cat.photos.length > 0) cat.image = cat.photos[0];
           saveToLocalStorage();
-          if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+          if(appState.settings.storageMode === 'cloud' && auth && auth.currentUser) saveToCloud();
           renderCustomSectionAdmin();
           renderCustomSectionClient();
           input.value = '';
@@ -6107,7 +6461,7 @@
           cat.image = cat.image || '';
       }
       saveToLocalStorage();
-      if(appState.settings.storageMode === 'cloud' && auth.currentUser) saveToCloud();
+      if(appState.settings.storageMode === 'cloud' && auth && auth.currentUser) saveToCloud();
       renderCustomSectionAdmin();
       renderCustomSectionClient();
   }
@@ -6157,14 +6511,39 @@
 
   // === INITIALISATION GLOBALE ===
   document.addEventListener('DOMContentLoaded', async function () {
+    const loginBtn = document.getElementById('loginButton');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (typeof window.handleLoginClick === 'function') window.handleLoginClick();
+        });
+    }
+    const loginEmail = document.getElementById('loginEmail');
+    const loginPassword = document.getElementById('loginPassword');
+    const onEnter = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (typeof window.handleLoginClick === 'function') window.handleLoginClick();
+      }
+    };
+    if (loginEmail) loginEmail.addEventListener('keydown', onEnter);
+    if (loginPassword) loginPassword.addEventListener('keydown', onEnter);
+
     try {
         const userLang = (navigator.language && navigator.language.startsWith('ar')) ? 'ar' : 'fr';
         if (typeof setLanguage === 'function') setLanguage(userLang);
 
-        console.log('🚀 Sponsoring Manager PRO - Initialisation');
-
         if (typeof updateAuthUI === 'function') updateAuthUI(auth ? auth.currentUser : null);
         if (typeof loadFromLocalStorage === 'function') loadFromLocalStorage();
+        if (typeof updateDefaultBuyRateFromLastPurchase === 'function') updateDefaultBuyRateFromLastPurchase();
+        if (typeof setEmployeeGuardEnabled === 'function') {
+          setEmployeeGuardEnabled(!!(appState.session && appState.session.type === 'employee'));
+        }
+        const buyRateInput = document.getElementById('buyRate');
+        if (buyRateInput && appState.settings) {
+          const v = Number(appState.settings.defaultBuyRate || 0);
+          if (v > 0) buyRateInput.value = v;
+        }
         
         if (typeof newClient !== 'undefined') {
           if (typeof syncClientAccount === 'function') await syncClientAccount(newClient);
@@ -6181,8 +6560,12 @@
         if (typeof applyRecurringExpensesForCurrentMonth === 'function') applyRecurringExpensesForCurrentMonth();
 
         const isEmp = (appState.session && appState.session.type === 'employee');
-        if ((auth && auth.currentUser) || isEmp) {
+        if (auth && auth.currentUser) {
           if (typeof showTab === 'function') showTab('dashboard');
+        } else if (isEmp) {
+          if (typeof forceAdminView === 'function') forceAdminView();
+          if (typeof updateDashboard === 'function') updateDashboard();
+          if (typeof showTab === 'function') showTab('clients');
         } else {
           const appContainer = document.getElementById('appContainer');
           const loginContainer = document.getElementById('loginContainer');
@@ -6209,12 +6592,11 @@
         if (typeof renderTables === 'function') renderTables();
         if (typeof renderAdsTable === 'function') renderAdsTable();
         if (typeof renderAdAccountsList === 'function') renderAdAccountsList();
+        if (typeof renderAuditLog === 'function') renderAuditLog();
         if (typeof calculatePreview === 'function') calculatePreview();
         if (typeof updateDashboard === 'function') updateDashboard();
         if (typeof setupEventListeners === 'function') setupEventListeners();
         if (typeof setupClientSearchListeners === 'function') setupClientSearchListeners();
-        
-        if (typeof showToast === 'function') showToast('Bienvenue dans Sponsoring Manager PRO!', 'success');
     } catch (err) {
         console.error('CRITICAL INIT ERROR:', err);
     }
@@ -6249,42 +6631,152 @@
     if (modeEl) modeEl.addEventListener('change', updateSummary);
     if (budgetEl) budgetEl.addEventListener('input', updateSummary);
     if (durationEl) durationEl.addEventListener('input', updateSummary);
-  });
-  auth.onAuthStateChanged(async function (user) {
-    if (typeof updateAuthUI === 'function') updateAuthUI(user);
-    if (user) {
-      if (typeof forceAdminView === 'function') forceAdminView();
+
+    const metaStatus = document.getElementById('metaAdsStatus');
+    const metaConnectBtn = document.getElementById('metaAdsConnectBtn');
+    const metaDisconnectBtn = document.getElementById('metaAdsDisconnectBtn');
+    const metaImportBtn = document.getElementById('metaAdsImportAccountsBtn');
+
+    function getMetaAdsBaseUrl() {
+      const port = String(window.location.port || '');
+      if (port === '8082') return '';
+      return 'http://localhost:8082';
+    }
+
+    function ensureMetaAdsSameOriginOrWarn() {
+      const base = getMetaAdsBaseUrl();
+      if (base) {
+        showToast('Pour Facebook Ads (Pro), ouvre l’app via http://localhost:8082', 'error');
+        return false;
+      }
+      return true;
+    }
+
+    async function refreshMetaAdsStatus() {
+      if (!metaStatus) return;
       try {
-        if (typeof window.loadFromCloud === 'function') {
-          await window.loadFromCloud();
-        } else if (typeof loadFromCloud === 'function') {
-          await loadFromCloud();
-        } else if (typeof loadFromLocalStorage === 'function') {
-          loadFromLocalStorage();
+        const base = getMetaAdsBaseUrl();
+        const res = await fetch(`${base}/api/meta/status`, { credentials: 'include' });
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        if (data && data.configOk === false) {
+          const missing = Array.isArray(data.missing) ? data.missing.join(', ') : 'META_APP_ID, META_APP_SECRET';
+          metaStatus.textContent = `Configuration manquante: ${missing}`;
+          metaStatus.className = 'font-bold text-red-700';
+          if (metaConnectBtn) metaConnectBtn.disabled = true;
+          if (metaImportBtn) metaImportBtn.disabled = true;
+          return;
+        }
+        if (metaConnectBtn) metaConnectBtn.disabled = false;
+        if (metaImportBtn) metaImportBtn.disabled = false;
+        metaStatus.textContent = data && data.connected ? 'Connecté' : 'Non connecté';
+        metaStatus.className = data && data.connected ? 'font-bold text-emerald-700' : 'font-bold text-gray-800';
+      } catch (e) {
+        metaStatus.textContent = 'Serveur Meta non disponible';
+        metaStatus.className = 'font-bold text-gray-800';
+      }
+    }
+
+    async function disconnectMetaAds() {
+      try {
+        const base = getMetaAdsBaseUrl();
+        await fetch(`${base}/api/meta/disconnect`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include' });
+      } catch (e) {}
+      await refreshMetaAdsStatus();
+    }
+
+    async function importMetaAdAccounts() {
+      if (!ensureMetaAdsSameOriginOrWarn()) return;
+      try {
+        const base = getMetaAdsBaseUrl();
+        const res = await fetch(`${base}/api/meta/adaccounts`, { credentials: 'include' });
+        if (!res.ok) throw new Error('bad status');
+        const data = await res.json();
+        const list = Array.isArray(data && data.data) ? data.data : [];
+        if (!Array.isArray(appState.adAccounts)) appState.adAccounts = [];
+        const existing = new Set(appState.adAccounts.map(a => a && a.name ? a.name.trim().toLowerCase() : ''));
+        let added = 0;
+        list.forEach(acc => {
+          const name = (acc && acc.name) ? String(acc.name).trim() : '';
+          if (!name) return;
+          const key = name.toLowerCase();
+          if (existing.has(key)) return;
+          appState.adAccounts.push({ id: generateId('adacc'), name, createdAt: Date.now(), metaAdAccountId: acc.id || null });
+          existing.add(key);
+          added++;
+        });
+        if (added > 0) {
+          autoSave();
+          if (typeof renderAdAccountsList === 'function') renderAdAccountsList();
+          if (typeof populateAdAccountSelect === 'function') populateAdAccountSelect();
+          showToast(`${added} compte(s) Ads importé(s)`, 'success');
+        } else {
+          showToast('Aucun nouveau compte Ads', 'info');
         }
       } catch (e) {
-        console.error("Erreur init data auth state:", e);
-        if (typeof loadFromLocalStorage === 'function') loadFromLocalStorage();
+        showToast('Impossible de récupérer les comptes Ads (serveur Meta)', 'error');
       }
-      if (typeof ensureInitialData === 'function') ensureInitialData();
-      if (typeof applyRecurringExpensesForCurrentMonth === 'function') applyRecurringExpensesForCurrentMonth();
-      if (typeof renderTablesAsync === 'function') renderTablesAsync();
-      if (typeof populateClientDropdown === 'function') populateClientDropdown();
-      if (typeof populateOfferSelect === 'function') populateOfferSelect();
-      if (typeof populatePaymentClientSelect === 'function') populatePaymentClientSelect();
-      if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
-      if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
-      if (typeof showTab === 'function') showTab('dashboard');
-      
-      if (typeof forceAdminView === 'function') forceAdminView();
-      if (typeof ensureAuthVisibility === 'function') ensureAuthVisibility();
-      if (typeof visibilityWatchdog === 'function') visibilityWatchdog(3000);
-      if (typeof emergencyRevealUI === 'function') setTimeout(emergencyRevealUI, 500);
-      if (typeof uiGuardLoop === 'function') uiGuardLoop(5000);
-      
-      window.authTransitionFlag = false;
+      await refreshMetaAdsStatus();
     }
+
+    if (metaConnectBtn) metaConnectBtn.addEventListener('click', () => {
+      const base = getMetaAdsBaseUrl();
+      window.location.href = `${base}/api/meta/login`;
+    });
+    if (metaDisconnectBtn) metaDisconnectBtn.addEventListener('click', () => { disconnectMetaAds(); });
+    if (metaImportBtn) metaImportBtn.addEventListener('click', () => { importMetaAdAccounts(); });
+    refreshMetaAdsStatus();
   });
+  if (auth && typeof auth.onAuthStateChanged === 'function') {
+    auth.onAuthStateChanged(async function (user) {
+      if (typeof updateAuthUI === 'function') updateAuthUI(user);
+      if (user) {
+        if (!window.appState) window.appState = {};
+        window.appState.session = {
+          type: 'admin',
+          user: { uid: user.uid || null, email: user.email || '', displayName: user.displayName || '' }
+        };
+        if (typeof setEmployeeGuardEnabled === 'function') setEmployeeGuardEnabled(false);
+        try { saveToLocalStorage(); } catch (e) {}
+
+        if (typeof forceAdminView === 'function') forceAdminView();
+        try {
+          if (typeof window.loadFromCloud === 'function') {
+            await window.loadFromCloud();
+          } else if (typeof loadFromCloud === 'function') {
+            await loadFromCloud();
+          } else if (typeof loadFromLocalStorage === 'function') {
+            loadFromLocalStorage();
+          }
+        } catch (e) {
+          console.error("Erreur init data auth state:", e);
+          if (typeof loadFromLocalStorage === 'function') loadFromLocalStorage();
+        }
+        if (typeof ensureInitialData === 'function') ensureInitialData();
+        if (typeof applyRecurringExpensesForCurrentMonth === 'function') applyRecurringExpensesForCurrentMonth();
+        if (typeof renderTablesAsync === 'function') renderTablesAsync();
+        if (typeof populateClientDropdown === 'function') populateClientDropdown();
+        if (typeof populateOfferSelect === 'function') populateOfferSelect();
+        if (typeof populatePaymentClientSelect === 'function') populatePaymentClientSelect();
+        if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+        if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
+        if (typeof showTab === 'function') showTab('dashboard');
+        
+        if (typeof forceAdminView === 'function') forceAdminView();
+        if (typeof ensureAuthVisibility === 'function') ensureAuthVisibility();
+        if (typeof visibilityWatchdog === 'function') visibilityWatchdog(3000);
+        if (typeof emergencyRevealUI === 'function') setTimeout(emergencyRevealUI, 500);
+        if (typeof uiGuardLoop === 'function') uiGuardLoop(5000);
+        
+        window.authTransitionFlag = false;
+      } else {
+        if (window.appState && window.appState.session && window.appState.session.type === 'admin') {
+          window.appState.session = null;
+          try { saveToLocalStorage(); } catch (e) {}
+        }
+      }
+    });
+  }
   window.addEventListener('beforeunload', function () {
     try { saveToLocalStorage(); } catch (e) {}
   });
@@ -6293,94 +6785,6 @@
       try { saveToLocalStorage(); } catch (e) {}
     }
   });
-
-
-// === FIX V5: SMART UI GUARD (NO BUTTON, CLIENT SAFE) ===
-
-(function() {
-    console.log("SMART UI GUARD Loaded");
-
-    // 1. FONCTION DE FORCAGE INTELLIGENTE
-    window.forceDisplayDashboard = function(manual) {
-        console.log('SMART FORCE EXECUTED');
-        window.authTransitionFlag = true;
-
-        const app = document.getElementById('appContainer');
-        const login = document.getElementById('loginContainer');
-        const client = document.getElementById('clientSpaceContainer');
-
-        // Détection de session client
-        const isClient = (window.appState && window.appState.session && window.appState.session.type === 'client');
-
-        if (isClient) {
-             // MODE CLIENT : On affiche l'espace client
-             if (app) app.style.display = 'none';
-             if (login) login.style.display = 'none';
-             if (client) {
-                 client.style.display = 'block';
-                 client.style.visibility = 'visible';
-                 client.style.opacity = '1';
-             }
-        } else {
-             // MODE ADMIN/EMPLOYE : On affiche le dashboard
-             if (client) client.style.display = 'none';
-             if (login) login.style.display = 'none';
-             if (app) {
-                 app.style.display = 'block';
-                 app.style.visibility = 'visible';
-                 app.style.opacity = '1';
-                 app.classList.remove('hidden');
-                 
-                 // DEBUG BACKGROUND
-                 app.style.minHeight = '100vh';
-                 
-                 // RE-RENDER SI VIDE
-                 if(app.innerHTML.trim().length < 100) {
-                     console.warn("AppContainer seems empty, reloading content...");
-                     if(typeof renderTablesAsync === 'function') renderTablesAsync();
-                     if(typeof showTab === 'function') showTab('dashboard');
-                     if(typeof updateAuthUI === 'function') updateAuthUI(window.auth.currentUser);
-                 }
-             }
-        }
-
-        // CSS OVERRIDE (Moins agressif)
-        const styleId = 'smart-ui-guard-style';
-        if (!document.getElementById(styleId)) {
-            const style = document.createElement('style');
-            style.id = styleId;
-            style.innerHTML = `
-                /* Assure que le body est scrollable */
-                body { overflow: auto !important; }
-            `;
-            document.head.appendChild(style);
-        }
-        
-        if(manual) alert("Smart Reset Done.");
-    };
-
-    // 2. WATCHDOG (Compatible Client)
-    setInterval(() => {
-        const hasUser = (window.auth && window.auth.currentUser);
-        const hasEmp = (window.appState && window.appState.session && window.appState.session.type === 'employee');
-        const hasClient = (window.appState && window.appState.session && window.appState.session.type === 'client');
-        
-        if (hasClient) {
-            const client = document.getElementById('clientSpaceContainer');
-            if (client && getComputedStyle(client).display === 'none') {
-                window.forceDisplayDashboard(false);
-            }
-        } else if (hasUser || hasEmp) {
-            const app = document.getElementById('appContainer');
-            if (app && getComputedStyle(app).display === 'none') {
-                window.forceDisplayDashboard(false);
-            }
-        }
-    }, 2000);
-
-})();
-
-
 function setupClientSearchListeners() {
   const clientSearch = document.getElementById('clientSearch');
   const dropdown = document.getElementById('clientDropdown');
@@ -6413,7 +6817,11 @@ function setupClientSearchListeners() {
 }
 
 function showTab(tabId) {
-  console.log('📌 Changement d\'onglet vers:', tabId);
+  const isEmployee = (appState.session && appState.session.type === 'employee');
+  if (isEmployee) {
+    const allowed = new Set(['clients', 'transactions', 'history', 'frais']);
+    if (!allowed.has(tabId)) tabId = 'clients';
+  }
   appState.currentTab = tabId;
   document.querySelectorAll('.tab-content').forEach(tab => { tab.classList.add('hidden'); });
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -6933,160 +7341,6 @@ function mergeDuplicates(groupIdx) {
     
     // === INIT VISIBILITY GUARD ===
     // This runs immediately to hide elements before content fully loads
-    (function() {
-        try {
-            const data = localStorage.getItem('hichemSponsor');
-            if (data) {
-                const parsed = JSON.parse(data);
-                if (parsed.session && parsed.session.type === 'employee') {
-                    console.log('Early employee detection - applying UI guard');
-                    const style = document.createElement('style');
-                    style.id = 'employee-guard-style';
-                    style.innerHTML = `
-                        .employee-hidden,
-                        #financeHeaderSection, #financeCardsSection, #taxCard, 
-                        #card-profit-today, #card-stock-usd, #profitChartSection,
-                        #tab-achats, #tab-paiements, #tab-ads,
-                        #employeesSection { display: none !important; }
-                    `;
-                    document.head.appendChild(style);
-                }
-            }
-        } catch(e) {}
-    })();
-
-    // Init
-    window.onload = function() {
-        console.log('App Loaded. Checking auth...');
-        
-        // 1. Check if we have a persisted local session (for employees or admin offline)
-        loadFromLocalStorage(); 
-        
-        // 2. Initialize Auth Listener (Firebase)
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                console.log('User signed in:', user.email);
-                appState.session = { type: 'admin', user: user }; 
-                updateAuthUI(user);
-                loadFromCloud();
-            } else {
-                console.log('No user signed in.');
-                // Check if we have a valid employee session locally
-                if (appState.session && appState.session.type === 'employee') {
-                    console.log('Restoring employee session:', appState.session.user?.displayName);
-                    updateAuthUI({ email: appState.session.user?.email || 'employé' });
-                    forceAdminView();
-                    updateDashboard(); // Apply visibility rules
-                } else {
-                    updateAuthUI(null);
-                }
-            }
-        });
-        
-        ensureInitialData();
-        renderTables();
-        
-        // Apply visibility rules if employee session exists at startup
-        if (appState.session && appState.session.type === 'employee') {
-             updateDashboard();
-        }
-    };
-
-    
-  // === AUTH HANDLERS RESTORED ===
-  async function loginWithEmailPassword(email, password) {
-    try {
-      window.authTransitionFlag = true;
-      await auth.signInWithEmailAndPassword(email, password);
-      showToast('Connexion réussie', 'success');
-      
-      // Force UI switch immediately
-      updateAuthUI(auth.currentUser);
-      forceAdminView();
-      const loginContainer = document.getElementById('loginContainer');
-      const appContainer = document.getElementById('appContainer');
-      if (loginContainer) loginContainer.style.display = 'none';
-      if (appContainer) appContainer.style.display = 'block';
-      
-      ensureAuthVisibility();
-      visibilityWatchdog(3000);
-      uiGuardLoop(5000);
-      
-      if (typeof window.loadFromCloud === 'function') {
-        await window.loadFromCloud();
-      } else if (typeof loadFromCloud === 'function') {
-        await loadFromCloud();
-      } else {
-        loadFromLocalStorage();
-      }
-      ensureInitialData();
-      if(typeof backfillReadableIds === 'function') backfillReadableIds(); 
-      renderTablesAsync();
-      populateClientDropdown();
-      populateOfferSelect();
-      if(typeof populatePaymentClientSelect === 'function') populatePaymentClientSelect();
-      if(typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
-      if(typeof window.setupAdminRealtimeListeners === 'function') window.setupAdminRealtimeListeners();
-      showTab('dashboard');
-      
-      forceAdminView();
-      ensureAuthVisibility();
-      visibilityWatchdog(3000);
-      uiGuardLoop(5000);
-      if(typeof emergencyRevealUI === 'function') setTimeout(emergencyRevealUI, 500);
-      
-    } catch (error) {
-      console.error('Erreur de connexion:', error);
-      const box = document.getElementById('loginError');
-      if (box) box.textContent = firebaseErrorMessage(error);
-      const username = document.getElementById('loginEmail').value.trim();
-      const pwd = document.getElementById('loginPassword').value.trim();
-      // Fallback to local employee login if Firebase fails
-      loginEmployee(username, pwd);
-    } finally {
-      setTimeout(() => { window.authTransitionFlag = false; }, 5000);
-    }
-  }
-
-  function handleLoginClick() {
-    const isEmp = !!document.getElementById('employeeModeToggle') && document.getElementById('employeeModeToggle').checked;
-    const emailOrUser = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value.trim();
-    if (!emailOrUser || !password) { showToast('Identifiants requis', 'error'); return; }
-    
-    // Check global auth object
-    const canFirebase = (typeof auth !== 'undefined' && auth && typeof auth.signInWithEmailAndPassword === 'function');
-    
-    if (isEmp || !canFirebase) {
-      loginEmployee(emailOrUser, password);
-    } else {
-      loginWithEmailPassword(emailOrUser, password);
-    }
-  }
-
-  function loginEmployee(username, password) {
-    if (!username || !password) {
-        showToast('Identifiants requis', 'error');
-        return;
-    }
-    
-    // STRICT LOGIN: Only if exists
-    const emp = (appState.employees || []).find(e => (e.username === username || e.email === username) && e.password === password);
-    
-    if (emp) {
-        appState.session = { type: 'employee', user: { email: emp.email, uid: emp.id, displayName: emp.username } };
-        showToast('Connexion Employé réussie', 'success');
-        updateAuthUI({ email: emp.email });
-        forceAdminView();
-        loadFromLocalStorage(); 
-        ensureInitialData();
-        renderTablesAsync();
-        updateDashboard(); // Trigger UI hiding logic
-    } else {
-        showToast('Identifiants employés incorrects', 'error');
-    }
-  }
-
   // === GESTION DES EMPLOYES (ADMIN) ===
   window.addEmployee = function() {
       const u = document.getElementById('newEmpUsername');
@@ -7159,81 +7413,155 @@ function mergeDuplicates(groupIdx) {
           `;
           tbody.appendChild(tr);
       });
+      renderEmployeePerformance();
   };
 
-  async function signupClient() {
-    const nameEl = document.getElementById('signupClientName');
-    const userEl = document.getElementById('signupClientUsername');
-    const phoneEl = document.getElementById('signupClientPhone');
-    const emailEl = document.getElementById('signupClientEmail');
-    const passEl = document.getElementById('signupClientPassword');
-    
-    if (!nameEl) return; 
+  function renderEmployeePerformance() {
+    const tbody = document.getElementById('employeePerfTableBody');
+    const summary = document.getElementById('employeePerfSummary');
+    if (!tbody) return;
 
-    const name = nameEl.value.trim();
-    const username = userEl.value.trim();
-    const phone = phoneEl.value.trim();
-    const email = emailEl.value.trim();
-    const password = passEl.value.trim();
+    const employees = Array.isArray(appState.employees) ? appState.employees : [];
+    const tx = Array.isArray(appState.transactions) ? appState.transactions : [];
+    const today = getLocalDateString();
+    const now = new Date();
+    const monthKey = getLocalDateString().slice(0, 7);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 6);
+    const weekStartKey = getLocalDateString(weekAgo);
 
-    if (!name) { showToast('Nom requis', 'error'); return; }
-    if (!username) { showToast('Nom d\'utilisateur requis', 'error'); return; }
-    if (!phone) { showToast('Téléphone requis', 'error'); return; }
-    if (!password) { showToast('Mot de passe requis', 'error'); return; }
-
-    ensureInitialData();
-    const exists = (appState.clients || []).find(c => {
-      return (email && c.email && c.email.toLowerCase() === email.toLowerCase()) || (username && c.username && c.username.toLowerCase() === username.toLowerCase());
+    const byUid = new Map();
+    tx.forEach(t => {
+      if (!t) return;
+      if (t.status === 'problem') return;
+      const uid = t.handledByUid || t.uid;
+      if (!uid) return;
+      if (!byUid.has(uid)) byUid.set(uid, []);
+      byUid.get(uid).push(t);
     });
-    if (exists) { showToast('Ce compte existe déjà', 'error'); return; }
 
-    const newClient = {
-      id: generateId('client'),
-      name, email, username, phone, password,
-      contact: email || phone || username,
-      social: { instagram: [], facebook: [] },
-      createdAt: Date.now(),
-      notes: 'Compte client créé',
-      totalSpent: 0, transactionsCount: 0, unpaid: 0
-    };
-
-    if(!appState.clients) appState.clients = [];
-    appState.clients.push(newClient);
-    appState.session = { type: 'client', id: newClient.id, name: newClient.name, username: newClient.username, phone: newClient.phone };
-    try { saveToLocalStorage(); } catch (e) {}
-    updateAuthUI(null);
-    if(typeof showClientSpace === 'function') showClientSpace();
-    showToast('Compte créé', 'success');
-
-    if(nameEl) nameEl.value='';
-    if(userEl) userEl.value='';
-    if(phoneEl) phoneEl.value='';
-    if(emailEl) emailEl.value='';
-    if(passEl) passEl.value='';
-  }
-
-  async function loginClientQuick() {
-    const idEl = document.getElementById('clientQuickId');
-    const ident = idEl ? idEl.value.trim().toLowerCase() : '';
-    if (!ident) { showToast('Entrez téléphone ou utilisateur', 'error'); return; }
-    
-    ensureInitialData();
-    let c = (appState.clients || []).find(x => {
-      return (x.phone || '').toLowerCase() === ident || (x.username || '').toLowerCase() === ident || (x.email || '').toLowerCase() === ident;
+    const stats = employees.map(emp => {
+      const uid = emp.id;
+      const list = byUid.get(uid) || [];
+      let dayCount = 0;
+      let weekCount = 0;
+      let monthCount = 0;
+      let monthProfit = 0;
+      list.forEach(t => {
+        const d = String(t.date || '').slice(0, 10);
+        if (d === today) dayCount++;
+        if (d >= weekStartKey) weekCount++;
+        if (d.startsWith(monthKey)) {
+          monthCount++;
+          monthProfit += Number(t.profit || 0);
+        }
+      });
+      return { uid, name: emp.username || uid, dayCount, weekCount, monthCount, monthProfit };
     });
-    
-    if (!c) { showToast('Client introuvable', 'error'); return; }
-    appState.session = { type: 'client', id: c.id, name: c.name, username: c.username || '', phone: c.phone || '' };
-    try { saveToLocalStorage(); } catch (e) {}
-    updateAuthUI(null);
-    if(typeof showClientSpace === 'function') showClientSpace();
-  }
 
-  function logoutClient() {
-    if (typeof appState !== 'undefined') {
-      appState.session = null;
-      try { saveToLocalStorage(); } catch (e) {}
+    stats.sort((a, b) => (b.monthCount - a.monthCount) || (b.monthProfit - a.monthProfit));
+
+    const searchEl = document.getElementById('employeePerfSearch');
+    const selectEl = document.getElementById('employeePerfSelect');
+    const detailsWrap = document.getElementById('employeePerfDetails');
+    const dailyBody = document.getElementById('employeePerfDailyBody');
+    const detailDay = document.getElementById('employeePerfDetailDay');
+    const detailWeek = document.getElementById('employeePerfDetailWeek');
+    const detailMonth = document.getElementById('employeePerfDetailMonth');
+    const detailProfit = document.getElementById('employeePerfDetailProfit');
+    const detailLabel = document.getElementById('employeePerfDetailLabel');
+
+    if (selectEl) {
+      const current = selectEl.value || '';
+      const opts = ['<option value=\"\">Tous les employés</option>']
+        .concat(employees.map(e => `<option value=\"${e.id}\">${e.username || e.id}</option>`));
+      selectEl.innerHTML = opts.join('');
+      selectEl.value = current;
     }
-    updateAuthUI(null);
-    showToast('Déconnecté', 'success');
+
+    const search = (searchEl ? searchEl.value.trim().toLowerCase() : '');
+    const selectedUid = (selectEl ? selectEl.value : '') || '';
+    const filtered = stats.filter(s => {
+      if (selectedUid && s.uid !== selectedUid) return false;
+      if (search && !String(s.name || '').toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    tbody.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    filtered.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 cursor-pointer';
+      tr.innerHTML = `
+        <td class="p-3 font-semibold text-gray-800">${s.name}</td>
+        <td class="p-3 text-right">${s.dayCount}</td>
+        <td class="p-3 text-right">${s.weekCount}</td>
+        <td class="p-3 text-right">${s.monthCount}</td>
+        <td class="p-3 text-right font-bold text-emerald-600">${formatCurrency(s.monthProfit)}</td>
+      `;
+      tr.addEventListener('click', () => {
+        const sel = document.getElementById('employeePerfSelect');
+        if (sel) {
+          sel.value = s.uid;
+          renderEmployeePerformance();
+        }
+      });
+      frag.appendChild(tr);
+    });
+    tbody.appendChild(frag);
+    if (summary) summary.textContent = `${filtered.length} employé(s) • Mois: ${monthKey}`;
+
+    if (detailsWrap && dailyBody && detailDay && detailWeek && detailMonth && detailProfit) {
+      if (!selectedUid) {
+        detailsWrap.classList.add('hidden');
+      } else {
+        const selected = stats.find(s => s.uid === selectedUid);
+        if (selected) {
+          detailsWrap.classList.remove('hidden');
+          detailDay.textContent = String(selected.dayCount);
+          detailWeek.textContent = String(selected.weekCount);
+          detailMonth.textContent = String(selected.monthCount);
+          detailProfit.textContent = formatCurrency(selected.monthProfit);
+          if (detailLabel) detailLabel.textContent = selected.name;
+
+          const list = byUid.get(selectedUid) || [];
+          const days = [];
+          for (let i = 0; i < 30; i++) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            days.push(getLocalDateString(d));
+          }
+          const perDay = new Map(days.map(d => [d, { count: 0, profit: 0 }]));
+          list.forEach(t => {
+            const d = String(t.date || '').slice(0, 10);
+            if (!perDay.has(d)) return;
+            const cur = perDay.get(d);
+            cur.count += 1;
+            cur.profit += Number(t.profit || 0);
+          });
+          dailyBody.innerHTML = '';
+          const dfrag = document.createDocumentFragment();
+          days.forEach(d => {
+            const s = perDay.get(d);
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50';
+            tr.innerHTML = `
+              <td class="p-3">${formatDate(d)}</td>
+              <td class="p-3 text-right font-bold text-gray-800">${s.count}</td>
+              <td class="p-3 text-right font-bold text-emerald-600">${formatCurrency(s.profit)}</td>
+            `;
+            dfrag.appendChild(tr);
+          });
+          dailyBody.appendChild(dfrag);
+        } else {
+          detailsWrap.classList.add('hidden');
+        }
+      }
+    }
+
+    if (!window._employeePerfListenersBound) {
+      if (searchEl) searchEl.addEventListener('input', () => renderEmployeePerformance());
+      if (selectEl) selectEl.addEventListener('change', () => renderEmployeePerformance());
+      window._employeePerfListenersBound = true;
+    }
   }
