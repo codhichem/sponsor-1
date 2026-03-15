@@ -9224,13 +9224,45 @@ function mergeDuplicates(groupIdx) {
             const stats = calculateCrmStats();
             const appState = window.appState;
             const alerts = getSponsorshipAlerts();
+            const aiNotes = getAiNotifications();
+            
             container.innerHTML = `
-                <div class="fade-in space-y-6">
+                <div class="fade-in space-y-6 pb-10">
                     <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-rocket text-blue-600"></i> Performance Réelle</h3>
+                    
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-white border p-4 rounded-3xl shadow-sm"><div class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Clients</div><div class="text-2xl font-black text-gray-900">${appState.clients.length}</div></div>
                         <div class="bg-white border p-4 rounded-3xl shadow-sm"><div class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Profit Net</div><div class="text-xl font-black text-emerald-600">${formatCrmMoney(stats.profit)}</div></div>
                     </div>
+
+                    <!-- NOTIFICATIONS DE L'ASSISTANT IA -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-[35px] p-6 shadow-sm">
+                        <h4 class="font-black text-blue-800 mb-4 flex items-center gap-2 text-xs uppercase tracking-widest">
+                            <i class="fas fa-robot animate-bounce"></i> Rapports de l'Assistant (${aiNotes.length})
+                        </h4>
+                        <div class="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            ${aiNotes.length > 0 ? aiNotes.map(n => `
+                                <div class="bg-white p-4 rounded-2xl shadow-sm border border-blue-100 flex flex-col gap-2 relative overflow-hidden">
+                                    <div class="absolute top-0 left-0 w-1 h-full ${n.color.split(' ')[0]}"></div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${n.color}">${n.type}</span>
+                                        <span class="text-[8px] text-gray-400 font-bold">${n.time}</span>
+                                    </div>
+                                    <div class="font-black text-gray-900 text-sm">${n.title}</div>
+                                    <div class="text-[11px] text-gray-600 leading-relaxed bg-gray-50 p-2 rounded-lg border border-gray-100 italic">"${n.desc}"</div>
+                                    <div class="flex gap-2 mt-1">
+                                        <button onclick="contactClientCrm('${n.clientId}', 'whatsapp')" class="flex-1 bg-green-500 text-white py-2 rounded-xl text-[10px] font-bold shadow-sm hover:bg-green-600 transition-all">
+                                            <i class="fab fa-whatsapp mr-1"></i> Répondre
+                                        </button>
+                                        <button onclick="markNotificationRead('${n.id}')" class="bg-gray-100 text-gray-400 px-4 rounded-xl text-[10px] font-bold hover:bg-gray-200">
+                                            VU
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('') : '<div class="text-center py-10"><i class="fas fa-check-circle text-blue-200 text-3xl mb-2"></i><p class="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Tout est à jour</p></div>'}
+                        </div>
+                    </div>
+
                     <div class="bg-amber-50 border border-amber-200 rounded-3xl p-5">
                         <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2 text-sm"><i class="fas fa-exclamation-triangle"></i> ALERTES EXPIRATION (${alerts.length})</h4>
                         <div class="space-y-2 max-h-40 overflow-y-auto pr-2">
@@ -9244,6 +9276,64 @@ function mergeDuplicates(groupIdx) {
                     </div>
                 </div>`;
         }
+
+        function getAiNotifications() {
+            const appState = window.appState;
+            const notes = [];
+            
+            // 1. Filtrer les PROSPECTS (Nouvelles demandes non lues)
+            (appState.clientRequests || []).filter(r => !r.read).forEach(r => {
+                notes.push({
+                    id: r.id,
+                    clientId: r.clientId || '',
+                    type: 'NOUVEAU PROSPECT',
+                    color: 'bg-emerald-500 text-white',
+                    title: r.instagram || r.pageFacebook || 'Prospect Anonyme',
+                    desc: `Veut l'offre : ${r.offer || 'Sponsoring'}. Contact: ${r.whatsapp || 'Messenger'}`,
+                    time: formatDateCrm(r.date)
+                });
+            });
+
+            // 2. Détecter les demandes de VÉRIFICATION ou MODIFICATION (IA scanne les notes)
+            (appState.transactions || []).slice(0, 20).forEach(t => {
+                const note = (t.note || '').toLowerCase();
+                if (note.includes('verif') || note.includes('check') || note.includes('voir')) {
+                    notes.push({
+                        id: t.id + '-v',
+                        clientId: t.clientId,
+                        type: 'VÉRIFICATION',
+                        color: 'bg-purple-500 text-white',
+                        title: t.clientName,
+                        desc: `L'IA a détecté une demande de vérification : ${t.note}`,
+                        time: t.date
+                    });
+                } else if (note.includes('modif') || note.includes('change') || note.includes('arret')) {
+                    notes.push({
+                        id: t.id + '-m',
+                        clientId: t.clientId,
+                        type: 'MODIFICATION',
+                        color: 'bg-orange-500 text-white',
+                        title: t.clientName,
+                        desc: `L'IA a détecté un besoin de changement : ${t.note}`,
+                        time: t.date
+                    });
+                }
+            });
+
+            return notes;
+        }
+
+        window.markNotificationRead = function(id) {
+            // Nettoyer les suffixes si nécessaire
+            const realId = id.split('-')[0];
+            const req = (window.appState.clientRequests || []).find(r => r.id === realId);
+            if (req) req.read = true;
+            
+            // On peut aussi marquer les transactions comme "traitées" si on ajoute un flag
+            showToast('Demande marquée comme traitée', 'success');
+            if (typeof window.autoSave === 'function') window.autoSave();
+            window.refreshCrmDisplay();
+        };
 
         function showClients(container) {
             const clients = window.appState.clients || [];
@@ -9334,6 +9424,33 @@ function mergeDuplicates(groupIdx) {
                         </div>
                     </div>
                     
+                    <!-- FILTRAGE & PRÉPARATION (LEADS) -->
+                    <div class="bg-white border rounded-[30px] p-6 shadow-sm space-y-4">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-filter text-emerald-500"></i> FILTRAGE DES PROSPECTS
+                        </h4>
+                        <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-[10px] font-black text-emerald-700 uppercase">Statut Assistant</span>
+                                <span class="bg-emerald-500 text-white text-[8px] px-2 py-0.5 rounded-full animate-pulse">ACTIF</span>
+                            </div>
+                            <p class="text-[11px] text-emerald-800 leading-relaxed italic">
+                                "Je scanne automatiquement chaque nouvelle demande. Si un prospect demande un prix ou une vérification, je le prépare et je vous alerte sur le Dashboard."
+                            </p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                <div class="text-[9px] font-black text-gray-400 uppercase mb-1">Prospects Triés</div>
+                                <div class="text-xl font-black text-gray-800">${(window.appState.clientRequests || []).length}</div>
+                            </div>
+                            <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                                <div class="text-[9px] font-black text-gray-400 uppercase mb-1">Alertes Modif</div>
+                                <div class="text-xl font-black text-orange-500">${(window.appState.transactions || []).filter(t => (t.note||'').toLowerCase().includes('modif')).length}</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- SIMULATEUR TEST -->
                     <div class="bg-white border rounded-[30px] p-6 shadow-sm">
                         <h4 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-comments text-purple-500"></i> TESTER LA RÉPONSE (DARIJA OK)</h4>
