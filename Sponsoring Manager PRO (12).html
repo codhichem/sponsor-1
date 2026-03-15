@@ -4,14 +4,100 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hichem Sponsor - CRM</title>
-  <link rel="stylesheet" href="crm-real.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  <script src="crm-real.js"></script>
+  <style>
+    /* CRM REAL STYLES */
+    #realCrmPanel {
+      box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+      border-left: 1px solid #e5e7eb;
+    }
+    .real-crm-stat {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+    .real-crm-stat h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+    .real-crm-stat .value {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .real-crm-stat .label {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    .real-client-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      transition: all 0.2s ease;
+    }
+    .real-client-card:hover {
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transform: translateY(-1px);
+    }
+    .real-client-card .name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+    .real-client-card .contact {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+    .real-client-card .stats {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f3f4f6;
+    }
+    .real-client-card .amount {
+      font-size: 16px;
+      font-weight: bold;
+      color: #059669;
+    }
+    .real-client-card .transactions {
+      font-size: 12px;
+      color: #6b7280;
+      background: #f9fafb;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .real-crm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .real-crm-section {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      border: 1px solid #f3f4f6;
+    }
+  </style>
 </head>
 
   <!-- Firebase compat SDK -->
@@ -9081,5 +9167,340 @@ function mergeDuplicates(groupIdx) {
         </div>
       </div>
     </div>
+    <script>
+    // === CRM RÉEL - INTÉGRATION DIRECTE ===
+    (function() {
+        let currentSection = 'dashboard';
+
+        window.toggleRealCrm = function() {
+            const panel = document.getElementById('realCrmPanel');
+            if (!panel) return;
+            panel.classList.toggle('translate-x-full');
+            if (!panel.classList.contains('translate-x-full')) {
+                refreshCrmDisplay();
+            }
+        };
+
+        window.refreshCrmDisplay = function() {
+            const content = document.getElementById('realCrmContentInner');
+            if (!content) return;
+            console.log("CRM: Refreshing display...");
+            if (!window.appState && typeof appState !== 'undefined') window.appState = appState;
+            if (!window.appState || !Array.isArray(window.appState.clients)) {
+                content.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-center"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div><p class="text-gray-600 font-bold">Connexion à la base...</p></div>`;
+                setTimeout(window.refreshCrmDisplay, 1000);
+                return;
+            }
+            if (window.appState.clients.length === 0) {
+                content.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-center"><div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4"><i class="fas fa-users-slash text-3xl text-gray-300"></i></div><p class="text-gray-600 font-bold">Aucun client trouvé</p><button onclick="refreshCrmDisplay()" class="mt-6 px-6 py-2 bg-blue-600 text-white rounded-xl font-bold text-xs shadow-lg">RECHARGER</button></div>`;
+                updateDataStatus();
+                return;
+            }
+            showSection(currentSection);
+            updateDataStatus();
+        };
+
+        function showSection(section) {
+            currentSection = section;
+            const container = document.getElementById('realCrmContentInner');
+            if (!container) return;
+            document.querySelectorAll('.crm-nav-btn').forEach(btn => {
+                const isActive = btn.dataset.section === section;
+                btn.classList.toggle('bg-blue-600', isActive);
+                btn.classList.toggle('text-white', isActive);
+                btn.classList.toggle('shadow-lg', isActive);
+                btn.classList.toggle('scale-105', isActive);
+            });
+            switch(section) {
+                case 'dashboard': showDashboard(container); break;
+                case 'clients': showClients(container); break;
+                case 'ai_agent': showAiAgent(container); break;
+                case 'transactions': showTransactions(container); break;
+                default: showDashboard(container);
+            }
+        }
+
+        function showDashboard(container) {
+            const stats = calculateCrmStats();
+            const appState = window.appState;
+            const alerts = getSponsorshipAlerts();
+            container.innerHTML = `
+                <div class="fade-in space-y-6">
+                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-rocket text-blue-600"></i> Performance Réelle</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white border p-4 rounded-3xl shadow-sm"><div class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Clients</div><div class="text-2xl font-black text-gray-900">${appState.clients.length}</div></div>
+                        <div class="bg-white border p-4 rounded-3xl shadow-sm"><div class="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Profit Net</div><div class="text-xl font-black text-emerald-600">${formatCrmMoney(stats.profit)}</div></div>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 rounded-3xl p-5">
+                        <h4 class="font-bold text-amber-800 mb-3 flex items-center gap-2 text-sm"><i class="fas fa-exclamation-triangle"></i> ALERTES EXPIRATION (${alerts.length})</h4>
+                        <div class="space-y-2 max-h-40 overflow-y-auto pr-2">
+                            ${alerts.length > 0 ? alerts.map(a => `
+                                <div class="bg-white p-3 rounded-2xl shadow-sm border border-amber-100 flex justify-between items-center">
+                                    <div><div class="font-bold text-xs text-gray-800">${a.clientName}</div><div class="text-[10px] text-amber-600 font-medium">${a.daysLeft} jours restants</div></div>
+                                    <button onclick="contactClientCrm('${a.clientId}', 'whatsapp')" class="bg-green-500 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-md"><i class="fab fa-whatsapp"></i></button>
+                                </div>
+                            `).join('') : '<p class="text-xs text-amber-600 italic">Aucune expiration proche.</p>'}
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        function showClients(container) {
+            const clients = window.appState.clients || [];
+            container.innerHTML = `
+                <div class="fade-in space-y-4">
+                    <div class="flex justify-between items-center mb-2"><h3 class="text-xl font-bold text-gray-800">👥 Base Clients</h3><span class="bg-blue-100 text-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">${clients.length}</span></div>
+                    <div class="relative mb-4"><i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" placeholder="Chercher un client..." class="w-full pl-12 pr-4 py-4 bg-white border rounded-3xl text-sm outline-none shadow-sm" onkeyup="filterCrmClients(this.value)"></div>
+                    <div id="crmClientsList" class="space-y-3">
+                        ${clients.length === 0 ? '<p class="text-center text-gray-400 py-10">Aucun client.</p>' : clients.slice(0, 50).map(c => renderClientCardCrm(c)).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function renderClientCardCrm(client) {
+            const ig = client.social && client.social.instagram && client.social.instagram[0];
+            const phone = client.phone || '';
+            return `
+                <div class="bg-white border rounded-3xl p-5 shadow-sm hover:shadow-md transition-all group">
+                    <div class="flex justify-between items-start mb-3">
+                        <div><div class="font-black text-gray-900 text-lg group-hover:text-blue-600 transition-colors">${client.name || 'Sans Nom'}</div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">${client.readableId || 'CLIENT'}</div></div>
+                        <div class="flex gap-2">
+                            ${ig ? `<a href="https://instagram.com/${ig}" target="_blank" class="w-10 h-10 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 text-white rounded-2xl flex items-center justify-center"><i class="fab fa-instagram text-xl"></i></a>` : ''}
+                            ${phone ? `<a href="https://wa.me/${phone.replace(/[^0-9]/g, '')}" target="_blank" class="w-10 h-10 bg-green-500 text-white rounded-2xl flex items-center justify-center"><i class="fab fa-whatsapp text-xl"></i></a>` : ''}
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <div class="bg-gray-50 p-3 rounded-2xl"><div class="text-[9px] text-gray-400 font-black uppercase mb-1">Dépensé</div><div class="font-black text-gray-800">${formatCrmMoney(client.totalSpent || 0)}</div></div>
+                        <div class="bg-gray-50 p-3 rounded-2xl"><div class="text-[9px] text-gray-400 font-black uppercase mb-1">Impayé</div><div class="font-black ${client.unpaid > 0 ? 'text-rose-500' : 'text-emerald-500'}">${formatCrmMoney(client.unpaid || 0)}</div></div>
+                    </div>
+                </div>`;
+        }
+
+        function showAiAgent(container) {
+            const appState = window.appState;
+            if (!appState.settings.aiConfig) {
+                appState.settings.aiConfig = { 
+                    instagram: { enabled: false, apiKey: '', welcomeMsg: '' }, 
+                    whatsapp: { enabled: false, apiKey: '', welcomeMsg: '' },
+                    persona: 'expert',
+                    customKnowledge: 'Hichem Sponsor est une agence de Media Buying experte en publicité Meta et TikTok.',
+                    rules: '1. Toujours être poli.\n2. Parler en Arabe/Darija si le client le fait.',
+                    trainingData: [] // Nouvel historique d'apprentissage
+                };
+            }
+            const aiConfig = appState.settings.aiConfig;
+            if (!aiConfig.trainingData) aiConfig.trainingData = [];
+
+            container.innerHTML = `
+                <div class="fade-in space-y-6 pb-20">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-[40px] text-white shadow-xl relative overflow-hidden">
+                        <div class="relative z-10">
+                            <h3 class="text-2xl font-black mb-1">IA Apprenante (Arabe/Darija)</h3>
+                            <p class="text-blue-100 text-xs font-medium">Entraînez votre IA avec vos propres discussions</p>
+                        </div>
+                        <i class="fas fa-brain absolute -right-4 -bottom-4 text-8xl text-white/10"></i>
+                    </div>
+
+                    <!-- MODULE D'APPRENTISSAGE (FEEDBACK LOOP) -->
+                    <div class="bg-white border rounded-[30px] p-6 shadow-sm space-y-4 border-l-8 border-amber-500">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fas fa-graduation-cap text-amber-500"></i> ENTRAÎNER L'IA (Apprentissage)
+                        </h4>
+                        <p class="text-[10px] text-gray-500 leading-tight">Collez ici vos anciennes discussions (WhatsApp/Messenger) pour que l'IA apprenne votre façon de répondre en Darija ou Arabe.</p>
+                        
+                        <div class="space-y-3">
+                            <textarea id="rawChatInput" placeholder="Exemple: \nClient: Ch-hal sponsor Meta?\nMoi: Khouya, pack 30j b 35000 DZD avec suivi..." class="w-full p-4 bg-gray-50 border rounded-2xl text-sm h-32 outline-none focus:ring-2 focus:ring-amber-500"></textarea>
+                            <button onclick="trainAiWithChat()" class="w-full bg-amber-500 text-white py-3 rounded-2xl font-bold text-xs shadow-md hover:bg-amber-600 transition-all">
+                                <i class="fas fa-plus-circle mr-2"></i> AJOUTER À LA MÉMOIRE DE L'IA
+                            </button>
+                        </div>
+
+                        <div id="trainingStatus" class="text-[9px] font-black text-amber-600 uppercase tracking-widest">
+                            ${aiConfig.trainingData.length} discussions mémorisées
+                        </div>
+                    </div>
+
+                    <!-- CONFIGURATION PERSONA -->
+                    <div class="bg-white border rounded-[30px] p-6 shadow-sm space-y-4">
+                        <h4 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-language text-blue-500"></i> LANGUE & STYLE</h4>
+                        <select id="aiPersona" class="w-full p-4 bg-gray-50 border rounded-2xl text-sm outline-none" onchange="updateAiCrmConfig('persona', this.value)">
+                            <option value="expert" ${aiConfig.persona === 'expert' ? 'selected' : ''}>Expert Media Buyer (Darija/Arabe Pro)</option>
+                            <option value="vendeur" ${aiConfig.persona === 'vendeur' ? 'selected' : ''}>Vendeur Dynamique (Darija Courant)</option>
+                        </select>
+                        
+                        <div>
+                            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Connaissances Spécifiques (Algérie/Sponsor)</label>
+                            <textarea id="aiKnowledge" placeholder="Détails sur vos méthodes, prix en DZD, types de clients..." class="w-full p-4 bg-gray-50 border rounded-2xl text-sm h-24" onchange="updateAiCrmConfig('customKnowledge', this.value)">${aiConfig.customKnowledge || ''}</textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- SIMULATEUR TEST -->
+                    <div class="bg-white border rounded-[30px] p-6 shadow-sm">
+                        <h4 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-comments text-purple-500"></i> TESTER LA RÉPONSE (DARIJA OK)</h4>
+                        <div class="space-y-4">
+                            <select id="aiTestClient" class="w-full p-4 bg-gray-50 border rounded-2xl text-sm outline-none">
+                                <option value="">Choisir un client...</option>
+                                ${appState.clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                            </select>
+                            <div class="flex gap-2">
+                                <input type="text" id="aiTestQuestion" placeholder="Posez une question (ex: Salam, ch-hal l'offre?)" class="flex-1 p-4 bg-gray-50 border rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500">
+                                <button onclick="testSmartAiResponse()" class="bg-blue-600 text-white w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg hover:bg-blue-700 transition-all">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                            <div id="aiResponseDisplay" class="hidden bg-blue-50 p-5 rounded-3xl border border-blue-100 text-sm text-blue-900 leading-relaxed shadow-inner"></div>
+                        </div>
+                    </div>
+
+                    <button onclick="saveAiCrmSettings()" class="w-full bg-gray-900 text-white py-5 rounded-[30px] font-black shadow-xl uppercase tracking-widest text-xs">
+                        Sauvegarder l'Intelligence
+                    </button>
+                </div>`;
+        }
+
+        window.trainAiWithChat = function() {
+            const input = document.getElementById('rawChatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            
+            if (!window.appState.settings.aiConfig.trainingData) window.appState.settings.aiConfig.trainingData = [];
+            window.appState.settings.aiConfig.trainingData.push({
+                id: Date.now(),
+                content: text,
+                date: new Date().toISOString()
+            });
+            
+            input.value = '';
+            document.getElementById('trainingStatus').textContent = `${window.appState.settings.aiConfig.trainingData.length} discussions mémorisées`;
+            showToast('L\'IA a appris cette discussion !', 'success');
+            if (typeof window.autoSave === 'function') window.autoSave();
+        };
+
+        window.testSmartAiResponse = function() {
+            const clientId = document.getElementById('aiTestClient').value;
+            const question = document.getElementById('aiTestQuestion').value.toLowerCase();
+            const display = document.getElementById('aiResponseDisplay');
+            if (!clientId || !question) return;
+            
+            const aiConfig = window.appState.settings.aiConfig || {};
+            const persona = aiConfig.persona || 'expert';
+            const trainingData = aiConfig.trainingData || [];
+            
+            display.classList.remove('hidden');
+            display.innerHTML = '<div class="flex items-center gap-2"><i class="fas fa-circle-notch fa-spin"></i> L\'IA analyse vos discussions passées en Darija...</div>';
+            
+            setTimeout(() => {
+                const client = window.appState.clients.find(c => c.id === clientId);
+                const lastTx = window.appState.transactions.filter(t => t.clientId === clientId).sort((a,b) => b.createdAt - a.createdAt)[0];
+                
+                // Algorithme de recherche de correspondance dans l'historique d'apprentissage
+                let matchingResponse = "";
+                if (trainingData.length > 0) {
+                    const match = trainingData.find(d => d.content.toLowerCase().includes(question.split(' ').slice(-2).join(' ')));
+                    if (match) {
+                        const lines = match.content.split('\n');
+                        const moiLine = lines.find(l => l.toLowerCase().startsWith('moi:') || l.toLowerCase().startsWith('me:'));
+                        if (moiLine) matchingResponse = moiLine.split(':')[1].trim();
+                    }
+                }
+
+                let response = "";
+                const isArabic = /[\u0600-\u06FF]/.test(question) || question.includes('salam') || question.includes('ch-hal') || question.includes('khoya');
+
+                if (matchingResponse) {
+                    response = matchingResponse;
+                } else if (question.includes('salam') || question.includes('bonjour')) {
+                    response = isArabic ? `Salam khouya ${client.name}, wach rak labas? N9der n3awnk f sponsor dyalk lyoum?` : `Bonjour ${client.name}, comment puis-je vous aider pour votre sponsoring ?`;
+                } else if (question.includes('ch-hal') || question.includes('prix') || question.includes('offre')) {
+                    const best = window.appState.offers[0] || {name: "Standard", price: 30000};
+                    response = isArabic ? `Pack "${best.name}" l-prix dyalo ${formatCrmMoney(best.price)}. Had l-pack yjiblk bzaf les prospects (leads) khouya.` : `Notre pack "${best.name}" est à ${formatCrmMoney(best.price)}. C'est le meilleur pour vos objectifs.`;
+                } else if (question.includes('fini') || question.includes('expiration') || question.includes('wa9tach')) {
+                    if (lastTx) {
+                        response = isArabic ? `L-sponsoring dyalk "${lastTx.offerName}" rah khdam. Bditah l-nhar ${lastTx.date}. Mazal l-hal!` : `Votre sponsoring "${lastTx.offerName}" est actif depuis le ${lastTx.date}.`;
+                    } else {
+                        response = isArabic ? `Ma3ndkch sponsor khdam dork. T7eb nchoufou pack jdid?` : "Aucun sponsoring actif pour le moment.";
+                    }
+                } else {
+                    response = isArabic ? `Khouya ${client.name}, rani hna bach n3awnk f Media Buying. Goli wach t7eb ndirou?` : `Bonjour ${client.name}, je suis prêt à optimiser vos campagnes. Que souhaitez-vous faire ?`;
+                }
+                
+                display.innerHTML = `
+                    <div class="flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">${persona === 'expert' ? 'Expert Media Buyer' : 'Sales Agent'}</span>
+                            <span class="text-[9px] text-gray-400 font-medium">${matchingResponse ? 'Basé sur votre historique' : 'Réponse générée'}</span>
+                        </div>
+                        <div class="text-gray-800 font-medium leading-relaxed" dir="${isArabic ? 'rtl' : 'ltr'}">"${response}"</div>
+                        <div class="mt-2 pt-2 border-t border-blue-100 flex gap-2">
+                            <button onclick="contactClientCrm('${client.id}', 'whatsapp')" class="text-[10px] text-green-600 font-bold hover:underline">Envoyer sur WhatsApp</button>
+                        </div>
+                    </div>
+                `;
+            }, 1500);
+        };
+
+        window.updateAiCrmStatus = (p, e) => { if(!window.appState.settings.aiConfig) window.appState.settings.aiConfig = {instagram:{}, whatsapp:{}}; window.appState.settings.aiConfig[p].enabled = e; };
+        window.updateAiCrmConfig = (p, f, v) => { if(!window.appState.settings.aiConfig) window.appState.settings.aiConfig = {instagram:{}, whatsapp:{}}; window.appState.settings.aiConfig[p][f] = v; };
+        window.saveAiCrmSettings = async () => { if(typeof window.autoSave === 'function') await window.autoSave(); alert('✅ Sauvegardé !'); refreshCrmDisplay(); };
+
+        function getSponsorshipAlerts() {
+            const alerts = [];
+            const now = Date.now();
+            (window.appState.transactions || []).forEach(t => {
+                if (!t.duration || t.duration === 'N/A') return;
+                const daysPassed = Math.floor((now - t.createdAt) / (1000 * 60 * 60 * 24));
+                const durationDays = parseInt(t.duration) || 30;
+                if (daysPassed >= (durationDays - 5) && daysPassed <= durationDays) alerts.push({ clientId: t.clientId, clientName: t.clientName, daysLeft: durationDays - daysPassed });
+            });
+            return alerts;
+        }
+
+        window.filterCrmClients = (q) => {
+            const list = document.getElementById('crmClientsList');
+            const filtered = window.appState.clients.filter(c => c.name.toLowerCase().includes(q.toLowerCase()) || (c.phone && c.phone.includes(q)));
+            list.innerHTML = filtered.map(c => renderClientCardCrm(c)).join('');
+        };
+
+        window.contactClientCrm = (id, type) => {
+            const client = window.appState.clients.find(c => c.id === id);
+            if (type === 'whatsapp' && client && client.phone) window.open(`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`, '_blank');
+        };
+
+        function showTransactions(container) {
+            const txs = window.appState.transactions || [];
+            container.innerHTML = `<div class="fade-in space-y-4"><h3 class="text-xl font-bold text-gray-800">💳 Flux Financiers</h3><div class="space-y-3">${txs.length === 0 ? '<p class="text-gray-400 text-center py-10">Aucun flux.</p>' : txs.slice(0, 30).map(t => `<div class="bg-white border rounded-3xl p-5 shadow-sm"><div class="flex justify-between items-start mb-2"><div><div class="font-black text-gray-900">${t.clientName}</div><div class="text-[9px] text-gray-400 uppercase">${t.date}</div></div><div class="bg-blue-50 text-blue-600 text-[10px] font-black px-2 py-1 rounded-lg">${t.offerName}</div></div><div class="flex justify-between items-end mt-4"><div class="text-xs text-gray-500 italic">${t.note || ''}</div><div class="text-lg font-black text-gray-900">${formatCrmMoney(t.priceDzd)}</div></div></div>`).join('')}</div></div>`;
+        }
+
+        function calculateCrmStats() {
+            const appState = window.appState;
+            const revenue = appState.transactions.reduce((sum, t) => sum + (Number(t.priceDzd) || 0), 0);
+            const expenses = appState.expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+            return { revenue, expenses, profit: revenue - expenses };
+        }
+
+        function formatCrmMoney(amount) { return new Intl.NumberFormat('fr-DZ').format(amount) + ' DZD'; }
+        function updateDataStatus() { const status = document.getElementById('dataStatus'); if (status && window.appState) status.innerHTML = `<i class="fas fa-check-circle text-green-500"></i> ${window.appState.clients.length} Clients`; }
+
+        // Injecter UI
+        window.addEventListener('load', () => {
+            const body = document.querySelector('body');
+            if (!document.getElementById('crmFloatingButton')) {
+                const btn = document.createElement('div');
+                btn.id = 'crmFloatingButton';
+                btn.style = 'position: fixed; bottom: 20px; right: 20px; z-index: 9999;';
+                btn.innerHTML = `<button onclick="toggleRealCrm()" class="bg-gray-900 text-white w-16 h-16 rounded-[22px] shadow-2xl hover:scale-110 transition-all flex items-center justify-center border-4 border-white"><i class="fas fa-robot text-2xl"></i></button>`;
+                body.appendChild(btn);
+            }
+            if (!document.getElementById('realCrmPanel')) {
+                const panel = document.createElement('div');
+                panel.id = 'realCrmPanel';
+                panel.className = 'fixed top-0 right-0 w-[420px] h-full bg-gray-50 shadow-2xl z-[10000] transform translate-x-full transition-transform duration-300 overflow-hidden flex flex-col font-sans';
+                panel.innerHTML = `<div class="bg-white p-8 border-b"><div class="flex justify-between items-center"><div><h2 class="text-2xl font-black text-gray-900 tracking-tighter">SPONSOR PRO <span class="text-blue-600">CRM</span></h2><div id="dataStatus" class="text-[9px] text-gray-400 font-black uppercase tracking-widest mt-1">Synchro...</div></div><div class="flex gap-2"><button onclick="refreshCrmDisplay()" class="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-100 transition-all"><i class="fas fa-sync-alt"></i></button><button onclick="toggleRealCrm()" class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-500 hover:bg-rose-50 hover:text-rose-500 transition-all"><i class="fas fa-times text-xl"></i></button></div></div></div><div class="flex p-4 gap-2 bg-white border-b"><button onclick="showSection('dashboard')" data-section="dashboard" class="crm-nav-btn flex-1 py-3 rounded-2xl text-[10px] font-black uppercase transition-all">Stats</button><button onclick="showSection('clients')" data-section="clients" class="crm-nav-btn flex-1 py-3 rounded-2xl text-[10px] font-black uppercase transition-all">Clients</button><button onclick="showSection('ai_agent')" data-section="ai_agent" class="crm-nav-btn flex-1 py-3 rounded-2xl text-[10px] font-black uppercase transition-all">IA Agent</button><button onclick="showSection('transactions')" data-section="transactions" class="crm-nav-btn flex-1 py-3 rounded-2xl text-[10px] font-black uppercase transition-all">Flux</button></div><div id="realCrmContentInner" class="flex-1 overflow-y-auto p-6 scroll-smooth"></div>`;
+                body.appendChild(panel);
+            }
+            setTimeout(window.refreshCrmDisplay, 1000);
+        });
+    })();
+    </script>
 </body>
 </html>
