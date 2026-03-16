@@ -3696,6 +3696,8 @@
       txns.forEach(t => {
         const cid = t.clientId;
         if (!cid) return;
+        if (t.status === 'problem') return; // Exclure les problèmes des stats client
+        
         const price = Number(t.priceDzd || 0);
         spentMap[cid] = (spentMap[cid] || 0) + price;
         countMap[cid] = (countMap[cid] || 0) + 1;

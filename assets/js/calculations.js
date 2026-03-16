@@ -8,7 +8,7 @@ window.calculateTheoreticalBalance = function() {
   let bar = 0;
   let usdt = 0;
 
-  // 1. Entrées (Paiements)
+  // 1. Entrées (Paiements explicites)
   (appState.payments || []).forEach(p => {
       const amt = Number(p.amount || 0);
       const method = (p.method || '').toLowerCase();
@@ -20,6 +20,17 @@ window.calculateTheoreticalBalance = function() {
           usdt += (amt / rate);
       }
       else liq += amt;
+  });
+
+  // 1.5. Entrées implicites (Transactions marquées 'Payée' directement lors de la création)
+  (appState.transactions || []).forEach(t => {
+      // Les transactions "Problème" ne sont pas comptées
+      if (t.status === 'problem') return;
+      
+      if (t.paid) {
+          // L'argent d'une transaction directement cochée comme payée entre par défaut en liquide
+          liq += Number(t.priceDzd || 0);
+      }
   });
 
   // 2. Sorties (Dépenses)
@@ -47,10 +58,21 @@ window.calculateTheoreticalBalance = function() {
       usdt += usdtAmt;
   });
 
-  // 4. Ventes USD (Transactions) - Diminue le stock USDT
+  // 4. Ventes USD (Transactions) - Diminue le stock USDT global
   (appState.transactions || []).forEach(t => {
-      const usdtAmt = Number(t.amount || 0);
-      usdt -= usdtAmt;
+      // Les transactions validées consomment toujours de l'USD (du compte de facturation général ou spécifique)
+      if (t.status === 'active' || !t.status) { // Include normal past transactions that didn't have 'status'
+        const usdtAmt = Number(t.amount || 0);
+        usdt -= usdtAmt;
+        
+        // Also deduct from specific ad account if recorded
+        if (t.adAccountId) {
+            const adAcc = (appState.adAccounts || []).find(a => a.id === t.adAccountId);
+            if (adAcc) {
+                adAcc.spent = (Number(adAcc.spent) || 0) + usdtAmt;
+            }
+        }
+      }
   });
 
   // 5. Dépenses USDT
@@ -144,6 +166,8 @@ window.getProfitSummaryYmd = function(fromYmd, toYmd) {
 
   (appState.transactions || []).forEach(t => {
     if (!t || !t.date) return;
+    if (t.status === 'problem') return; // Ignorer les problèmes dans le profit
+    
     if (!inRangeYmd(t.date, start, end)) return;
     const price = Number(t.priceDzd || 0);
     const amt = Number(t.amount || 0);

@@ -1,19 +1,22 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hichem Sponsor - CRM PRO</title>
-  
+
   <!-- External Libraries -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&display=swap"
+    rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-  
+
   <!-- Firebase compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
@@ -23,6 +26,7 @@
   <!-- Custom Assets -->
   <link rel="stylesheet" href="assets/css/style.css">
 </head>
+
 <body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen p-4 md:p-6 font-sans text-slate-800">
 
   <!-- LOGIN CONTAINER -->
@@ -30,7 +34,8 @@
     <div class="bg-white shadow-2xl rounded-3xl p-8 max-w-md w-full border">
       <div class="text-center mb-6">
         <div class="inline-flex items-center justify-center gap-3 mb-2">
-          <div class="w-12 h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center shadow">
+          <div
+            class="w-12 h-12 rounded-2xl bg-gradient-to-r from-indigo-600 to-blue-600 flex items-center justify-center shadow">
             <i class="fas fa-bullhorn text-white text-2xl"></i>
           </div>
           <div class="text-2xl font-black tracking-wide text-gray-800">Sponsor hichem</div>
@@ -38,7 +43,7 @@
         <p class="text-gray-600 text-sm">Bienvenue sur votre plateforme de sponsoring.</p>
       </div>
       <button onclick="showClientSpace()" type="button"
-              class="w-full mb-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow hover:shadow-lg transition-all flex items-center justify-center gap-2">
+        class="w-full mb-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow hover:shadow-lg transition-all flex items-center justify-center gap-2">
         <i class="fas fa-user-tag"></i>
         Espace Client (Accès Libre)
       </button>
@@ -49,12 +54,12 @@
         <div>
           <label for="loginEmail" class="block text-sm font-semibold mb-2">Email</label>
           <input id="loginEmail" type="email"
-                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
         </div>
         <div>
           <label for="loginPassword" class="block text-sm font-semibold mb-2">Mot de passe</label>
           <input id="loginPassword" type="password"
-                 class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
         </div>
         <div id="loginError" class="text-red-600 text-sm"></div>
         <label class="mt-2 flex items-center gap-2 text-sm text-gray-700">
@@ -62,7 +67,7 @@
           Connexion Employé
         </label>
         <button id="loginButton" type="button" onclick="handleLoginClick()"
-                class="w-full mt-2 py-3 bg-gray-900 text-white font-bold rounded-xl shadow hover:shadow-lg transition-all">
+          class="w-full mt-2 py-3 bg-gray-900 text-white font-bold rounded-xl shadow hover:shadow-lg transition-all">
           Se connecter
         </button>
         <div class="relative flex py-5 items-center">
@@ -73,25 +78,29 @@
         <div class="bg-gray-50 border rounded-2xl p-4 space-y-3">
           <div class="text-center font-bold text-gray-800">Créer un compte Client</div>
           <input id="signupClientName" type="text" placeholder="Nom complet" class="w-full p-3 border rounded-xl">
-          <input id="signupClientUsername" type="text" placeholder="Nom d'utilisateur" class="w-full p-3 border rounded-xl">
+          <input id="signupClientUsername" type="text" placeholder="Nom d'utilisateur"
+            class="w-full p-3 border rounded-xl">
           <input id="signupClientPhone" type="text" placeholder="Téléphone" class="w-full p-3 border rounded-xl">
-          <input id="signupClientEmail" type="email" placeholder="Email (optionnel)" class="w-full p-3 border rounded-xl">
-          <input id="signupClientPassword" type="password" placeholder="Mot de passe" class="w-full p-3 border rounded-xl">
+          <input id="signupClientEmail" type="email" placeholder="Email (optionnel)"
+            class="w-full p-3 border rounded-xl">
+          <input id="signupClientPassword" type="password" placeholder="Mot de passe"
+            class="w-full p-3 border rounded-xl">
           <button type="button" onclick="signupClient()"
-                  class="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow hover:bg-green-700 transition-all">
+            class="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow hover:bg-green-700 transition-all">
             Créer mon compte
           </button>
         </div>
         <div class="bg-gray-50 border rounded-2xl p-4 space-y-3 mt-3">
           <div class="text-center font-bold text-gray-800">Connexion Client</div>
-          <input id="clientQuickId" type="text" placeholder="Téléphone ou Nom d'utilisateur ou Email" class="w-full p-3 border rounded-xl">
+          <input id="clientQuickId" type="text" placeholder="Téléphone ou Nom d'utilisateur ou Email"
+            class="w-full p-3 border rounded-xl">
           <button type="button" onclick="loginClientQuick()"
-                  class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow hover:bg-blue-700 transition-all">
+            class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl shadow hover:bg-blue-700 transition-all">
             Se connecter
           </button>
         </div>
         <button onclick="showClientSpace()" type="button"
-                class="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 font-bold rounded-xl shadow hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
+          class="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 font-bold rounded-xl shadow hover:bg-blue-50 transition-all flex items-center justify-center gap-2">
           <i class="fas fa-user-tag"></i>
           Espace Client (Accès Libre)
         </button>
@@ -103,9 +112,11 @@
   <div id="clientSpaceContainer" class="min-h-screen p-4 md:p-6" style="display:none;">
     <div class="max-w-7xl mx-auto space-y-6">
       <!-- Header Client -->
-      <header class="bg-white rounded-3xl shadow-2xl p-6 border flex flex-col md:flex-row justify-between items-center gap-4 fade-in">
+      <header
+        class="bg-white rounded-3xl shadow-2xl p-6 border flex flex-col md:flex-row justify-between items-center gap-4 fade-in">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 bg-gradient-to-r from-teal-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+          <div
+            class="w-12 h-12 bg-gradient-to-r from-teal-500 to-emerald-600 rounded-2xl flex items-center justify-center">
             <i class="fas fa-store text-white text-2xl"></i>
           </div>
           <div>
@@ -113,7 +124,8 @@
             <p class="text-gray-600" data-i18n="client_subtitle">Bienvenue dans votre espace dédié</p>
           </div>
         </div>
-        <button onclick="logoutClient()" class="px-6 py-2 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all">
+        <button onclick="logoutClient()"
+          class="px-6 py-2 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-all">
           <i class="fas fa-sign-out-alt mr-2"></i> <span>Se déconnecter</span>
         </button>
       </header>
@@ -121,38 +133,54 @@
       <!-- Navigation Client -->
       <nav class="bg-white rounded-3xl shadow-xl p-4 border fade-in">
         <div class="flex flex-wrap gap-2 justify-center md:justify-start">
-          <button onclick="showClientTab('client-infos')" class="client-tab-btn px-4 py-2 rounded-xl font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all active-client-tab" data-tab="client-infos">
+          <button onclick="showClientTab('client-infos')"
+            class="client-tab-btn px-4 py-2 rounded-xl font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 transition-all active-client-tab"
+            data-tab="client-infos">
             <i class="fas fa-info-circle mr-2"></i> <span data-i18n="nav_info">Informations</span>
           </button>
-          <button onclick="showClientTab('client-offres')" class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all" data-tab="client-offres">
+          <button onclick="showClientTab('client-offres')"
+            class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all"
+            data-tab="client-offres">
             <i class="fas fa-tags mr-2"></i> <span data-i18n="nav_offers">Nos Offres</span>
           </button>
-          <button onclick="showClientTab('client-method')" class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all" data-tab="client-method">
+          <button onclick="showClientTab('client-method')"
+            class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all"
+            data-tab="client-method">
             <i class="fas fa-cogs mr-2"></i> <span data-i18n="nav_method">Méthode de travail</span>
           </button>
-          <button onclick="showClientTab('client-payment')" class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all" data-tab="client-payment">
+          <button onclick="showClientTab('client-payment')"
+            class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all"
+            data-tab="client-payment">
             <i class="fas fa-wallet mr-2"></i> <span data-i18n="nav_payment">Paiement</span>
           </button>
-          <button onclick="showClientTab('client-order')" class="client-tab-btn px-4 py-2 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow hover:shadow-lg transition-all" data-tab="client-order">
+          <button onclick="showClientTab('client-order')"
+            class="client-tab-btn px-4 py-2 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow hover:shadow-lg transition-all"
+            data-tab="client-order">
             <i class="fas fa-shopping-cart mr-2"></i> <span data-i18n="nav_order">Commander un Sponsor</span>
           </button>
-          <button onclick="showClientTab('client-requests')" class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all" data-tab="client-requests">
+          <button onclick="showClientTab('client-requests')"
+            class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all"
+            data-tab="client-requests">
             <i class="fas fa-inbox mr-2"></i> Mes Demandes
           </button>
-          <button onclick="showClientTab('client-custom')" class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all" data-tab="client-custom">
-            <i class="fas fa-star mr-2"></i> <span id="clientCustomTabTitle" data-i18n="nav_custom">Nos Réalisations</span>
+          <button onclick="showClientTab('client-custom')"
+            class="client-tab-btn px-4 py-2 rounded-xl font-semibold text-gray-600 hover:bg-gray-100 transition-all"
+            data-tab="client-custom">
+            <i class="fas fa-star mr-2"></i> <span id="clientCustomTabTitle" data-i18n="nav_custom">Nos
+              Réalisations</span>
           </button>
         </div>
       </nav>
 
       <!-- Client Content Sections -->
       <div class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 border min-h-[400px] fade-in relative">
-        
+
         <!-- INFO SECTION -->
         <div id="client-infos" class="client-tab-content">
           <h2 class="text-2xl font-bold mb-4 text-gray-800" data-i18n="info_title">Informations Générales</h2>
           <p class="text-gray-600 leading-relaxed" data-i18n="info_desc">
-            Bienvenue sur notre plateforme de sponsoring. Ici, vous pouvez consulter nos offres, comprendre notre fonctionnement et passer commande directement sans avoir besoin de créer un compte.
+            Bienvenue sur notre plateforme de sponsoring. Ici, vous pouvez consulter nos offres, comprendre notre
+            fonctionnement et passer commande directement sans avoir besoin de créer un compte.
           </p>
           <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="p-4 bg-white rounded-xl border">
@@ -175,7 +203,8 @@
                   <input id="clientAccEmail" type="email" class="col-span-2 p-2 border rounded-lg">
                 </div>
                 <div class="flex justify-end">
-                  <button onclick="saveClientIdentifiers()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Enregistrer</button>
+                  <button onclick="saveClientIdentifiers()"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Enregistrer</button>
                 </div>
               </div>
             </div>
@@ -185,16 +214,20 @@
                 <div>
                   <div class="text-sm text-gray-600 mb-1">Comptes Instagram</div>
                   <div class="flex gap-2">
-                    <input id="clientAddInstagram" type="text" placeholder="@mon_compte" class="flex-1 p-2 border rounded-lg">
-                    <button onclick="addClientInstagram()" class="px-4 py-2 bg-green-600 text-white rounded-lg">Ajouter</button>
+                    <input id="clientAddInstagram" type="text" placeholder="@mon_compte"
+                      class="flex-1 p-2 border rounded-lg">
+                    <button onclick="addClientInstagram()"
+                      class="px-4 py-2 bg-green-600 text-white rounded-lg">Ajouter</button>
                   </div>
                   <div id="clientInstagramList" class="mt-2 flex flex-wrap gap-2"></div>
                 </div>
                 <div>
                   <div class="text-sm text-gray-600 mb-1">Pages Facebook</div>
                   <div class="flex gap-2">
-                    <input id="clientAddFacebook" type="text" placeholder="Ma Page" class="flex-1 p-2 border rounded-lg">
-                    <button onclick="addClientFacebook()" class="px-4 py-2 bg-green-600 text-white rounded-lg">Ajouter</button>
+                    <input id="clientAddFacebook" type="text" placeholder="Ma Page"
+                      class="flex-1 p-2 border rounded-lg">
+                    <button onclick="addClientFacebook()"
+                      class="px-4 py-2 bg-green-600 text-white rounded-lg">Ajouter</button>
                   </div>
                   <div id="clientFacebookList" class="mt-2 flex flex-wrap gap-2"></div>
                 </div>
@@ -235,62 +268,65 @@
 
         <!-- CUSTOM SECTION -->
         <div id="client-custom" class="client-tab-content hidden">
-          <h2 class="text-2xl font-bold mb-4 text-gray-800" id="clientCustomTitle" data-i18n="nav_custom">Nos Réalisations</h2>
+          <h2 class="text-2xl font-bold mb-4 text-gray-800" id="clientCustomTitle" data-i18n="nav_custom">Nos
+            Réalisations</h2>
           <div id="clientCustomContent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
         </div>
 
         <!-- PAIEMENT SECTION -->
         <div id="client-payment" class="client-tab-content hidden">
           <h2 class="text-2xl font-bold mb-4 text-gray-800" data-i18n="payment_title">Moyens de Paiement</h2>
-          <p class="mb-6 text-gray-600" data-i18n="payment_subtitle">Voici les coordonnées pour effectuer vos paiements :</p>
-          
+          <p class="mb-6 text-gray-600" data-i18n="payment_subtitle">Voici les coordonnées pour effectuer vos paiements
+            :</p>
+
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <!-- CCP -->
             <div class="p-6 border border-yellow-200 bg-yellow-50 rounded-2xl relative overflow-hidden">
-               <div class="absolute top-0 right-0 w-24 h-24 bg-yellow-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
-               <div class="relative z-10">
-                 <h3 class="font-bold text-xl text-yellow-800 mb-2 flex items-center gap-2">
-                   <i class="fas fa-university"></i> CCP
-                 </h3>
-                 <div class="space-y-1 text-yellow-900 font-medium">
-                   <p>Numéro : <span id="conf-ccp-number" class="font-mono text-lg">0044032948</span> Clé <span id="conf-ccp-key" class="font-mono">28</span></p>
-                   <p id="conf-ccp-name" class="uppercase">BENDJEDDOU HICHEM</p>
-                   <p id="conf-ccp-address" class="text-sm opacity-75">CITE VERT BT28 ODF OULED FAYET - 16094</p>
-                 </div>
-               </div>
+              <div class="absolute top-0 right-0 w-24 h-24 bg-yellow-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
+              <div class="relative z-10">
+                <h3 class="font-bold text-xl text-yellow-800 mb-2 flex items-center gap-2">
+                  <i class="fas fa-university"></i> CCP
+                </h3>
+                <div class="space-y-1 text-yellow-900 font-medium">
+                  <p>Numéro : <span id="conf-ccp-number" class="font-mono text-lg">0044032948</span> Clé <span
+                      id="conf-ccp-key" class="font-mono">28</span></p>
+                  <p id="conf-ccp-name" class="uppercase">BENDJEDDOU HICHEM</p>
+                  <p id="conf-ccp-address" class="text-sm opacity-75">CITE VERT BT28 ODF OULED FAYET - 16094</p>
+                </div>
+              </div>
             </div>
 
             <!-- BaridiMob -->
             <div class="p-6 border border-blue-200 bg-blue-50 rounded-2xl relative overflow-hidden">
-               <div class="absolute top-0 right-0 w-24 h-24 bg-blue-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
-               <div class="relative z-10">
-                 <h3 class="font-bold text-xl text-blue-800 mb-2 flex items-center gap-2">
-                   <i class="fas fa-mobile-alt"></i> BaridiMob
-                 </h3>
-                 <div class="space-y-1 text-blue-900 font-medium">
-                   <p id="conf-baridimob-number" class="font-mono text-lg tracking-wider">00799999004403294836</p>
-                 </div>
-               </div>
+              <div class="absolute top-0 right-0 w-24 h-24 bg-blue-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
+              <div class="relative z-10">
+                <h3 class="font-bold text-xl text-blue-800 mb-2 flex items-center gap-2">
+                  <i class="fas fa-mobile-alt"></i> BaridiMob
+                </h3>
+                <div class="space-y-1 text-blue-900 font-medium">
+                  <p id="conf-baridimob-number" class="font-mono text-lg tracking-wider">00799999004403294836</p>
+                </div>
+              </div>
             </div>
 
             <!-- RedotPay -->
             <div class="p-6 border border-red-200 bg-red-50 rounded-2xl relative overflow-hidden md:col-span-2">
-               <div class="absolute top-0 right-0 w-24 h-24 bg-red-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
-               <div class="relative z-10">
-                 <h3 class="font-bold text-xl text-red-800 mb-2 flex items-center gap-2">
-                   <i class="fas fa-credit-card"></i> RedotPay
-                 </h3>
-                 <div class="flex flex-col md:flex-row gap-6 justify-between items-start">
-                     <div class="space-y-1 text-red-900 font-medium">
-                       <p>ID : <span id="conf-redotpay-id" class="font-mono text-2xl tracking-wider">1956595423</span></p>
-                       <p class="text-sm opacity-75">Binance Pay / USDT / RedotPay Transfer</p>
-                     </div>
-                     <div class="bg-white p-4 rounded-xl border border-red-100 shadow-sm w-full md:w-auto">
-                        <p class="text-xs text-gray-500 mb-1">Taux de conversion</p>
-                        <p class="font-bold text-gray-800">1 USD = <span id="conf-redotpay-rate">340</span> DZD</p>
-                     </div>
-                 </div>
-               </div>
+              <div class="absolute top-0 right-0 w-24 h-24 bg-red-200 rounded-full -mr-12 -mt-12 opacity-50"></div>
+              <div class="relative z-10">
+                <h3 class="font-bold text-xl text-red-800 mb-2 flex items-center gap-2">
+                  <i class="fas fa-credit-card"></i> RedotPay
+                </h3>
+                <div class="flex flex-col md:flex-row gap-6 justify-between items-start">
+                  <div class="space-y-1 text-red-900 font-medium">
+                    <p>ID : <span id="conf-redotpay-id" class="font-mono text-2xl tracking-wider">1956595423</span></p>
+                    <p class="text-sm opacity-75">Binance Pay / USDT / RedotPay Transfer</p>
+                  </div>
+                  <div class="bg-white p-4 rounded-xl border border-red-100 shadow-sm w-full md:w-auto">
+                    <p class="text-xs text-gray-500 mb-1">Taux de conversion</p>
+                    <p class="font-bold text-gray-800">1 USD = <span id="conf-redotpay-rate">340</span> DZD</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -298,37 +334,42 @@
         <!-- COMMANDER SECTION -->
         <div id="client-order" class="client-tab-content hidden">
           <h2 class="text-2xl font-bold mb-6 text-gray-800" data-i18n="order_title">Commander un Sponsor</h2>
-          
+
           <form id="orderForm" onsubmit="handleOrderSubmit(event)" class="space-y-6">
             <div class="border rounded-xl p-4 bg-gray-50">
               <label class="flex items-center gap-2 font-semibold text-gray-700 mb-2">
-                <input id="customOfferToggle" type="checkbox" class="w-4 h-4" onchange="toggleCustomOfferFields()"> Offre personnalisable
+                <input id="customOfferToggle" type="checkbox" class="w-4 h-4" onchange="toggleCustomOfferFields()">
+                Offre personnalisable
               </label>
               <div id="customOfferFields" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-2">Mode</label>
-                  <select id="customOfferMode" class="w-full p-3 border rounded-xl bg-white" onchange="updateCustomOfferSummary()">
+                  <select id="customOfferMode" class="w-full p-3 border rounded-xl bg-white"
+                    onchange="updateCustomOfferSummary()">
                     <option value="dzd">Budget en DZD</option>
                     <option value="usd">Budget en USD</option>
                   </select>
                 </div>
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-2">Budget</label>
-                  <input id="customOfferBudget" type="number" step="0.01" class="w-full p-3 border rounded-xl bg-white" oninput="updateCustomOfferSummary()">
+                  <input id="customOfferBudget" type="number" step="0.01" class="w-full p-3 border rounded-xl bg-white"
+                    oninput="updateCustomOfferSummary()">
                 </div>
                 <div>
                   <label class="block text-sm font-semibold text-gray-700 mb-2">Durée (jours)</label>
-                  <input id="customOfferDuration" type="number" min="3" class="w-full p-3 border rounded-xl bg-white" oninput="updateCustomOfferSummary()">
+                  <input id="customOfferDuration" type="number" min="3" class="w-full p-3 border rounded-xl bg-white"
+                    oninput="updateCustomOfferSummary()">
                 </div>
                 <div class="md:col-span-3">
                   <div id="customOfferSummary" class="text-sm text-gray-700 bg-white border rounded-xl p-3"></div>
                 </div>
               </div>
             </div>
-            
+
             <div>
               <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_platform">Plateforme</label>
-              <select id="platformSelect" onchange="updateFormLogic()" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50">
+              <select id="platformSelect" onchange="updateFormLogic()"
+                class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50">
                 <option value="" data-i18n="opt_choose_platform">-- Choisir une plateforme --</option>
                 <option value="meta">Meta (Instagram / Facebook)</option>
                 <option value="tiktok">TikTok</option>
@@ -340,7 +381,8 @@
               <h3 class="font-bold text-blue-800" data-i18n="meta_config">Configuration Meta</h3>
               <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_objective">Objectif</label>
-                <select id="metaObjective" onchange="updateMetaLogic()" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+                <select id="metaObjective" onchange="updateMetaLogic()"
+                  class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
                   <option value="" data-i18n="opt_choose_objective">-- Choisir l'objectif --</option>
                   <option value="followers" data-i18n="opt_followers">Plus d'abonnés</option>
                   <option value="messages" data-i18n="opt_messages">Messages</option>
@@ -348,28 +390,39 @@
                 </select>
               </div>
               <div id="metaFollowersOptions" class="hidden">
-                <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_target_network">Réseau cible pour les abonnés</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_target_network">Réseau
+                  cible pour les abonnés</label>
                 <div class="flex gap-4">
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaFollowersTarget" value="instagram" class="w-4 h-4 text-blue-600"> Instagram</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaFollowersTarget" value="facebook" class="w-4 h-4 text-blue-600"> Facebook</label>
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaFollowersTarget"
+                      value="instagram" class="w-4 h-4 text-blue-600"> Instagram</label>
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaFollowersTarget"
+                      value="facebook" class="w-4 h-4 text-blue-600"> Facebook</label>
                 </div>
               </div>
               <div id="metaMessagesOptions" class="hidden">
-                 <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_msg_dest">Réception des messages sur</label>
-                 <div class="flex gap-4 flex-wrap">
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaMsgTarget" value="instagram" class="w-4 h-4 text-blue-600"> Instagram</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaMsgTarget" value="facebook" class="w-4 h-4 text-blue-600"> Facebook</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaMsgTarget" value="both" class="w-4 h-4 text-blue-600"> <span data-i18n="lbl_both">Les deux</span></label>
+                <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_msg_dest">Réception des
+                  messages sur</label>
+                <div class="flex gap-4 flex-wrap">
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaMsgTarget"
+                      value="instagram" class="w-4 h-4 text-blue-600"> Instagram</label>
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaMsgTarget"
+                      value="facebook" class="w-4 h-4 text-blue-600"> Facebook</label>
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="metaMsgTarget"
+                      value="both" class="w-4 h-4 text-blue-600"> <span data-i18n="lbl_both">Les deux</span></label>
                 </div>
               </div>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_insta_name">Nom du compte Instagram</label>
-                  <input type="text" id="metaInstaName" class="w-full p-3 border rounded-xl" placeholder="@moncompte" data-i18n="ph_insta">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_insta_name">Nom du compte
+                    Instagram</label>
+                  <input type="text" id="metaInstaName" class="w-full p-3 border rounded-xl" placeholder="@moncompte"
+                    data-i18n="ph_insta">
                 </div>
                 <div>
-                  <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_fb_name">Nom de la page Facebook</label>
-                  <input type="text" id="metaFbName" class="w-full p-3 border rounded-xl" placeholder="Ma Page" data-i18n="ph_fb">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_fb_name">Nom de la page
+                    Facebook</label>
+                  <input type="text" id="metaFbName" class="w-full p-3 border rounded-xl" placeholder="Ma Page"
+                    data-i18n="ph_fb">
                 </div>
               </div>
             </div>
@@ -379,39 +432,51 @@
               <h3 class="font-bold text-gray-800" data-i18n="tiktok_config">Configuration TikTok</h3>
               <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_objective">Objectif</label>
-                <select id="tiktokObjective" onchange="updateTikTokLogic()" class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-black outline-none">
+                <select id="tiktokObjective" onchange="updateTikTokLogic()"
+                  class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-black outline-none">
                   <option value="" data-i18n="opt_choose_objective">-- Choisir l'objectif --</option>
                   <option value="conversion" data-i18n="opt_conversion">Site Web (Conversion)</option>
                   <option value="messages" data-i18n="opt_messages">Messages</option>
                 </select>
               </div>
               <div id="tiktokMessagesOptions" class="hidden">
-                <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_msg_dest">Destination des messages</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-2" data-i18n="lbl_msg_dest">Destination des
+                  messages</label>
                 <div class="flex gap-4 flex-wrap">
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="tiktokMsgTarget" value="tiktok" class="w-4 h-4 text-black"> TikTok</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="tiktokMsgTarget" value="facebook" class="w-4 h-4 text-black"> Facebook</label>
-                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="tiktokMsgTarget" value="whatsapp" class="w-4 h-4 text-black"> WhatsApp</label>
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="tiktokMsgTarget"
+                      value="tiktok" class="w-4 h-4 text-black"> TikTok</label>
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="tiktokMsgTarget"
+                      value="facebook" class="w-4 h-4 text-black"> Facebook</label>
+                  <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="tiktokMsgTarget"
+                      value="whatsapp" class="w-4 h-4 text-black"> WhatsApp</label>
                 </div>
               </div>
             </div>
 
             <div id="websiteLinkSection" class="hidden">
-              <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_site_link">Lien du site web</label>
-              <input type="url" id="websiteUrl" class="w-full p-3 border rounded-xl" placeholder="https://monsite.com" data-i18n="ph_website">
+              <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_site_link">Lien du site
+                web</label>
+              <input type="url" id="websiteUrl" class="w-full p-3 border rounded-xl" placeholder="https://monsite.com"
+                data-i18n="ph_website">
             </div>
 
             <div id="commonFields" class="hidden space-y-4 pt-4 border-t">
               <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_offer_chosen">Offre Choisie</label>
+                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_offer_chosen">Offre
+                  Choisie</label>
                 <select id="orderOfferSelect" class="w-full p-3 border rounded-xl outline-none"></select>
               </div>
               <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_pub_link">Lien de la publication (Post/Reel/Video)</label>
-                <input type="url" id="pubLink" class="w-full p-3 border rounded-xl" placeholder="https://..." data-i18n="ph_pub_link">
+                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_pub_link">Lien de la
+                  publication (Post/Reel/Video)</label>
+                <input type="url" id="pubLink" class="w-full p-3 border rounded-xl" placeholder="https://..."
+                  data-i18n="ph_pub_link">
               </div>
               <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_payment_method">Moyen de paiement utilisé</label>
-                <select id="paymentMethodSelect" onchange="toggleRedotpayCalculator()" class="w-full p-3 border rounded-xl outline-none bg-white mb-4">
+                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_payment_method">Moyen de
+                  paiement utilisé</label>
+                <select id="paymentMethodSelect" onchange="toggleRedotpayCalculator()"
+                  class="w-full p-3 border rounded-xl outline-none bg-white mb-4">
                   <option value="" data-i18n="opt_choose_payment">-- Choisir --</option>
                   <option value="ccp">CCP</option>
                   <option value="baridimob">BaridiMob</option>
@@ -421,28 +486,37 @@
                 <!-- RedotPay Calculator -->
                 <div id="redotpayCalculator" class="hidden mb-4">
                   <div class="bg-red-50 border border-red-100 p-4 rounded-lg">
-                    <h4 class="font-bold text-red-800 mb-2 text-sm flex items-center gap-2"><i class="fas fa-calculator"></i> <span data-i18n="calc_title">Calculateur RedotPay</span></h4>
+                    <h4 class="font-bold text-red-800 mb-2 text-sm flex items-center gap-2"><i
+                        class="fas fa-calculator"></i> <span data-i18n="calc_title">Calculateur RedotPay</span></h4>
                     <div class="mb-3 flex items-center justify-between bg-white p-2 rounded border border-red-100">
-                        <span id="calc-redotpay-id" class="text-xs font-mono font-bold text-gray-600">ID: 1956595423</span>
-                        <button type="button" onclick="copyToClipboard('1956595423')" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Copier</button>
+                      <span id="calc-redotpay-id" class="text-xs font-mono font-bold text-gray-600">ID:
+                        1956595423</span>
+                      <button type="button" onclick="copyToClipboard('1956595423')"
+                        class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Copier</button>
                     </div>
                     <div class="flex gap-4 items-end">
-                        <div class="flex-1">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">DZD</label>
-                            <input type="number" id="redotpayDzdAmount" oninput="calculateRedotpayUsd()" class="w-full p-2 border rounded-lg">
-                        </div>
-                        <div class="flex-1">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">USD</label>
-                            <div id="redotpayUsdDisplay" class="font-mono text-xl font-bold text-red-600 bg-white p-2 rounded-lg border border-red-100 text-center">0.00 $</div>
-                        </div>
+                      <div class="flex-1">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">DZD</label>
+                        <input type="number" id="redotpayDzdAmount" oninput="calculateRedotpayUsd()"
+                          class="w-full p-2 border rounded-lg">
+                      </div>
+                      <div class="flex-1">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">USD</label>
+                        <div id="redotpayUsdDisplay"
+                          class="font-mono text-xl font-bold text-red-600 bg-white p-2 rounded-lg border border-red-100 text-center">
+                          0.00 $</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
               <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_proof">Preuve de paiement (Photo)</label>
-                <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-all cursor-pointer relative">
-                  <input type="file" id="paymentProof" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewFile(this)">
+                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_proof">Preuve de paiement
+                  (Photo)</label>
+                <div
+                  class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-all cursor-pointer relative">
+                  <input type="file" id="paymentProof" accept="image/*"
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="previewFile(this)">
                   <div id="filePreview" class="pointer-events-none">
                     <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
                     <p class="text-gray-500" data-i18n="lbl_upload_proof_hint">Cliquez ou déposez votre reçu ici</p>
@@ -450,16 +524,19 @@
                 </div>
               </div>
               <div>
-                  <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_client_note">Note (Optionnel)</label>
-                  <textarea id="clientNote" rows="2" class="w-full p-3 border rounded-xl" placeholder="Ajoutez une note..." data-i18n="ph_client_note"></textarea>
+                <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="lbl_client_note">Note
+                  (Optionnel)</label>
+                <textarea id="clientNote" rows="2" class="w-full p-3 border rounded-xl"
+                  placeholder="Ajoutez une note..." data-i18n="ph_client_note"></textarea>
               </div>
-              <button type="submit" class="w-full py-4 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold rounded-xl shadow-lg">
+              <button type="submit"
+                class="w-full py-4 bg-gradient-to-r from-green-600 to-teal-600 text-white font-bold rounded-xl shadow-lg">
                 <i class="fas fa-paper-plane mr-2"></i> <span data-i18n="btn_submit">Envoyer la commande</span>
               </button>
             </div>
           </form>
         </div>
-        
+
         <!-- MES DEMANDES SECTION -->
         <div id="client-requests" class="client-tab-content hidden">
           <h2 class="text-2xl font-bold mb-4 text-gray-800">Mes Demandes</h2>
@@ -470,47 +547,84 @@
   </div>
 
   <!-- APP CONTAINER (DASHBOARD) -->
-  <div id="appContainer" class="max-w-7xl mx-auto space-y-6 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 p-4 md:p-6" style="display:none;">
+  <div id="appContainer"
+    class="max-w-7xl mx-auto space-y-6 min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 p-4 md:p-6"
+    style="display:none;">
     <header class="bg-white dark:bg-gray-800 dark:border-gray-700 rounded-3xl shadow-2xl p-6 md:p-8 border fade-in">
       <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
           <div class="flex items-center gap-3 mb-2">
-            <div class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
+            <div
+              class="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center">
               <i class="fas fa-handshake text-white text-2xl"></i>
             </div>
             <div>
-              <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Hichem Sponsor</h1>
-              <p class="text-sm md:text-lg text-gray-600 dark:text-gray-400 mt-1">Gestion clients • Offres • Transactions • Paiements • Achats USD</p>
-              <p id="globalLastUpdated" class="text-xs text-gray-500 dark:text-gray-400 mt-1">Dernière mise à jour: —</p>
+              <h1
+                class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Hichem Sponsor</h1>
+              <p class="text-sm md:text-lg text-gray-600 dark:text-gray-400 mt-1">Gestion clients • Offres •
+                Transactions • Paiements • Achats USD</p>
+              <p id="globalLastUpdated" class="text-xs text-gray-500 dark:text-gray-400 mt-1">Dernière mise à jour: —
+              </p>
             </div>
           </div>
         </div>
         <div class="flex gap-2 md:gap-3 flex-wrap justify-center items-center">
-          <button onclick="toggleTheme()" class="w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center hover:bg-gray-200 transition-all">
+          <button onclick="toggleTheme()"
+            class="w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl font-bold flex items-center justify-center hover:bg-gray-200 transition-all">
             <i id="themeIcon" class="fas fa-moon"></i>
           </button>
-          <button onclick="exportPDF()" class="px-4 py-2 bg-red-600 text-white rounded-xl font-bold"><i class="fas fa-file-pdf mr-2"></i>Export PDF</button>
-          <button onclick="forceCloudSave()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold"><i class="fas fa-save mr-2"></i>Sauvegarder</button>
-          <button onclick="logout()" class="px-4 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-xl font-bold"><i class="fas fa-sign-out-alt mr-2"></i>Déconnexion</button>
+          <button onclick="exportPDF()" class="px-4 py-2 bg-red-600 text-white rounded-xl font-bold"><i
+              class="fas fa-file-pdf mr-2"></i>Export PDF</button>
+          <button onclick="exportLocalBackup()" class="px-4 py-2 bg-green-600 text-white rounded-xl font-bold"
+            title="Sauvegarder en local"><i class="fas fa-download"></i><span class="hidden md:inline ml-2">Sauvegarde
+              Locale</span></button>
+          <button onclick="document.getElementById('importBackupInput').click()"
+            class="px-4 py-2 bg-yellow-600 text-white rounded-xl font-bold" title="Restaurer depuis local"><i
+              class="fas fa-upload"></i><span class="hidden md:inline ml-2">Restaurer</span></button>
+          <input type="file" id="importBackupInput" accept=".json" class="hidden" onchange="importLocalBackup(event)">
+          <button onclick="forceCloudSave()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold"><i
+              class="fas fa-save mr-2"></i>Sauvegarder</button>
+          <button onclick="logout()" class="px-4 py-2 bg-gray-800 dark:bg-gray-700 text-white rounded-xl font-bold"><i
+              class="fas fa-sign-out-alt mr-2"></i>Déconnexion</button>
         </div>
       </div>
     </header>
 
     <nav class="bg-white dark:bg-gray-800 dark:border-gray-700 rounded-3xl shadow-xl p-4 md:p-6 border mb-6 fade-in">
       <div class="flex flex-wrap gap-2">
-        <button onclick="showTab('dashboard')" class="tab-btn px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Dashboard</button>
-        <button onclick="showTab('clients')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Clients</button>
-        <button onclick="showTab('transactions')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">To-Do List</button>
-        <button onclick="showTab('history')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Historique</button>
-        <button onclick="showTab('todo')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Nouvelle To-Do</button>
-        <button onclick="showTab('offers')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Offres</button>
-        <button onclick="showTab('expenses')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Frais</button>
-        <button onclick="showTab('paiements')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Paiements</button>
-        <button onclick="showTab('achats')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Achats USD</button>
-        <button onclick="showTab('reminders')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Dettes/Relances</button>
-        <button onclick="showTab('ad-accounts')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Comptes Pub</button>
-        <button onclick="showTab('requests')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Demandes <span id="requestsBadge" class="hidden bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">0</span></button>
-        <button onclick="showTab('settings')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Paramètres</button>
+        <button onclick="showTab('dashboard')"
+          class="tab-btn px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Dashboard</button>
+        <button onclick="showTab('clients')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Clients</button>
+        <button onclick="showTab('transactions')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">To-Do
+          List</button>
+        <button onclick="showTab('history')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Historique</button>
+        <button onclick="showTab('todo')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Nouvelle
+          To-Do</button>
+        <button onclick="showTab('offers')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Offres</button>
+        <button onclick="showTab('expenses')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Frais</button>
+        <button onclick="showTab('paiements')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Paiements</button>
+        <button onclick="showTab('achats')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Achats
+          USD</button>
+        <button onclick="showTab('reminders')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Dettes/Relances</button>
+        <button onclick="showTab('ad-accounts')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Comptes
+          Pub</button>
+        <button onclick="showTab('requests')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Demandes
+          <span id="requestsBadge"
+            class="hidden bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">0</span></button>
+        <button onclick="showTab('settings')"
+          class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Paramètres</button>
       </div>
     </nav>
 
@@ -524,7 +638,8 @@
   <div id="modalContainer">
     <!-- CLIENT MODAL -->
     <div id="clientModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
+      <div
+        class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
             <i class="fas fa-user-plus text-blue-600"></i> Nouveau Client
@@ -534,15 +649,23 @@
           </button>
         </div>
         <div class="space-y-4 mb-6">
-          <input id="newClientName" type="text" placeholder="Nom complet" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <input id="newClientPhone" type="text" placeholder="Numéro WhatsApp" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <input id="newClientInstagram" type="text" placeholder="Instagram (@mon_compte)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <input id="newClientFacebook" type="text" placeholder="Page Facebook" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <textarea id="newClientNotes" placeholder="Notes (optionnel)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white" rows="3"></textarea>
+          <input id="newClientName" type="text" placeholder="Nom complet"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="newClientPhone" type="text" placeholder="Numéro WhatsApp"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="newClientInstagram" type="text" placeholder="Instagram (@mon_compte)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="newClientFacebook" type="text" placeholder="Page Facebook"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <textarea id="newClientNotes" placeholder="Notes (optionnel)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white"
+            rows="3"></textarea>
         </div>
         <div class="flex justify-end gap-3">
-          <button onclick="closeModal('clientModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
-          <button onclick="addClient()" class="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">Enregistrer</button>
+          <button onclick="closeModal('clientModal')"
+            class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
+          <button onclick="addClient()"
+            class="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
@@ -559,24 +682,33 @@
           </button>
         </div>
         <div class="space-y-4 mb-6">
-          <input id="newOfferName" type="text" placeholder="Nom de l'offre" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
-          <textarea id="newOfferDesc" placeholder="Description" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50" rows="2"></textarea>
+          <input id="newOfferName" type="text" placeholder="Nom de l'offre"
+            class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
+          <textarea id="newOfferDesc" placeholder="Description"
+            class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50"
+            rows="2"></textarea>
           <div class="grid grid-cols-2 gap-4">
-            <input id="newOfferPrice" type="number" placeholder="Prix Vente (DZD)" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
-            <input id="newOfferCostPerUnit" type="number" step="0.01" placeholder="Coût ($)" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
+            <input id="newOfferPrice" type="number" placeholder="Prix Vente (DZD)"
+              class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
+            <input id="newOfferCostPerUnit" type="number" step="0.01" placeholder="Coût ($)"
+              class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
           </div>
-          <input id="newOfferDuration" type="text" placeholder="Durée (ex: 30 jours)" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
+          <input id="newOfferDuration" type="text" placeholder="Durée (ex: 30 jours)"
+            class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-purple-500 outline-none bg-gray-50">
         </div>
         <div class="flex justify-end gap-3">
-          <button onclick="closeModal('offerModal')" class="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-bold">Annuler</button>
-          <button onclick="addOffer()" class="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold shadow-lg hover:bg-purple-700 transition-all">Enregistrer</button>
+          <button onclick="closeModal('offerModal')"
+            class="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-bold">Annuler</button>
+          <button onclick="addOffer()"
+            class="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold shadow-lg hover:bg-purple-700 transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
 
     <!-- EXPENSE MODAL -->
     <div id="expenseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
+      <div
+        class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
             <i class="fas fa-receipt text-rose-600"></i> Nouveau Frais
@@ -586,25 +718,34 @@
           </button>
         </div>
         <div class="space-y-4 mb-6">
-          <input id="expenseDate" type="date" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <input id="expenseCategory" type="text" placeholder="Catégorie (ex: Internet, Loyer...)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <select id="expenseAccount" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="expenseDate" type="date"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="expenseCategory" type="text" placeholder="Catégorie (ex: Internet, Loyer...)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <select id="expenseAccount"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
             <option value="liquide">Liquide</option>
             <option value="baridimob">BaridiMob</option>
             <option value="usdt">USDT</option>
           </select>
-          <input id="expenseAmount" type="number" placeholder="Montant (DZD)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <textarea id="expenseNote" placeholder="Note (optionnel)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white" rows="2"></textarea>
+          <input id="expenseAmount" type="number" placeholder="Montant (DZD)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <textarea id="expenseNote" placeholder="Note (optionnel)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white"
+            rows="2"></textarea>
         </div>
         <div class="flex justify-end gap-3">
-          <button onclick="closeModal('expenseModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
-          <button onclick="addExpense()" class="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold shadow-lg hover:bg-rose-700 transition-all">Enregistrer</button>
+          <button onclick="closeModal('expenseModal')"
+            class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
+          <button onclick="addExpense()"
+            class="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold shadow-lg hover:bg-rose-700 transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
 
     <div id="balancesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
+      <div
+        class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
             <i class="fas fa-sliders-h text-gray-600"></i> Ajuster les soldes
@@ -614,26 +755,32 @@
           </button>
         </div>
         <div class="space-y-4 mb-6">
-          <div class="text-xs text-gray-500 dark:text-gray-400">Tu modifies l'affichage des soldes via un ajustement manuel (théorique + ajustement).</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">Tu modifies l'affichage des soldes via un ajustement
+            manuel (théorique + ajustement).</div>
           <div>
             <label class="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Liquide (DZD)</label>
-            <input id="balanceLiquideDesired" type="number" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+            <input id="balanceLiquideDesired" type="number"
+              class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
             <div id="balanceLiquideTheo" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
           </div>
           <div>
             <label class="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">BaridiMob (DZD)</label>
-            <input id="balanceBaridiDesired" type="number" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+            <input id="balanceBaridiDesired" type="number"
+              class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
             <div id="balanceBaridiTheo" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
           </div>
           <div>
             <label class="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Stock USDT</label>
-            <input id="balanceUsdtDesired" type="number" step="0.01" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+            <input id="balanceUsdtDesired" type="number" step="0.01"
+              class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
             <div id="balanceUsdtTheo" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
           </div>
         </div>
         <div class="flex justify-end gap-3">
-          <button onclick="closeModal('balancesModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
-          <button onclick="saveBalancesAdjustments()" class="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-black transition-all">Enregistrer</button>
+          <button onclick="closeModal('balancesModal')"
+            class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
+          <button onclick="saveBalancesAdjustments()"
+            class="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-black transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
@@ -650,29 +797,37 @@
           </button>
         </div>
         <div class="space-y-4 mb-6">
-          <select id="paymentClientId" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50">
+          <select id="paymentClientId"
+            class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50">
             <option value="">Sélectionner un client</option>
             <!-- Sera rempli dynamiquement si besoin ou via appState -->
           </select>
-          <input id="paymentAmount" type="number" placeholder="Montant (DZD)" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50">
-          <select id="paymentMethod" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50">
+          <input id="paymentAmount" type="number" placeholder="Montant (DZD)"
+            class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50">
+          <select id="paymentMethod"
+            class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50">
             <option value="Cash">Espèces</option>
             <option value="BaridiMob">BaridiMob</option>
             <option value="CCP">CCP</option>
             <option value="USDT">USDT</option>
           </select>
-          <textarea id="paymentNote" placeholder="Note (optionnel)" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50" rows="2"></textarea>
+          <textarea id="paymentNote" placeholder="Note (optionnel)"
+            class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none bg-gray-50"
+            rows="2"></textarea>
         </div>
         <div class="flex justify-end gap-3">
-          <button onclick="closeModal('paymentModal')" class="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-bold">Annuler</button>
-          <button onclick="addPayment()" class="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold shadow-lg hover:bg-orange-700 transition-all">Enregistrer</button>
+          <button onclick="closeModal('paymentModal')"
+            class="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-bold">Annuler</button>
+          <button onclick="addPayment()"
+            class="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold shadow-lg hover:bg-orange-700 transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
 
     <!-- USD PURCHASE MODAL -->
     <div id="usdPurchaseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
+      <div
+        class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
             <i class="fas fa-dollar-sign text-teal-600"></i> Nouvel Achat USD
@@ -682,20 +837,26 @@
           </button>
         </div>
         <div class="space-y-4 mb-6">
-          <input id="usdAmount" type="number" step="0.01" placeholder="Montant USD ($)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-teal-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <input id="usdRate" type="number" step="0.01" placeholder="Taux (DZD)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-teal-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <input id="usdSource" type="text" placeholder="Source (ex: Binance, CCP...)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-teal-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="usdAmount" type="number" step="0.01" placeholder="Montant USD ($)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-teal-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="usdRate" type="number" step="0.01" placeholder="Taux (DZD)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-teal-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="usdSource" type="text" placeholder="Source (ex: Binance, CCP...)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-teal-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
         </div>
         <div class="flex justify-end gap-3">
-          <button onclick="closeModal('usdPurchaseModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
-          <button onclick="addUsdPurchase()" class="px-6 py-2 bg-teal-600 text-white rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all">Enregistrer</button>
+          <button onclick="closeModal('usdPurchaseModal')"
+            class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
+          <button onclick="addUsdPurchase()"
+            class="px-6 py-2 bg-teal-600 text-white rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
 
     <!-- AD ACCOUNT MODAL -->
     <div id="adAccountModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-      <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
+      <div
+        class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
             <i class="fas fa-desktop text-indigo-600"></i> Nouveau Compte Pub
@@ -705,17 +866,23 @@
           </button>
         </div>
         <div class="space-y-4 mb-6">
-          <input id="accName" type="text" placeholder="Nom du compte" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <select id="accPlatform" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="accName" type="text" placeholder="Nom du compte"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <select id="accPlatform"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
             <option value="meta">Meta (Facebook/Instagram)</option>
             <option value="tiktok">TikTok Ads</option>
           </select>
-          <input id="accBalance" type="number" step="0.01" placeholder="Solde Initial ($)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <div class="text-xs text-gray-500 dark:text-gray-400">Solde initial = le solde de départ du compte (avant recharges et dépenses).</div>
+          <input id="accBalance" type="number" step="0.01" placeholder="Solde Initial ($)"
+            class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Solde initial = le solde de départ du compte (avant
+            recharges et dépenses).</div>
         </div>
         <div class="flex justify-end gap-3">
-          <button onclick="closeModal('adAccountModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
-          <button onclick="addAdAccount()" class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all">Enregistrer</button>
+          <button onclick="closeModal('adAccountModal')"
+            class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
+          <button onclick="addAdAccount()"
+            class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
@@ -737,4 +904,5 @@
   <script src="assets/js/app.js"></script>
 
 </body>
+
 </html>
