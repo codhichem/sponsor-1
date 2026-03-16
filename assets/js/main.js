@@ -1627,7 +1627,7 @@
       
       recalculateFinanceBalances();
 
-      client.unpaid = Math.max(0, Number(client.unpaid || 0) - amount);
+      client.unpaid = Number(client.unpaid || 0) - amount;
 
       renderPaymentsTable();
       const tbody = document.getElementById('paymentsTableBody');

@@ -665,7 +665,7 @@ window.addPayment = function() {
   const payment = { id: generateId('pay'), date: getLocalDateString(), clientId: client.id, clientName: client.name, amount, method, note, createdAt: Date.now() };
   if (!appState.payments) appState.payments = [];
   appState.payments.push(payment);
-  client.unpaid = Math.max(0, (client.unpaid || 0) - amount);
+  client.unpaid = (client.unpaid || 0) - amount;
   client.updatedAt = Date.now();
 
   closeModal('paymentModal');
