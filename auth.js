@@ -1,0 +1,81 @@
+// === AUTHENTIFICATION LOGIC ===
+
+/**
+ * Retourne le rôle de l'utilisateur connecté
+ * @returns {string} 'admin' | 'employee' | 'client' | 'none'
+ */
+window.getUserRole = function() {
+  const user = auth ? auth.currentUser : null;
+  const sess = (window.appState && window.appState.session) ? window.appState.session : null;
+  
+  if (user && user.email === 'hichem@sponsor.com') return 'admin'; // Hardcoded admin for now or check custom claims
+  if (user) return 'admin'; // Default for Firebase Auth users in this app
+  if (sess && sess.type === 'employee') return 'employee';
+  if (sess && sess.type === 'client') return 'client';
+  
+  return 'none';
+};
+
+window.updateAuthUI = function(user) {
+  const appContainer   = document.getElementById('appContainer');
+  const loginContainer = document.getElementById('loginContainer');
+  const clientSpace    = document.getElementById('clientSpaceContainer');
+
+  const sess = (window.appState && window.appState.session) ? window.appState.session : null;
+  
+  if (user || (sess && sess.type === 'employee') || window.authTransitionFlag) {
+    if (appContainer)   appContainer.style.display = 'block';
+    if (loginContainer) loginContainer.style.display = 'none';
+    if (clientSpace)    clientSpace.style.display = 'none';
+  } else if (sess && sess.type === 'client') {
+    if (appContainer)   appContainer.style.display = 'none';
+    if (loginContainer) loginContainer.style.display = 'none';
+    if (clientSpace)    clientSpace.style.display = 'block';
+  } else {
+    if (appContainer)   appContainer.style.display = 'none';
+    if (loginContainer) loginContainer.style.display = 'flex';
+    if (clientSpace)    clientSpace.style.display = 'none';
+  }
+};
+
+window.loginWithEmailPassword = async function(email, password) {
+  try {
+    window.authTransitionFlag = true;
+    await auth.signInWithEmailAndPassword(email, password);
+    showToast('Connexion réussie', 'success');
+    updateAuthUI(auth.currentUser);
+    if (typeof loadFromCloud === 'function') await loadFromCloud();
+    if (typeof renderTables === 'function') renderTables();
+  } catch (error) {
+    console.error('Erreur de connexion:', error);
+    showToast(firebaseErrorMessage(error), 'error');
+  } finally {
+    setTimeout(() => { window.authTransitionFlag = false; }, 5000);
+  }
+};
+
+window.logout = async function() {
+  try {
+    if (auth) await auth.signOut();
+    if (appState) appState.session = null;
+    saveToLocalStorage();
+    showToast('Déconnexion réussie', 'success');
+    window.location.reload();
+  } catch (error) {
+    console.error('Erreur de déconnexion:', error);
+  }
+};
+
+function firebaseErrorMessage(err) {
+  const code = err?.code || '';
+  switch (code) {
+    case 'auth/invalid-email': return 'L\'adresse email est invalide.';
+    case 'auth/user-not-found': return 'Aucun compte trouvé avec cet email.';
+    case 'auth/wrong-password': return 'Le mot de passe est incorrect.';
+    case 'auth/network-request-failed': return 'Problème de connexion internet.';
+    case 'auth/too-many-requests': return 'Trop de tentatives. Réessayez plus tard.';
+    case 'auth/email-already-in-use': return 'Cet email est déjà utilisé.';
+    case 'auth/weak-password': return 'Le mot de passe est trop faible.';
+    default: return 'Erreur de connexion : ' + (err.message || 'Inconnue');
+  }
+}
