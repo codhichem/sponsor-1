@@ -481,6 +481,7 @@
             <div>
               <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Hichem Sponsor</h1>
               <p class="text-sm md:text-lg text-gray-600 dark:text-gray-400 mt-1">Gestion clients • Offres • Transactions • Paiements • Achats USD</p>
+              <p id="globalLastUpdated" class="text-xs text-gray-500 dark:text-gray-400 mt-1">Dernière mise à jour: —</p>
             </div>
           </div>
         </div>
@@ -503,6 +504,7 @@
         <button onclick="showTab('history')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Historique</button>
         <button onclick="showTab('todo')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Nouvelle To-Do</button>
         <button onclick="showTab('offers')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Offres</button>
+        <button onclick="showTab('expenses')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Frais</button>
         <button onclick="showTab('paiements')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Paiements</button>
         <button onclick="showTab('achats')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Achats USD</button>
         <button onclick="showTab('reminders')" class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Dettes/Relances</button>
@@ -568,6 +570,70 @@
         <div class="flex justify-end gap-3">
           <button onclick="closeModal('offerModal')" class="px-6 py-2 text-gray-600 hover:bg-gray-100 rounded-xl font-bold">Annuler</button>
           <button onclick="addOffer()" class="px-6 py-2 bg-purple-600 text-white rounded-xl font-bold shadow-lg hover:bg-purple-700 transition-all">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPENSE MODAL -->
+    <div id="expenseModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
+            <i class="fas fa-receipt text-rose-600"></i> Nouveau Frais
+          </h3>
+          <button onclick="closeModal('expenseModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="space-y-4 mb-6">
+          <input id="expenseDate" type="date" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="expenseCategory" type="text" placeholder="Catégorie (ex: Internet, Loyer...)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <select id="expenseAccount" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+            <option value="liquide">Liquide</option>
+            <option value="baridimob">BaridiMob</option>
+            <option value="usdt">USDT</option>
+          </select>
+          <input id="expenseAmount" type="number" placeholder="Montant (DZD)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <textarea id="expenseNote" placeholder="Note (optionnel)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-rose-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white" rows="2"></textarea>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button onclick="closeModal('expenseModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
+          <button onclick="addExpense()" class="px-6 py-2 bg-rose-600 text-white rounded-xl font-bold shadow-lg hover:bg-rose-700 transition-all">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="balancesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+      <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-3xl w-full max-w-md shadow-2xl fade-in border dark:border-gray-700">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
+            <i class="fas fa-sliders-h text-gray-600"></i> Ajuster les soldes
+          </h3>
+          <button onclick="closeModal('balancesModal')" class="text-gray-400 hover:text-gray-600">
+            <i class="fas fa-times text-xl"></i>
+          </button>
+        </div>
+        <div class="space-y-4 mb-6">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Tu modifies l'affichage des soldes via un ajustement manuel (théorique + ajustement).</div>
+          <div>
+            <label class="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Liquide (DZD)</label>
+            <input id="balanceLiquideDesired" type="number" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+            <div id="balanceLiquideTheo" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">BaridiMob (DZD)</label>
+            <input id="balanceBaridiDesired" type="number" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+            <div id="balanceBaridiTheo" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Stock USDT</label>
+            <input id="balanceUsdtDesired" type="number" step="0.01" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-gray-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+            <div id="balanceUsdtTheo" class="text-xs text-gray-500 dark:text-gray-400 mt-1"></div>
+          </div>
+        </div>
+        <div class="flex justify-end gap-3">
+          <button onclick="closeModal('balancesModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
+          <button onclick="saveBalancesAdjustments()" class="px-6 py-2 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-black transition-all">Enregistrer</button>
         </div>
       </div>
     </div>
@@ -645,6 +711,7 @@
             <option value="tiktok">TikTok Ads</option>
           </select>
           <input id="accBalance" type="number" step="0.01" placeholder="Solde Initial ($)" class="w-full p-4 border dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <div class="text-xs text-gray-500 dark:text-gray-400">Solde initial = le solde de départ du compte (avant recharges et dépenses).</div>
         </div>
         <div class="flex justify-end gap-3">
           <button onclick="closeModal('adAccountModal')" class="px-6 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl font-bold">Annuler</button>
