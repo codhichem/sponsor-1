@@ -40,6 +40,7 @@ window.renderCurrentTab = function() {
     case 'history': renderTransactionsTable(container); break;
     case 'todo': renderNewTodoForm(container); break;
     case 'offers': renderOffersGrid(container); break;
+    case 'expenses': renderExpensesTab(container); break;
     case 'paiements': renderPaymentsTable(container); break;
     case 'achats': renderUsdPurchasesTable(container); break;
     case 'reminders': renderRemindersTable(container); break;
@@ -49,6 +50,76 @@ window.renderCurrentTab = function() {
   }
 };
 
+function getUiState() {
+  if (!appState.ui) appState.ui = {};
+  if (!appState.ui.pages) appState.ui.pages = {};
+  if (!appState.ui.filters) appState.ui.filters = {};
+  return appState.ui;
+}
+
+function clampPage(page, totalPages) {
+  const p = Number(page) || 1;
+  const max = Math.max(1, totalPages || 1);
+  return Math.min(Math.max(1, p), max);
+}
+
+function toTs(item) {
+  if (!item) return 0;
+  if (item.updatedAt) return Number(item.updatedAt) || 0;
+  if (item.createdAt) return Number(item.createdAt) || 0;
+  if (item.date) {
+    const t = Date.parse(item.date);
+    return Number.isFinite(t) ? t : 0;
+  }
+  return 0;
+}
+
+function getLastUpdatedLabel(items) {
+  const ts = Math.max(0, ...(items || []).map(toTs));
+  if (!ts) return '—';
+  return new Date(ts).toLocaleString('fr-FR');
+}
+
+function pageRange(current, total) {
+  const t = Math.max(1, total || 1);
+  const c = clampPage(current, t);
+  const out = [];
+  const push = (x) => out.push(x);
+  if (t <= 7) {
+    for (let i = 1; i <= t; i++) push(i);
+    return out;
+  }
+  push(1);
+  if (c > 4) push('…');
+  const start = Math.max(2, c - 1);
+  const end = Math.min(t - 1, c + 1);
+  for (let i = start; i <= end; i++) push(i);
+  if (c < t - 3) push('…');
+  push(t);
+  return out;
+}
+
+function renderPagination(key, page, totalItems, pageSize) {
+  const totalPages = Math.max(1, Math.ceil((totalItems || 0) / pageSize));
+  const current = clampPage(page, totalPages);
+  const pages = pageRange(current, totalPages);
+  const prevDisabled = current <= 1;
+  const nextDisabled = current >= totalPages;
+  return `
+    <div class="flex flex-wrap items-center justify-between gap-3 mt-4">
+      <div class="text-xs text-gray-500">Page ${current} / ${totalPages} • ${totalItems} éléments</div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button ${prevDisabled ? 'disabled' : ''} onclick="setListPage('${key}', ${current - 1})" class="px-3 py-2 rounded-xl border text-xs font-bold ${prevDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}">Précédent</button>
+        ${pages.map(p => p === '…'
+          ? `<span class="px-2 text-gray-400">…</span>`
+          : `<button onclick="setListPage('${key}', ${p})" class="w-9 h-9 rounded-xl border text-xs font-black ${p === current ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-gray-50'}">${p}</button>`
+        ).join('')}
+        <button ${nextDisabled ? 'disabled' : ''} onclick="setListPage('${key}', ${current + 1})" class="px-3 py-2 rounded-xl border text-xs font-bold ${nextDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}">Suivant</button>
+      </div>
+    </div>
+  `;
+}
+
 /**
  * Rend le Dashboard (Stats, etc.)
  */
@@ -57,9 +128,137 @@ window.renderDashboard = function(container) {
   const b = appState.balances || { liquide: 0, baridimob: 0, usdt: 0 };
   const role = getUserRole();
   const isAdmin = role === 'admin';
+  const ui = getUiState();
+  const defaultRanges = (typeof getDefaultProfitRanges === 'function') ? getDefaultProfitRanges() : null;
+  const selFrom = (ui.profitRange && ui.profitRange.from) ? ui.profitRange.from : (defaultRanges ? defaultRanges.month.from : '');
+  const selTo = (ui.profitRange && ui.profitRange.to) ? ui.profitRange.to : (defaultRanges ? defaultRanges.month.to : '');
+  const sum = (from, to) => (typeof getProfitSummaryYmd === 'function') ? getProfitSummaryYmd(from, to) : null;
+  const pToday = defaultRanges ? sum(defaultRanges.today.from, defaultRanges.today.to) : null;
+  const pYesterday = defaultRanges ? sum(defaultRanges.yesterday.from, defaultRanges.yesterday.to) : null;
+  const pWeek = defaultRanges ? sum(defaultRanges.week.from, defaultRanges.week.to) : null;
+  const pMonth = defaultRanges ? sum(defaultRanges.month.from, defaultRanges.month.to) : null;
+  const pCustom = (selFrom && selTo) ? sum(selFrom, selTo) : null;
+
+  const employees = appState.employees || [];
+  const txs = appState.transactions || [];
+
+  const parseYmdLocal = (ymd) => {
+    if (!ymd || typeof ymd !== 'string') return null;
+    const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    if (Number.isNaN(d.getTime())) return null;
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const inRange = (ymd, from, to) => {
+    const d = parseYmdLocal(ymd);
+    const a = parseYmdLocal(from);
+    const b = parseYmdLocal(to);
+    if (!d || !a || !b) return false;
+    const start = a.getTime() <= b.getTime() ? a : b;
+    const end = a.getTime() <= b.getTime() ? b : a;
+    return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+  };
+
+  const employeeRows = (from, to) => {
+    const counts = {};
+    txs.forEach(t => {
+      if (!t || !t.date) return;
+      if (!inRange(t.date, from, to)) return;
+      const id = t.employeeId || 'unassigned';
+      counts[id] = (counts[id] || 0) + 1;
+    });
+    const rows = [];
+    employees.forEach(e => {
+      rows.push({ id: e.id, name: e.name, count: counts[e.id] || 0 });
+    });
+    if (counts.unassigned) rows.push({ id: 'unassigned', name: 'Non attribué', count: counts.unassigned || 0 });
+    rows.sort((a, b) => b.count - a.count);
+    return rows;
+  };
+
+  const employeeCountsMap = (from, to) => {
+    const m = {};
+    txs.forEach(t => {
+      if (!t || !t.date) return;
+      if (!inRange(t.date, from, to)) return;
+      const id = t.employeeId || 'unassigned';
+      m[id] = (m[id] || 0) + 1;
+    });
+    return m;
+  };
+
+  const employeeStatsHtml = (() => {
+    if (!defaultRanges) return '<div class="text-sm text-gray-400 italic">Stats indisponibles.</div>';
+    if (!pCustom) return '<div class="text-sm text-gray-400 italic">Choisis un intervalle ci-dessus.</div>';
+
+    const mToday = employeeCountsMap(defaultRanges.today.from, defaultRanges.today.to);
+    const mYesterday = employeeCountsMap(defaultRanges.yesterday.from, defaultRanges.yesterday.to);
+    const mWeek = employeeCountsMap(defaultRanges.week.from, defaultRanges.week.to);
+    const mMonth = employeeCountsMap(defaultRanges.month.from, defaultRanges.month.to);
+    const mRange = employeeCountsMap(pCustom.fromYmd, pCustom.toYmd);
+
+    const ids = new Set();
+    employees.forEach(e => ids.add(e.id));
+    Object.keys(mToday).forEach(k => ids.add(k));
+    Object.keys(mYesterday).forEach(k => ids.add(k));
+    Object.keys(mWeek).forEach(k => ids.add(k));
+    Object.keys(mMonth).forEach(k => ids.add(k));
+    Object.keys(mRange).forEach(k => ids.add(k));
+
+    const rows = Array.from(ids).map(id => {
+      const emp = employees.find(e => e.id === id);
+      return {
+        id,
+        name: emp ? emp.name : (id === 'unassigned' ? 'Non attribué' : id),
+        today: mToday[id] || 0,
+        yesterday: mYesterday[id] || 0,
+        week: mWeek[id] || 0,
+        month: mMonth[id] || 0,
+        range: mRange[id] || 0
+      };
+    }).sort((a, b) => (b.range - a.range) || (b.week - a.week) || a.name.localeCompare(b.name));
+
+    return `
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-black uppercase border-b dark:border-gray-700">
+              <th class="p-3">Employé</th>
+              <th class="p-3 text-right">Aujourd'hui</th>
+              <th class="p-3 text-right">Hier</th>
+              <th class="p-3 text-right">Semaine</th>
+              <th class="p-3 text-right">Mois</th>
+              <th class="p-3 text-right">Intervalle</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y dark:divide-gray-700">
+            ${rows.map(r => `
+              <tr class="hover:bg-white dark:hover:bg-gray-800/60">
+                <td class="p-3 font-bold text-gray-800 dark:text-gray-200">${r.name}</td>
+                <td class="p-3 text-right font-black text-indigo-600">${r.today}</td>
+                <td class="p-3 text-right font-black text-indigo-600">${r.yesterday}</td>
+                <td class="p-3 text-right font-black text-indigo-600">${r.week}</td>
+                <td class="p-3 text-right font-black text-indigo-600">${r.month}</td>
+                <td class="p-3 text-right font-black text-green-600">${r.range}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  })();
   
   container.innerHTML = `
     ${isAdmin ? `
+    <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-4">
+      <div class="text-sm text-gray-500 dark:text-gray-400 font-bold">Soldes</div>
+      <button onclick="openModal('balancesModal')" class="px-4 py-2 rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-black hover:bg-gray-50 dark:hover:bg-gray-700">
+        Ajuster
+      </button>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
       <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border-l-8 border-green-500 fade-in dark:border-gray-700">
         <div class="flex items-center gap-4">
@@ -93,6 +292,57 @@ window.renderDashboard = function(container) {
             <p class="text-3xl font-black text-gray-800 dark:text-white">${safeToFixed(b.usdt)} <span class="text-sm font-bold text-purple-400">USDT</span></p>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 mb-8">
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h3 class="text-xl font-bold flex items-center gap-2 dark:text-white">
+            <i class="fas fa-chart-pie text-indigo-500"></i> Profit
+          </h3>
+          <div class="text-xs text-gray-500 dark:text-gray-400">Basé sur ventes - coût (taux achat) - frais</div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input id="profitFrom" type="date" value="${selFrom}" class="w-full md:w-44 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="profitTo" type="date" value="${selTo}" class="w-full md:w-44 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <button onclick="applyProfitRange()" class="px-4 py-3 rounded-xl bg-indigo-600 text-white font-black">Appliquer</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
+          <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Aujourd'hui</div>
+          <div class="text-2xl font-black ${pToday && pToday.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pToday ? formatCurrency(pToday.netProfit) : '—'}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pToday ? `${pToday.txCount} tx • CA ${formatCurrency(pToday.revenue)}` : ''}</div>
+        </div>
+        <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
+          <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Hier</div>
+          <div class="text-2xl font-black ${pYesterday && pYesterday.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pYesterday ? formatCurrency(pYesterday.netProfit) : '—'}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pYesterday ? `${pYesterday.txCount} tx • CA ${formatCurrency(pYesterday.revenue)}` : ''}</div>
+        </div>
+        <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
+          <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Semaine</div>
+          <div class="text-2xl font-black ${pWeek && pWeek.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pWeek ? formatCurrency(pWeek.netProfit) : '—'}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pWeek ? `${pWeek.txCount} tx • CA ${formatCurrency(pWeek.revenue)}` : ''}</div>
+        </div>
+        <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
+          <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Mois</div>
+          <div class="text-2xl font-black ${pMonth && pMonth.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pMonth ? formatCurrency(pMonth.netProfit) : '—'}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pMonth ? `${pMonth.txCount} tx • CA ${formatCurrency(pMonth.revenue)}` : ''}</div>
+        </div>
+      </div>
+
+      <div class="mt-6 p-5 rounded-2xl bg-white dark:bg-gray-800 border dark:border-gray-700">
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-3">
+          <div class="font-black text-gray-800 dark:text-gray-200">Intervalle</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pCustom ? `Profit net: ${formatCurrency(pCustom.netProfit)} • CA: ${formatCurrency(pCustom.revenue)} • Frais: ${formatCurrency(pCustom.expenses)}` : 'Sélectionne une période'}</div>
+        </div>
+      </div>
+
+      <div class="mt-6 p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
+        <div class="font-black text-gray-800 dark:text-gray-200 mb-3">Performance employés</div>
+        ${employeeStatsHtml}
       </div>
     </div>
     ` : `
@@ -149,17 +399,30 @@ window.renderDashboard = function(container) {
  * Rend le tableau des clients
  */
 window.renderClientsTable = function(container) {
-  const clients = appState.clients || [];
+  const ui = getUiState();
+  const key = 'clients';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.clients || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(c => `${c.name || ''} ${c.phone || ''} ${c.contact || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border dark:border-gray-700 fade-in">
       <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Base de Données Clients</h2>
-          <p class="text-gray-500 dark:text-gray-400 text-sm">${clients.length} clients enregistrés</p>
+          <p class="text-gray-500 dark:text-gray-400 text-sm">${filtered.length} clients • Dernière mise à jour: ${lastUpdated}</p>
         </div>
         <div class="flex gap-2 w-full md:w-auto">
-          <input type="text" id="clientSearch" oninput="filterClients()" placeholder="Rechercher un client..." class="flex-grow md:w-64 p-3 border dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher un client..." class="flex-grow md:w-64 p-3 border dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
           <button onclick="openModal('clientModal')" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
             <i class="fas fa-plus"></i> Nouveau
           </button>
@@ -176,8 +439,8 @@ window.renderClientsTable = function(container) {
               <th class="p-4 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody id="clientsTableBody" class="divide-y dark:divide-gray-700 text-sm">
-            ${clients.map(c => `
+          <tbody class="divide-y dark:divide-gray-700 text-sm">
+            ${pageItems.map(c => `
               <tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
                 <td class="p-4">
                   <div class="font-bold text-gray-800 dark:text-gray-200">${c.name}</div>
@@ -210,6 +473,7 @@ window.renderClientsTable = function(container) {
           </tbody>
         </table>
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -218,15 +482,34 @@ window.renderClientsTable = function(container) {
  * Rend l'historique complet des transactions
  */
 window.renderTransactionsTable = function(container) {
-  const txs = [...(appState.transactions || [])].sort((a, b) => b.createdAt - a.createdAt);
+  const ui = getUiState();
+  const key = 'transactions';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.transactions || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(t => `${t.clientName || ''} ${t.offerName || ''} ${t.status || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white rounded-3xl shadow-xl p-6 border fade-in">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Historique des Transactions</h2>
-        <button onclick="exportTransactions()" class="text-blue-600 font-bold flex items-center gap-2">
-           <i class="fas fa-file-csv"></i> Export CSV
-        </button>
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">Historique des Transactions</h2>
+          <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/offre/statut..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <button onclick="exportTransactions()" class="text-blue-600 font-bold flex items-center gap-2 justify-center px-4 py-3 rounded-xl border">
+            <i class="fas fa-file-csv"></i> Export CSV
+          </button>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
@@ -242,7 +525,7 @@ window.renderTransactionsTable = function(container) {
             </tr>
           </thead>
           <tbody class="divide-y">
-            ${txs.map(t => `
+            ${pageItems.map(t => `
               <tr class="hover:bg-gray-50">
                 <td class="p-4 text-gray-500">${formatDate(t.date)}</td>
                 <td class="p-4 font-bold">${t.clientName}</td>
@@ -256,6 +539,7 @@ window.renderTransactionsTable = function(container) {
                 </td>
                 <td class="p-4 text-center">
                    <div class="flex justify-center gap-2">
+                      <button onclick="generateInvoicePdf('${t.id}')" class="text-red-600"><i class="fas fa-file-invoice"></i></button>
                       <button onclick="editTransaction('${t.id}')" class="text-blue-600"><i class="fas fa-edit"></i></button>
                       <button onclick="deleteTransaction('${t.id}')" class="text-red-400"><i class="fas fa-trash-alt"></i></button>
                    </div>
@@ -265,6 +549,7 @@ window.renderTransactionsTable = function(container) {
           </tbody>
         </table>
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -273,15 +558,34 @@ window.renderTransactionsTable = function(container) {
  * Rend le tableau des paiements
  */
 window.renderPaymentsTable = function(container) {
-  const payments = [...(appState.payments || [])].sort((a, b) => b.createdAt - a.createdAt);
+  const ui = getUiState();
+  const key = 'payments';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.payments || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(p => `${p.clientName || ''} ${p.method || ''} ${p.note || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white rounded-3xl shadow-xl p-6 border fade-in">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Historique des Paiements</h2>
-        <button onclick="openModal('paymentModal')" class="bg-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
-          <i class="fas fa-plus mr-2"></i> Nouveau Paiement
-        </button>
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">Historique des Paiements</h2>
+          <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/méthode/note..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <button onclick="openModal('paymentModal')" class="bg-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
+            <i class="fas fa-plus mr-2"></i> Nouveau Paiement
+          </button>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
@@ -296,7 +600,7 @@ window.renderPaymentsTable = function(container) {
             </tr>
           </thead>
           <tbody class="divide-y">
-            ${payments.map(p => `
+            ${pageItems.map(p => `
               <tr class="hover:bg-gray-50">
                 <td class="p-4 text-gray-500">${formatDate(p.date)}</td>
                 <td class="p-4 font-bold">${p.clientName}</td>
@@ -311,6 +615,7 @@ window.renderPaymentsTable = function(container) {
           </tbody>
         </table>
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -319,15 +624,34 @@ window.renderPaymentsTable = function(container) {
  * Rend le tableau des achats USD
  */
 window.renderUsdPurchasesTable = function(container) {
-  const purchases = [...(appState.usdPurchases || [])].sort((a, b) => b.createdAt - a.createdAt);
+  const ui = getUiState();
+  const key = 'usdPurchases';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.usdPurchases || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(p => `${p.source || ''} ${p.rate || ''} ${p.amount || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white rounded-3xl shadow-xl p-6 border fade-in">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Stock USD / Achats</h2>
-        <button onclick="openModal('usdPurchaseModal')" class="bg-teal-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
-          <i class="fas fa-plus mr-2"></i> Nouvel Achat
-        </button>
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">Stock USD / Achats</h2>
+          <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher source/taux/montant..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <button onclick="openModal('usdPurchaseModal')" class="bg-teal-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
+            <i class="fas fa-plus mr-2"></i> Nouvel Achat
+          </button>
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
@@ -342,7 +666,7 @@ window.renderUsdPurchasesTable = function(container) {
             </tr>
           </thead>
           <tbody class="divide-y">
-            ${purchases.map(p => `
+            ${pageItems.map(p => `
               <tr class="hover:bg-gray-50">
                 <td class="p-4 text-gray-500">${formatDate(p.date)}</td>
                 <td class="p-4 font-black text-teal-600">${safeToFixed(p.amount, 2)} $</td>
@@ -357,6 +681,7 @@ window.renderUsdPurchasesTable = function(container) {
           </tbody>
         </table>
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -365,13 +690,32 @@ window.renderUsdPurchasesTable = function(container) {
  * Rend les demandes clients
  */
 window.renderRequests = function(container) {
-  const reqs = [...(appState.clientRequests || [])].sort((a, b) => b.createdAt - a.createdAt);
+  const ui = getUiState();
+  const key = 'clientRequests';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.clientRequests || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(r => `${r.instagram || ''} ${r.pageFacebook || ''} ${r.offer || ''} ${r.platform || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white rounded-3xl shadow-xl p-6 border fade-in">
-      <h2 class="text-2xl font-bold text-gray-800 mb-6">Demandes Clients (${reqs.length})</h2>
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">Demandes Clients (${filtered.length})</h2>
+          <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
+        </div>
+        <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom/offre/plateforme..." class="w-full md:w-80 p-3 border rounded-xl outline-none bg-gray-50">
+      </div>
       <div class="grid grid-cols-1 gap-4">
-        ${reqs.map(r => `
+        ${pageItems.map(r => `
           <div class="p-4 border rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 ${r.read ? 'bg-gray-50' : 'bg-blue-50 border-blue-200'}">
             <div class="flex items-center gap-4 w-full">
               <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
@@ -389,8 +733,9 @@ window.renderRequests = function(container) {
             </div>
           </div>
         `).join('')}
-        ${reqs.length === 0 ? '<p class="text-center text-gray-400 py-8 italic">Aucune demande pour le moment.</p>' : ''}
+        ${filtered.length === 0 ? '<p class="text-center text-gray-400 py-8 italic">Aucune demande pour le moment.</p>' : ''}
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -399,6 +744,7 @@ window.renderRequests = function(container) {
  * Rend les paramètres admin
  */
 window.renderSettingsAdmin = function(container) {
+  const employees = appState.employees || [];
   container.innerHTML = `
     <div class="bg-white rounded-3xl shadow-xl p-8 border fade-in max-w-4xl mx-auto">
       <h2 class="text-2xl font-bold mb-8 text-gray-800 flex items-center gap-3">
@@ -433,6 +779,48 @@ window.renderSettingsAdmin = function(container) {
           </div>
         </div>
       </div>
+
+      <div class="mt-10">
+        <h3 class="font-bold text-lg text-gray-700 border-b pb-2 mb-6">Employés</h3>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="p-5 bg-gray-50 rounded-2xl border">
+            <div class="font-black text-gray-800 mb-4">Ajouter un employé</div>
+            <div class="space-y-3">
+              <input id="employeeName" type="text" placeholder="Nom" class="w-full p-3 border rounded-xl bg-white">
+              <input id="employeeLogin" type="text" placeholder="Login (ex: email)" class="w-full p-3 border rounded-xl bg-white">
+              <input id="employeePassword" type="password" placeholder="Mot de passe" class="w-full p-3 border rounded-xl bg-white">
+              <label class="flex items-center gap-2 text-sm text-gray-700 font-bold">
+                <input id="employeeActive" type="checkbox" checked>
+                Compte actif
+              </label>
+              <button onclick="addEmployee()" class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl">Ajouter</button>
+              <div class="text-xs text-gray-500">Utilise “Connexion Employé” sur l’écran de login avec ce login/mot de passe.</div>
+            </div>
+          </div>
+
+          <div class="p-5 bg-white rounded-2xl border">
+            <div class="font-black text-gray-800 mb-4">Liste des employés (${employees.length})</div>
+            <div class="space-y-3">
+              ${employees.map(e => `
+                <div class="p-4 border rounded-2xl flex items-center justify-between gap-3">
+                  <div>
+                    <div class="font-bold text-gray-800">${e.name}</div>
+                    <div class="text-xs text-gray-500">${e.login}</div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button onclick="toggleEmployeeActive('${e.id}')" class="px-3 py-2 rounded-xl text-xs font-black ${e.active === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">
+                      ${e.active === false ? 'INACTIF' : 'ACTIF'}
+                    </button>
+                    <button onclick="deleteEmployee('${e.id}')" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-black hover:bg-gray-200">Supprimer</button>
+                  </div>
+                </div>
+              `).join('')}
+              ${employees.length === 0 ? '<div class="text-sm text-gray-400 italic">Aucun employé pour le moment.</div>' : ''}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 };
@@ -441,18 +829,37 @@ window.renderSettingsAdmin = function(container) {
  * Rend la grille des offres (Admin)
  */
 window.renderOffersGrid = function(container) {
-  const offers = appState.offers || [];
+  const ui = getUiState();
+  const key = 'offers';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.offers || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(o => `${o.name || ''} ${o.description || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white rounded-3xl shadow-xl p-6 border fade-in">
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Gestion des Offres</h2>
-        <button onclick="openModal('offerModal')" class="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
-          <i class="fas fa-plus mr-2"></i> Nouvelle Offre
-        </button>
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800">Gestion des Offres</h2>
+          <div class="text-xs text-gray-500">${filtered.length} offres • Dernière mise à jour: ${lastUpdated}</div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher une offre..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <button onclick="openModal('offerModal')" class="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
+            <i class="fas fa-plus mr-2"></i> Nouvelle Offre
+          </button>
+        </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        ${offers.map(o => `
+        ${pageItems.map(o => `
           <div class="p-6 border rounded-3xl bg-gray-50 hover:shadow-lg transition-all relative group">
             <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                <button onclick="editOffer('${o.id}')" class="text-blue-600"><i class="fas fa-edit"></i></button>
@@ -472,8 +879,185 @@ window.renderOffersGrid = function(container) {
             </div>
           </div>
         `).join('')}
-        ${offers.length === 0 ? '<p class="col-span-full text-center text-gray-400 py-12 italic">Aucune offre définie.</p>' : ''}
+        ${filtered.length === 0 ? '<p class="col-span-full text-center text-gray-400 py-12 italic">Aucune offre définie.</p>' : ''}
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
+    </div>
+  `;
+};
+
+window.renderExpensesTab = function(container) {
+  const ui = getUiState();
+  const key = 'expenses';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.expenses || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(e => `${e.category || ''} ${e.note || ''} ${e.account || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
+
+  const now = new Date();
+  const month = now.getMonth();
+  const year = now.getFullYear();
+  const monthTotal = (appState.expenses || []).reduce((sum, e) => {
+    const d = e?.date ? new Date(e.date) : null;
+    if (!d || Number.isNaN(d.getTime())) return sum;
+    if (d.getMonth() !== month || d.getFullYear() !== year) return sum;
+    return sum + Number(e.amount || 0);
+  }, 0);
+
+  container.innerHTML = `
+    <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border dark:border-gray-700 fade-in">
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Frais / Dépenses</h2>
+          <div class="text-sm text-rose-600 font-black">Total du mois: ${formatCurrency(monthTotal)}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">Dernière mise à jour: ${lastUpdated}</div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher catégorie/note/compte..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <button onclick="openModal('expenseModal')" class="bg-rose-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
+            <i class="fas fa-plus mr-2"></i> Nouveau Frais
+          </button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-black uppercase border-b dark:border-gray-700">
+              <th class="p-4">Date</th>
+              <th class="p-4">Catégorie</th>
+              <th class="p-4">Compte</th>
+              <th class="p-4">Montant</th>
+              <th class="p-4">Note</th>
+              <th class="p-4 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y dark:divide-gray-700">
+            ${pageItems.map(e => `
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30">
+                <td class="p-4 text-gray-500 dark:text-gray-400">${formatDate(e.date)}</td>
+                <td class="p-4 font-bold text-gray-800 dark:text-gray-200">${e.category || '-'}</td>
+                <td class="p-4 text-gray-600 dark:text-gray-400">${(e.account || 'liquide').toUpperCase()}</td>
+                <td class="p-4 font-black text-rose-600">${formatCurrency(e.amount)}</td>
+                <td class="p-4 text-gray-500 dark:text-gray-400 text-xs max-w-xs truncate">${e.note || '-'}</td>
+                <td class="p-4 text-center">
+                  <button onclick="deleteExpense('${e.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
+                </td>
+              </tr>
+            `).join('')}
+            ${filtered.length === 0 ? '<tr><td colspan="6" class="p-8 text-center text-gray-400 italic">Aucun frais enregistré.</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
+    </div>
+  `;
+};
+
+window.renderTodoTable = function(container) {
+  const ui = getUiState();
+  const key = 'todoTable';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+
+  const todos = (appState.todoTransactions || [])
+    .filter(t => t && t.status === 'pending')
+    .map(t => ({ ...t, _type: 'todo' }));
+
+  const problems = (appState.transactions || [])
+    .filter(t => t && t.status === 'problem')
+    .map(t => ({ ...t, _type: 'problem' }));
+
+  const all = [...problems, ...todos].sort((a, b) => {
+    if (a._type !== b._type) return a._type === 'problem' ? -1 : 1;
+    return toTs(b) - toTs(a);
+  });
+
+  const filtered = query
+    ? all.filter(x => `${x.clientName || ''} ${x.offerName || ''} ${x.status || ''}`.toLowerCase().includes(query))
+    : all;
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
+
+  container.innerHTML = `
+    <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border dark:border-gray-700 fade-in">
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-white">To-Do List</h2>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${filtered.length} éléments • Dernière mise à jour: ${lastUpdated}</div>
+        </div>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/offre..." class="w-full md:w-72 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <button onclick="showTab('todo')" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black">Nouvelle</button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-black uppercase border-b dark:border-gray-700">
+              <th class="p-4">Type</th>
+              <th class="p-4">Date</th>
+              <th class="p-4">Client</th>
+              <th class="p-4">Offre</th>
+              <th class="p-4">USD</th>
+              <th class="p-4">Prix</th>
+              <th class="p-4">Payé</th>
+              <th class="p-4">Employé</th>
+              <th class="p-4 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y dark:divide-gray-700">
+            ${pageItems.map(t => `
+              <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30">
+                <td class="p-4">
+                  <span class="px-2 py-1 rounded-full text-[10px] font-black ${t._type === 'problem' ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'}">
+                    ${t._type === 'problem' ? 'PROBLÈME' : 'TODO'}
+                  </span>
+                </td>
+                <td class="p-4 text-gray-500 dark:text-gray-400">${formatDate(t.date)}</td>
+                <td class="p-4 font-bold text-gray-800 dark:text-gray-200">${t.clientName || '-'}</td>
+                <td class="p-4 text-gray-600 dark:text-gray-400">${t.offerName || '-'}</td>
+                <td class="p-4 font-mono">${safeToFixed(t.amount, 2)} $</td>
+                <td class="p-4 font-black text-indigo-600">${formatCurrency(t.priceDzd)}</td>
+                <td class="p-4">
+                  <span class="px-2 py-1 rounded-full text-[10px] font-black ${t.paid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+                    ${t.paid ? 'PAYÉ' : 'IMPAYÉ'}
+                  </span>
+                </td>
+                <td class="p-4 text-gray-600 dark:text-gray-400 text-xs">${t.employeeName || '-'}</td>
+                <td class="p-4 text-center">
+                  ${t._type === 'problem' ? `
+                    <button onclick="resolveProblem('${t.id}')" class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-black">Résoudre</button>
+                  ` : `
+                    <div class="flex flex-wrap gap-2 justify-center">
+                      <button onclick="validateTodoTransaction('${t.id}', 'done')" class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-black">Valider</button>
+                      <button onclick="validateTodoTransaction('${t.id}', 'problem')" class="px-3 py-2 rounded-xl bg-red-600 text-white text-xs font-black">Problème</button>
+                      <button onclick="toggleTodoPayment('${t.id}')" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-black">Payé</button>
+                      <button onclick="deleteTodoTransaction('${t.id}')" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-black">Suppr</button>
+                    </div>
+                  `}
+                </td>
+              </tr>
+            `).join('')}
+            ${filtered.length === 0 ? '<tr><td colspan="9" class="p-8 text-center text-gray-400 italic">Aucune tâche.</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -489,9 +1073,9 @@ window.renderTodoPreview = function() {
   const problems = (appState.transactions || []).filter(t => t.status === 'problem');
   
   const allPreview = [
-      ...problems.map(t => ({ ...t, isProblem: true })),
-      ...normalTodos.map(t => ({ ...t, isProblem: false }))
-  ].slice(0, 5);
+    ...problems.map(t => ({ ...t, isProblem: true })),
+    ...normalTodos.map(t => ({ ...t, isProblem: false }))
+  ].sort((a, b) => toTs(b) - toTs(a)).slice(0, 5);
 
   if (allPreview.length === 0) {
     preview.innerHTML = '<p class="text-gray-400 italic text-center py-4">Tout est à jour !</p>';
@@ -587,7 +1171,7 @@ window.renderNewTodoForm = function(container) {
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">Prix (DZD)</label>
             <input type="number" id="todoPrice" required class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
-            <div class="text-xs text-gray-500 mt-2">Prix DZD = le prix facturé au client (en dinar).</div>
+            <div class="text-xs text-gray-500 mt-2">Automatique si l'offre existe, manuel si offre personnalisée.</div>
           </div>
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">Statut Paiement</label>
@@ -598,6 +1182,13 @@ window.renderNewTodoForm = function(container) {
               </label>
             </div>
           </div>
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-2">Action</label>
+          <select id="todoActionMode" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
+            <option value="todo" selected>Ajouter à la To-Do List</option>
+            <option value="direct">Sponsor direct (valider maintenant)</option>
+          </select>
         </div>
         <div id="todoCustomOfferFields" class="hidden p-5 border rounded-2xl bg-gray-50 space-y-4">
           <div class="text-sm font-black text-gray-800">Offre personnalisée</div>
@@ -617,7 +1208,7 @@ window.renderNewTodoForm = function(container) {
           </div>
         </div>
         <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-black rounded-2xl shadow-lg hover:shadow-indigo-200 transition-all flex items-center justify-center gap-3">
-          <i class="fas fa-save"></i> ENREGISTRER DANS LA TO-DO
+          <i class="fas fa-save"></i> ENREGISTRER
         </button>
       </form>
     </div>
@@ -632,17 +1223,33 @@ window.renderNewTodoForm = function(container) {
  * Rend le tableau des relances (dettes)
  */
 window.renderRemindersTable = function(container) {
-  const clientsWithDebt = (appState.clients || []).filter(c => (c.unpaid || 0) > 0);
+  const ui = getUiState();
+  const key = 'reminders';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = (appState.clients || [])
+    .filter(c => (Number(c.unpaid || 0) > 0))
+    .sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query ? all.filter(c => (c.name || '').toLowerCase().includes(query)) : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border dark:border-gray-700 fade-in">
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Gestion des Dettes & Relances</h2>
-        <p class="text-gray-500 dark:text-gray-400 text-sm">${clientsWithDebt.length} clients ont des impayés</p>
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Gestion des Dettes & Relances</h2>
+          <p class="text-gray-500 dark:text-gray-400 text-sm">${filtered.length} clients ont des impayés • Dernière mise à jour: ${lastUpdated}</p>
+        </div>
+        <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
       </div>
       
       <div class="grid grid-cols-1 gap-4">
-        ${clientsWithDebt.map(c => `
+        ${pageItems.map(c => `
           <div class="p-5 border dark:border-gray-700 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 bg-red-50/30 dark:bg-red-900/10">
             <div class="flex items-center gap-4 w-full">
               <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
@@ -663,8 +1270,9 @@ window.renderRemindersTable = function(container) {
             </div>
           </div>
         `).join('')}
-        ${clientsWithDebt.length === 0 ? '<p class="text-center text-gray-400 py-12 italic">Aucune dette en cours. Félicitations !</p>' : ''}
+        ${filtered.length === 0 ? '<p class="text-center text-gray-400 py-12 italic">Aucune dette en cours. Félicitations !</p>' : ''}
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -673,22 +1281,38 @@ window.renderRemindersTable = function(container) {
  * Rend le tableau des comptes publicitaires
  */
 window.renderAdAccountsTable = function(container) {
-  const accounts = appState.adAccounts || [];
+  const ui = getUiState();
+  const key = 'adAccounts';
+  const pageSize = 15;
+  const query = (ui.filters[key] || '').trim().toLowerCase();
+  const all = [...(appState.adAccounts || [])].sort((a, b) => toTs(b) - toTs(a));
+  const filtered = query
+    ? all.filter(a => `${a.name || ''} ${a.platform || ''} ${a.status || ''}`.toLowerCase().includes(query))
+    : all;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const page = clampPage(ui.pages[key] || 1, totalPages);
+  ui.pages[key] = page;
+  const start = (page - 1) * pageSize;
+  const pageItems = filtered.slice(start, start + pageSize);
+  const lastUpdated = getLastUpdatedLabel(all);
   
   container.innerHTML = `
     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border dark:border-gray-700 fade-in">
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Comptes Publicitaires</h2>
-          <p class="text-gray-500 dark:text-gray-400 text-sm">Suivi des soldes et plateformes</p>
+          <p class="text-gray-500 dark:text-gray-400 text-sm">Suivi des soldes et plateformes • Dernière mise à jour: ${lastUpdated}</p>
         </div>
-        <button onclick="openModal('adAccountModal')" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
-          <i class="fas fa-plus"></i> Nouveau Compte
-        </button>
+        <div class="flex flex-col md:flex-row gap-2 md:items-center">
+          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom/plateforme..." class="w-full md:w-72 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <button onclick="openModal('adAccountModal')" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+            <i class="fas fa-plus"></i> Nouveau Compte
+          </button>
+        </div>
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        ${accounts.map(acc => `
+        ${pageItems.map(acc => `
           <div class="p-6 border dark:border-gray-700 rounded-3xl bg-gray-50 dark:bg-gray-900/50 hover:shadow-lg transition-all relative group">
             <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                <button onclick="editAdAccount('${acc.id}')" class="text-blue-600"><i class="fas fa-edit"></i></button>
@@ -714,8 +1338,9 @@ window.renderAdAccountsTable = function(container) {
             </button>
           </div>
         `).join('')}
-        ${accounts.length === 0 ? '<p class="col-span-full text-center text-gray-400 py-12 italic">Aucun compte configuré.</p>' : ''}
+        ${filtered.length === 0 ? '<p class="col-span-full text-center text-gray-400 py-12 italic">Aucun compte configuré.</p>' : ''}
       </div>
+      ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
 };
@@ -741,9 +1366,11 @@ window.renderMonthlyStatsChart = function() {
     const monthKey = d.toLocaleString('fr-FR', { month: 'short' });
     if (monthlyData[monthKey]) {
       monthlyData[monthKey].income += (t.priceDzd || 0);
-      // Estimation simple du profit (Prix Vente - Coût USD * Taux)
-      const costDzd = (t.amount || 0) * (appState.settings?.buyRate || 245);
-      monthlyData[monthKey].profit += ((t.priceDzd || 0) - costDzd);
+      const buyRate = typeof getBuyRate === 'function' ? getBuyRate() : 255;
+      const p = typeof calculateTransactionProfit === 'function'
+        ? calculateTransactionProfit(Number(t.amount || 0), Number(t.priceDzd || 0), buyRate)
+        : (Number(t.priceDzd || 0) - (Number(t.amount || 0) * buyRate));
+      monthlyData[monthKey].profit += p;
     }
   });
 
