@@ -85,3 +85,110 @@ window.calculateTransactionProfit = function(amount, priceDzd, buyRate) {
   const costDzd = amount * buyRate;
   return priceDzd - costDzd;
 };
+
+function parseYmd(ymd) {
+  if (!ymd || typeof ymd !== 'string') return null;
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function inRangeYmd(ymd, start, end) {
+  const d = parseYmd(ymd);
+  if (!d) return false;
+  return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+}
+
+function startOfWeek(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = (x.getDay() + 6) % 7;
+  x.setDate(x.getDate() - day);
+  return x;
+}
+
+function endOfWeek(d) {
+  const s = startOfWeek(d);
+  const e = new Date(s);
+  e.setDate(e.getDate() + 6);
+  return e;
+}
+
+function startOfMonth(d) {
+  const x = new Date(d.getFullYear(), d.getMonth(), 1);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfMonth(d) {
+  const x = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+window.getProfitSummaryYmd = function(fromYmd, toYmd) {
+  const from = parseYmd(fromYmd);
+  const to = parseYmd(toYmd);
+  if (!from || !to) return null;
+  const start = from.getTime() <= to.getTime() ? from : to;
+  const end = from.getTime() <= to.getTime() ? to : from;
+
+  const buyRate = typeof getBuyRate === 'function' ? getBuyRate() : 255;
+
+  let revenue = 0;
+  let cost = 0;
+  let txCount = 0;
+
+  (appState.transactions || []).forEach(t => {
+    if (!t || !t.date) return;
+    if (!inRangeYmd(t.date, start, end)) return;
+    const price = Number(t.priceDzd || 0);
+    const amt = Number(t.amount || 0);
+    revenue += Number.isFinite(price) ? price : 0;
+    cost += (Number.isFinite(amt) ? amt : 0) * buyRate;
+    txCount += 1;
+  });
+
+  let expenses = 0;
+  (appState.expenses || []).forEach(e => {
+    if (!e || !e.date) return;
+    if (!inRangeYmd(e.date, start, end)) return;
+    const amt = Number(e.amount || 0);
+    expenses += Number.isFinite(amt) ? amt : 0;
+  });
+
+  let usdtExpensesDzd = 0;
+  (appState.usdtExpenses || []).forEach(e => {
+    if (!e || !e.date) return;
+    if (!inRangeYmd(e.date, start, end)) return;
+    const amt = Number(e.amount || 0);
+    usdtExpensesDzd += (Number.isFinite(amt) ? amt : 0) * buyRate;
+  });
+
+  const grossProfit = revenue - cost;
+  const netProfit = grossProfit - expenses - usdtExpensesDzd;
+
+  return { revenue, cost, expenses, usdtExpensesDzd, grossProfit, netProfit, txCount, fromYmd, toYmd };
+};
+
+window.getDefaultProfitRanges = function() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const today = new Date(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const weekStart = startOfWeek(now);
+  const weekEnd = endOfWeek(now);
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+  const toYmd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return {
+    today: { from: toYmd(today), to: toYmd(today) },
+    yesterday: { from: toYmd(yesterday), to: toYmd(yesterday) },
+    week: { from: toYmd(weekStart), to: toYmd(weekEnd) },
+    month: { from: toYmd(monthStart), to: toYmd(monthEnd) }
+  };
+};
