@@ -2,6 +2,11 @@ window.openModal = function(modalId) {
   const modal = document.getElementById(modalId);
   if (!modal) return;
   if (modalId === 'paymentModal') populatePaymentClientDropdown();
+  if (modalId === 'expenseModal') {
+    const d = document.getElementById('expenseDate');
+    if (d && !d.value && typeof getLocalDateString === 'function') d.value = getLocalDateString();
+  }
+  if (modalId === 'balancesModal') populateBalancesModal();
   modal.classList.remove('hidden');
   modal.classList.add('flex');
 };
@@ -23,6 +28,18 @@ window.setListFilter = function(key, value) {
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
 
+window.applyProfitRange = function() {
+  const from = document.getElementById('profitFrom')?.value || '';
+  const to = document.getElementById('profitTo')?.value || '';
+  if (!from || !to) {
+    showToast('Choisis une date de début et une date de fin', 'error');
+    return;
+  }
+  if (!appState.ui) appState.ui = {};
+  appState.ui.profitRange = { from, to };
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
 window.closeModal = function(modalId) {
   const modal = document.getElementById(modalId);
   if (!modal) return;
@@ -38,10 +55,62 @@ function populatePaymentClientDropdown() {
     clients.map(c => `<option value="${c.id}">${c.name} (Dette: ${formatCurrency(c.unpaid || 0)})</option>`).join('');
 }
 
+function populateBalancesModal() {
+  if (typeof calculateTheoreticalBalance !== 'function') return;
+  const theo = calculateTheoreticalBalance();
+  const manual = appState.manualBalances || { liquide: 0, baridimob: 0, usdt: 0 };
+  const current = {
+    liquide: Number(theo.liquide || 0) + Number(manual.liquide || 0),
+    baridimob: Number(theo.baridimob || 0) + Number(manual.baridimob || 0),
+    usdt: Number(theo.usdt || 0) + Number(manual.usdt || 0)
+  };
+
+  const liq = document.getElementById('balanceLiquideDesired');
+  const bar = document.getElementById('balanceBaridiDesired');
+  const usdt = document.getElementById('balanceUsdtDesired');
+  if (liq) liq.value = Math.round(current.liquide);
+  if (bar) bar.value = Math.round(current.baridimob);
+  if (usdt) usdt.value = Number(current.usdt || 0).toFixed(2);
+
+  const liqTheo = document.getElementById('balanceLiquideTheo');
+  const barTheo = document.getElementById('balanceBaridiTheo');
+  const usdtTheo = document.getElementById('balanceUsdtTheo');
+  if (liqTheo) liqTheo.textContent = `Théorique: ${formatCurrency(theo.liquide)} • Ajustement: ${formatCurrency(manual.liquide || 0)}`;
+  if (barTheo) barTheo.textContent = `Théorique: ${formatCurrency(theo.baridimob)} • Ajustement: ${formatCurrency(manual.baridimob || 0)}`;
+  if (usdtTheo) usdtTheo.textContent = `Théorique: ${safeToFixed(theo.usdt, 2)} USDT • Ajustement: ${safeToFixed(manual.usdt || 0, 2)} USDT`;
+}
+
+window.saveBalancesAdjustments = function() {
+  if (typeof calculateTheoreticalBalance !== 'function') return;
+  const theo = calculateTheoreticalBalance();
+
+  const desiredLiquide = Number(document.getElementById('balanceLiquideDesired')?.value || 0);
+  const desiredBaridi = Number(document.getElementById('balanceBaridiDesired')?.value || 0);
+  const desiredUsdt = Number(document.getElementById('balanceUsdtDesired')?.value || 0);
+
+  if (!Number.isFinite(desiredLiquide) || !Number.isFinite(desiredBaridi) || !Number.isFinite(desiredUsdt)) {
+    showToast('Valeurs invalides', 'error');
+    return;
+  }
+
+  appState.manualBalances = {
+    liquide: desiredLiquide - Number(theo.liquide || 0),
+    baridimob: desiredBaridi - Number(theo.baridimob || 0),
+    usdt: desiredUsdt - Number(theo.usdt || 0)
+  };
+
+  if (typeof autoSave === 'function') autoSave();
+  if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+  closeModal('balancesModal');
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+  showToast('Soldes mis à jour', 'success');
+};
+
 window.handleLoginClick = async function() {
   const emailEl = document.getElementById('loginEmail');
   const passwordEl = document.getElementById('loginPassword');
   const errorEl = document.getElementById('loginError');
+  const employeeMode = !!document.getElementById('employeeModeToggle')?.checked;
   const email = (emailEl?.value || '').trim();
   const password = passwordEl?.value || '';
 
@@ -55,6 +124,19 @@ window.handleLoginClick = async function() {
   }
 
   try {
+    if (employeeMode) {
+      const employees = appState.employees || [];
+      const emp = employees.find(e => (e.active !== false) && ((e.login || e.email || '').toLowerCase() === email.toLowerCase()));
+      if (!emp || emp.password !== password) {
+        throw new Error('Identifiants employé incorrects');
+      }
+      appState.session = { type: 'employee', employeeId: emp.id, name: emp.name, login: emp.login, loginAt: Date.now() };
+      if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
+      showToast('Connexion employé réussie', 'success');
+      if (typeof updateAuthUI === 'function') updateAuthUI(null);
+      if (typeof renderTables === 'function') renderTables();
+      return;
+    }
     if (typeof loginWithEmailPassword === 'function') {
       await loginWithEmailPassword(email, password);
     } else if (window.auth && typeof auth.signInWithEmailAndPassword === 'function') {
@@ -103,6 +185,104 @@ window.exportPDF = function() {
   }).catch(err => {
     console.error(err);
     showToast('Erreur lors de la génération du PDF', 'error');
+  });
+};
+
+window.generateInvoicePdf = function(txId) {
+  if (typeof html2pdf !== 'function') {
+    showToast('PDF indisponible (librairie non chargée)', 'error');
+    return;
+  }
+  const tx = (appState.transactions || []).find(t => t.id === txId);
+  if (!tx) {
+    showToast('Transaction introuvable', 'error');
+    return;
+  }
+
+  const invNumber = `INV-${String(tx.date || getLocalDateString()).split('-').join('')}-${String(tx.id).slice(-6)}`;
+  const company = 'Hichem Sponsor';
+  const client = tx.clientName || 'Client';
+  const dateLabel = typeof formatDate === 'function' ? formatDate(tx.date) : (tx.date || '');
+  const usd = safeToFixed(tx.amount, 2);
+  const dzd = formatCurrency(tx.priceDzd);
+  const paidLabel = tx.paid ? 'Payé' : 'Impayé';
+  const buyRate = typeof getBuyRate === 'function' ? getBuyRate() : 255;
+  const profit = typeof calculateTransactionProfit === 'function'
+    ? calculateTransactionProfit(Number(tx.amount || 0), Number(tx.priceDzd || 0), buyRate)
+    : null;
+
+  const node = document.createElement('div');
+  node.style.padding = '18px';
+  node.style.fontFamily = 'Arial, sans-serif';
+  node.style.color = '#111827';
+  node.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+      <div>
+        <div style="font-size:20px;font-weight:800;">${company}</div>
+        <div style="font-size:12px;color:#6b7280;">Facture / Reçu</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px;color:#6b7280;">N°</div>
+        <div style="font-size:14px;font-weight:800;">${invNumber}</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:6px;">Date</div>
+        <div style="font-size:14px;font-weight:800;">${dateLabel}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;display:flex;justify-content:space-between;gap:16px;">
+      <div style="flex:1;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">
+        <div style="font-size:12px;color:#6b7280;font-weight:700;">Client</div>
+        <div style="font-size:14px;font-weight:800;margin-top:4px;">${client}</div>
+      </div>
+      <div style="width:220px;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">
+        <div style="font-size:12px;color:#6b7280;font-weight:700;">Statut</div>
+        <div style="font-size:14px;font-weight:800;margin-top:4px;">${paidLabel}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+      <div style="display:flex;background:#f9fafb;font-size:12px;font-weight:800;color:#374151;padding:10px 12px;">
+        <div style="flex:2;">Offre</div>
+        <div style="flex:1;text-align:right;">USD</div>
+        <div style="flex:1;text-align:right;">Prix (DZD)</div>
+      </div>
+      <div style="display:flex;font-size:12px;color:#111827;padding:10px 12px;border-top:1px solid #e5e7eb;">
+        <div style="flex:2;font-weight:800;">${tx.offerName || '-'}</div>
+        <div style="flex:1;text-align:right;font-family:monospace;font-weight:800;">${usd} $</div>
+        <div style="flex:1;text-align:right;font-weight:800;">${dzd}</div>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;display:flex;justify-content:flex-end;">
+      <div style="width:260px;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;font-weight:700;">
+          <div>Total</div>
+          <div>${dzd}</div>
+        </div>
+        ${profit !== null ? `
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;font-weight:700;margin-top:8px;">
+          <div>Profit estimé</div>
+          <div>${formatCurrency(profit)}</div>
+        </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+
+  const opt = {
+    margin: [10, 10],
+    filename: `${invNumber}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  showToast('Génération de la facture...', 'info');
+  html2pdf().set(opt).from(node).save().then(() => {
+    showToast('Facture générée', 'success');
+  }).catch(err => {
+    console.error(err);
+    showToast('Erreur lors de la génération', 'error');
   });
 };
 
@@ -228,6 +408,7 @@ window.handleNewTodoSubmit = function(event) {
   const offerId = document.getElementById('todoOfferId')?.value;
   const priceDzd = Number(document.getElementById('todoPrice')?.value || 0);
   const paid = !!document.getElementById('todoPaid')?.checked;
+  const actionMode = document.getElementById('todoActionMode')?.value || 'todo';
 
   const client = (appState.clients || []).find(c => c.id === clientId);
   if (!client) return showToast('Client invalide', 'error');
@@ -267,8 +448,24 @@ window.handleNewTodoSubmit = function(event) {
     status: 'pending',
     date: getLocalDateString(),
     createdAt: Date.now(),
-    customDurationDays: durationDays
+    customDurationDays: durationDays,
+    employeeId: (appState.session && appState.session.type === 'employee') ? appState.session.employeeId : null,
+    employeeName: (appState.session && appState.session.type === 'employee') ? (appState.session.name || '') : null
   };
+
+  if (actionMode === 'direct') {
+    if (!appState.transactions) appState.transactions = [];
+    const tx = { ...todo, id: generateId('tx'), status: 'active', completedAt: Date.now() };
+    appState.transactions.push(tx);
+    client.totalSpent = (client.totalSpent || 0) + (todo.priceDzd || 0);
+    if (!todo.paid) client.unpaid = (client.unpaid || 0) + (todo.priceDzd || 0);
+    client.updatedAt = Date.now();
+    if (typeof autoSave === 'function') autoSave();
+    showToast('Sponsor validé (direct)', 'success');
+    if (typeof showTab === 'function') showTab('history');
+    return;
+  }
+
   if (!appState.todoTransactions) appState.todoTransactions = [];
   appState.todoTransactions.push(todo);
   if (typeof autoSave === 'function') autoSave();
@@ -297,7 +494,7 @@ window.updateTodoPrice = function() {
 
   const v = offer ? (offer.priceDzd ?? offer.price ?? 0) : 0;
   priceEl.value = Number(v) || 0;
-  priceEl.readOnly = false;
+  priceEl.readOnly = true;
 };
 
 window.filterTodoOffers = function() {
@@ -337,9 +534,11 @@ window.validateTodoTransaction = function(id, status) {
   const todo = appState.todoTransactions[idx];
 
   if (!appState.transactions) appState.transactions = [];
+  const employeeId = (appState.session && appState.session.type === 'employee') ? appState.session.employeeId : (todo.employeeId || null);
+  const employeeName = (appState.session && appState.session.type === 'employee') ? (appState.session.name || '') : (todo.employeeName || null);
 
   if (status === 'done') {
-    appState.transactions.push({ ...todo, id: generateId('tx'), status: 'active', completedAt: Date.now() });
+    appState.transactions.push({ ...todo, employeeId, employeeName, id: generateId('tx'), status: 'active', completedAt: Date.now() });
     const client = (appState.clients || []).find(c => c.id === todo.clientId);
     if (client) {
       client.totalSpent = (client.totalSpent || 0) + (todo.priceDzd || 0);
@@ -348,7 +547,7 @@ window.validateTodoTransaction = function(id, status) {
     }
     showToast('Transaction validée', 'success');
   } else if (status === 'problem') {
-    appState.transactions.push({ ...todo, id: generateId('tx'), status: 'problem', updatedAt: Date.now() });
+    appState.transactions.push({ ...todo, employeeId, employeeName, id: generateId('tx'), status: 'problem', updatedAt: Date.now() });
     showToast('Transaction marquée comme PROBLÈME', 'warning');
   }
 
@@ -422,6 +621,47 @@ window.deletePayment = function(id) {
   appState.payments = (appState.payments || []).filter(p => p.id !== id);
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
+window.addExpense = function() {
+  const date = document.getElementById('expenseDate')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : '');
+  const category = (document.getElementById('expenseCategory')?.value || '').trim();
+  const account = document.getElementById('expenseAccount')?.value || 'liquide';
+  const amount = Number(document.getElementById('expenseAmount')?.value || 0);
+  const note = (document.getElementById('expenseNote')?.value || '').trim();
+
+  if (!date) return showToast('Date requise', 'error');
+  if (!category) return showToast('Catégorie requise', 'error');
+  if (!Number.isFinite(amount) || amount <= 0) return showToast('Montant invalide', 'error');
+
+  const expense = {
+    id: generateId('exp'),
+    date,
+    category,
+    account,
+    amount,
+    note,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+
+  if (!appState.expenses) appState.expenses = [];
+  appState.expenses.push(expense);
+
+  closeModal('expenseModal');
+  if (typeof autoSave === 'function') autoSave();
+  if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+  showToast('Frais ajouté', 'success');
+};
+
+window.deleteExpense = function(id) {
+  if (!confirm('Supprimer ce frais ?')) return;
+  appState.expenses = (appState.expenses || []).filter(e => e.id !== id);
+  if (typeof autoSave === 'function') autoSave();
+  if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+  showToast('Frais supprimé', 'info');
 };
 
 window.addUsdPurchase = function() {
@@ -509,6 +749,55 @@ window.rechargeAdAccount = function(id) {
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
   showToast(`Compte rechargé de ${amount}$`, 'success');
+};
+
+window.addEmployee = function() {
+  const name = (document.getElementById('employeeName')?.value || '').trim();
+  const login = (document.getElementById('employeeLogin')?.value || '').trim();
+  const password = (document.getElementById('employeePassword')?.value || '').trim();
+  const active = !!document.getElementById('employeeActive')?.checked;
+
+  if (!name || !login || !password) return showToast('Nom, login et mot de passe requis', 'error');
+
+  if (!appState.employees) appState.employees = [];
+  const exists = appState.employees.some(e => (e.login || '').toLowerCase() === login.toLowerCase());
+  if (exists) return showToast('Ce login employé existe déjà', 'warning');
+
+  appState.employees.push({
+    id: generateId('emp'),
+    name,
+    login,
+    password,
+    active,
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  });
+
+  if (document.getElementById('employeeName')) document.getElementById('employeeName').value = '';
+  if (document.getElementById('employeeLogin')) document.getElementById('employeeLogin').value = '';
+  if (document.getElementById('employeePassword')) document.getElementById('employeePassword').value = '';
+  if (document.getElementById('employeeActive')) document.getElementById('employeeActive').checked = true;
+
+  if (typeof autoSave === 'function') autoSave();
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+  showToast('Employé ajouté', 'success');
+};
+
+window.toggleEmployeeActive = function(id) {
+  const emp = (appState.employees || []).find(e => e.id === id);
+  if (!emp) return;
+  emp.active = !(emp.active !== false);
+  emp.updatedAt = Date.now();
+  if (typeof autoSave === 'function') autoSave();
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
+window.deleteEmployee = function(id) {
+  if (!confirm('Supprimer cet employé ?')) return;
+  appState.employees = (appState.employees || []).filter(e => e.id !== id);
+  if (typeof autoSave === 'function') autoSave();
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+  showToast('Employé supprimé', 'info');
 };
 
 window.filterClients = function() {
