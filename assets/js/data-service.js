@@ -27,6 +27,18 @@ window.normalizeAppState = function() {
     }
   });
 
+  if (Array.isArray(appState.offers)) {
+    appState.offers.forEach(o => {
+      if (!o || typeof o !== 'object') return;
+      if (o.priceDzd == null && o.price != null) o.priceDzd = o.price;
+      const p = Number(o.priceDzd || 0);
+      o.priceDzd = Number.isFinite(p) ? p : 0;
+      const c = Number(o.costPerUnit || 0);
+      o.costPerUnit = Number.isFinite(c) ? c : 0;
+      if (!o.name) o.name = 'Offre';
+    });
+  }
+
   if (changed) {
     saveToLocalStorage();
   }
