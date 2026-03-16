@@ -572,15 +572,22 @@ window.renderNewTodoForm = function(container) {
         </div>
         <div>
           <label class="block text-sm font-bold text-gray-700 mb-2">Offre</label>
+          <input type="text" id="todoOfferSearch" oninput="filterTodoOffers()" placeholder="Rechercher une offre..." class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 mb-3">
           <select id="todoOfferId" required onchange="updateTodoPrice()" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
             <option value="">-- Sélectionner une offre --</option>
-            ${offers.map(o => `<option value="${o.id}">${o.name} (${formatCurrency(o.priceDzd)})</option>`).join('')}
+            <option value="__custom__">Offre personnalisée (manuel)</option>
+            ${offers.map(o => `<option value="${o.id}">${o.name} (${formatCurrency(o.priceDzd ?? o.price)})</option>`).join('')}
           </select>
+          <div class="mt-2 flex items-center justify-between text-xs text-gray-500">
+            <span id="todoOfferMatchCount"></span>
+            <button type="button" onclick="clearTodoOfferSearch()" class="text-indigo-600 font-bold">Effacer</button>
+          </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">Prix (DZD)</label>
             <input type="number" id="todoPrice" required class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
+            <div class="text-xs text-gray-500 mt-2">Prix DZD = le prix facturé au client (en dinar).</div>
           </div>
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">Statut Paiement</label>
@@ -592,12 +599,30 @@ window.renderNewTodoForm = function(container) {
             </div>
           </div>
         </div>
+        <div id="todoCustomOfferFields" class="hidden p-5 border rounded-2xl bg-gray-50 space-y-4">
+          <div class="text-sm font-black text-gray-800">Offre personnalisée</div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2">Nom</label>
+              <input type="text" id="todoCustomName" placeholder="Ex: Pack personnalisé" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2">Montant (USD)</label>
+              <input type="number" step="0.01" id="todoCustomUsd" placeholder="Ex: 20" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            </div>
+            <div>
+              <label class="block text-sm font-bold text-gray-700 mb-2">Durée (jours)</label>
+              <input type="number" step="1" id="todoCustomDuration" placeholder="Ex: 7" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+            </div>
+          </div>
+        </div>
         <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-black rounded-2xl shadow-lg hover:shadow-indigo-200 transition-all flex items-center justify-center gap-3">
           <i class="fas fa-save"></i> ENREGISTRER DANS LA TO-DO
         </button>
       </form>
     </div>
   `;
+  if (typeof filterTodoOffers === 'function') filterTodoOffers();
 };
 
 /**
