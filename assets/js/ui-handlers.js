@@ -6,6 +6,23 @@ window.openModal = function(modalId) {
   modal.classList.add('flex');
 };
 
+window.setListPage = function(key, page) {
+  if (!appState.ui) appState.ui = {};
+  if (!appState.ui.pages) appState.ui.pages = {};
+  const p = Number(page);
+  appState.ui.pages[key] = Number.isFinite(p) ? p : 1;
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
+window.setListFilter = function(key, value) {
+  if (!appState.ui) appState.ui = {};
+  if (!appState.ui.filters) appState.ui.filters = {};
+  if (!appState.ui.pages) appState.ui.pages = {};
+  appState.ui.filters[key] = (value || '').toString();
+  appState.ui.pages[key] = 1;
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
 window.closeModal = function(modalId) {
   const modal = document.getElementById(modalId);
   if (!modal) return;
@@ -213,21 +230,44 @@ window.handleNewTodoSubmit = function(event) {
   const paid = !!document.getElementById('todoPaid')?.checked;
 
   const client = (appState.clients || []).find(c => c.id === clientId);
-  const offer = (appState.offers || []).find(o => o.id === offerId);
-  if (!client || !offer) return showToast('Client ou Offre invalide', 'error');
+  if (!client) return showToast('Client invalide', 'error');
+  if (!offerId) return showToast('Offre invalide', 'error');
+  if (!Number.isFinite(priceDzd) || priceDzd <= 0) return showToast('Prix DZD invalide', 'error');
+
+  const isCustom = offerId === '__custom__';
+  const offer = isCustom ? null : (appState.offers || []).find(o => o.id === offerId);
+  if (!isCustom && !offer) return showToast('Offre introuvable', 'error');
+
+  let finalOfferId = offerId;
+  let finalOfferName = offer ? offer.name : 'Offre personnalisée';
+  let amountUsd = offer ? Number(offer.costPerUnit || 0) : 0;
+  let durationDays = null;
+
+  if (isCustom) {
+    finalOfferId = generateId('custom_offer');
+    const customName = (document.getElementById('todoCustomName')?.value || '').trim();
+    const customUsd = Number(document.getElementById('todoCustomUsd')?.value || 0);
+    const customDuration = Number(document.getElementById('todoCustomDuration')?.value || 0);
+    if (customName) finalOfferName = customName;
+    if (!Number.isFinite(customUsd) || customUsd <= 0) return showToast('Montant USD invalide', 'error');
+    if (!Number.isFinite(customDuration) || customDuration <= 0) return showToast('Durée invalide', 'error');
+    amountUsd = customUsd;
+    durationDays = customDuration;
+  }
 
   const todo = {
     id: generateId('todo'),
     clientId: client.id,
     clientName: client.name,
-    offerId: offer.id,
-    offerName: offer.name,
+    offerId: finalOfferId,
+    offerName: finalOfferName,
     priceDzd,
-    amount: offer.costPerUnit || 0,
+    amount: amountUsd,
     paid,
     status: 'pending',
     date: getLocalDateString(),
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    customDurationDays: durationDays
   };
   if (!appState.todoTransactions) appState.todoTransactions = [];
   appState.todoTransactions.push(todo);
@@ -240,7 +280,55 @@ window.updateTodoPrice = function() {
   const offerId = document.getElementById('todoOfferId')?.value;
   const offer = (appState.offers || []).find(o => o.id === offerId);
   const priceEl = document.getElementById('todoPrice');
-  if (offer && priceEl) priceEl.value = offer.priceDzd || 0;
+  const customBox = document.getElementById('todoCustomOfferFields');
+  const isCustom = offerId === '__custom__';
+
+  if (customBox) {
+    if (isCustom) customBox.classList.remove('hidden');
+    else customBox.classList.add('hidden');
+  }
+
+  if (!priceEl) return;
+  if (isCustom) {
+    priceEl.readOnly = false;
+    if (!priceEl.value) priceEl.value = '';
+    return;
+  }
+
+  const v = offer ? (offer.priceDzd ?? offer.price ?? 0) : 0;
+  priceEl.value = Number(v) || 0;
+  priceEl.readOnly = false;
+};
+
+window.filterTodoOffers = function() {
+  const searchEl = document.getElementById('todoOfferSearch');
+  const select = document.getElementById('todoOfferId');
+  const counter = document.getElementById('todoOfferMatchCount');
+  if (!select) return;
+  const query = (searchEl?.value || '').trim().toLowerCase();
+
+  let visibleCount = 0;
+  Array.from(select.options).forEach((opt, idx) => {
+    if (idx === 0 || idx === 1) {
+      opt.hidden = false;
+      return;
+    }
+    const text = (opt.textContent || '').toLowerCase();
+    const match = !query || text.includes(query);
+    opt.hidden = !match;
+    if (match) visibleCount += 1;
+  });
+
+  if (counter) {
+    counter.textContent = query ? `${visibleCount} offre(s) trouvée(s)` : `${Math.max(0, select.options.length - 2)} offres`;
+  }
+};
+
+window.clearTodoOfferSearch = function() {
+  const searchEl = document.getElementById('todoOfferSearch');
+  if (searchEl) searchEl.value = '';
+  if (typeof filterTodoOffers === 'function') filterTodoOffers();
+  if (searchEl) searchEl.focus();
 };
 
 window.validateTodoTransaction = function(id, status) {
