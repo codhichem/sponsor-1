@@ -15,11 +15,13 @@ window.generateId = function(prefix = 'id') {
  * @returns {string}
  */
 window.formatCurrency = function(amount) {
+  const num = Number(amount);
+  if (!Number.isFinite(num)) return '—';
   return new Intl.NumberFormat('fr-DZ', {
     style: 'currency',
     currency: 'DZD',
     maximumFractionDigits: 0
-  }).format(amount);
+  }).format(num);
 };
 
 /**
