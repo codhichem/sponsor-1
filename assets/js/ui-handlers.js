@@ -25,7 +25,18 @@ window.setListFilter = function(key, value) {
   if (!appState.ui.pages) appState.ui.pages = {};
   appState.ui.filters[key] = (value || '').toString();
   appState.ui.pages[key] = 1;
-  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+  if (typeof renderCurrentTab === 'function') {
+    renderCurrentTab();
+    setTimeout(() => {
+      const input = document.getElementById(`searchInput_${key}`);
+      if (input) {
+        input.focus();
+        const val = input.value;
+        input.value = '';
+        input.value = val;
+      }
+    }, 0);
+  }
 };
 
 window.applyProfitRange = function() {
@@ -211,61 +222,105 @@ window.generateInvoicePdf = function(txId) {
     ? calculateTransactionProfit(Number(tx.amount || 0), Number(tx.priceDzd || 0), buyRate)
     : null;
 
+  const durationLabel = tx.duration ? `${tx.duration}` : 'N/A';
+  const clientInfo = (appState.clients || []).find(c => c.id === tx.clientId);
+  const contactLabel = clientInfo ? (clientInfo.phone || clientInfo.instagram || clientInfo.contact || '-') : '-';
+
   const node = document.createElement('div');
-  node.style.padding = '18px';
+  node.style.padding = '40px';
   node.style.fontFamily = 'Arial, sans-serif';
-  node.style.color = '#111827';
+  node.style.color = '#374151';
+  node.style.backgroundColor = '#ffffff';
+  node.style.maxWidth = '800px';
+  node.style.margin = '0 auto';
+  
   node.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;">
+    <!-- Header -->
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 40px; border-bottom: 2px solid #f3f4f6; padding-bottom: 20px;">
       <div>
-        <div style="font-size:20px;font-weight:800;">${company}</div>
-        <div style="font-size:12px;color:#6b7280;">Facture / Reçu</div>
+        <h1 style="font-size:32px; font-weight:900; color:#111827; margin:0; letter-spacing:-1px;">Hichem Sponsor</h1>
+        <p style="font-size:14px; color:#6b7280; margin:4px 0 0 0;">Agence de Marketing Digital</p>
+        <p style="font-size:12px; color:#9ca3af; margin:2px 0 0 0;">hichemsponsor.contact@gmail.com</p>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:12px;color:#6b7280;">N°</div>
-        <div style="font-size:14px;font-weight:800;">${invNumber}</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:6px;">Date</div>
-        <div style="font-size:14px;font-weight:800;">${dateLabel}</div>
+        <h2 style="font-size:24px; font-weight:800; color:#3b82f6; margin:0; text-transform:uppercase;">FACTURE</h2>
+        <table style="margin-top:10px; text-align:right; font-size:13px; float:right;" cellspacing="0" cellpadding="2">
+          <tr>
+            <td style="color:#6b7280; padding-right:12px;">N° Facture:</td>
+            <td style="font-weight:700; color:#111827;">${invNumber}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280; padding-right:12px;">Date:</td>
+            <td style="font-weight:700; color:#111827;">${dateLabel}</td>
+          </tr>
+          <tr>
+            <td style="color:#6b7280; padding-right:12px;">Statut:</td>
+            <td style="font-weight:900; color:${tx.paid ? '#10b981' : '#ef4444'}; text-transform:uppercase;">${paidLabel}</td>
+          </tr>
+        </table>
       </div>
     </div>
 
-    <div style="margin-top:18px;display:flex;justify-content:space-between;gap:16px;">
-      <div style="flex:1;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">
-        <div style="font-size:12px;color:#6b7280;font-weight:700;">Client</div>
-        <div style="font-size:14px;font-weight:800;margin-top:4px;">${client}</div>
-      </div>
-      <div style="width:220px;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">
-        <div style="font-size:12px;color:#6b7280;font-weight:700;">Statut</div>
-        <div style="font-size:14px;font-weight:800;margin-top:4px;">${paidLabel}</div>
-      </div>
+    <!-- Client Info -->
+    <div style="margin-bottom: 40px;">
+      <h3 style="font-size:14px; color:#9ca3af; text-transform:uppercase; letter-spacing:1px; margin:0 0 8px 0; border-bottom:1px solid #e5e7eb; padding-bottom:4px; display:inline-block;">Facturé à</h3>
+      <p style="font-size:18px; font-weight:800; color:#111827; margin:0 0 4px 0;">${client}</p>
+      <p style="font-size:14px; color:#4b5563; margin:0;">Contact: <span style="font-weight:600;">${contactLabel}</span></p>
     </div>
 
-    <div style="margin-top:18px;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
-      <div style="display:flex;background:#f9fafb;font-size:12px;font-weight:800;color:#374151;padding:10px 12px;">
-        <div style="flex:2;">Offre</div>
-        <div style="flex:1;text-align:right;">USD</div>
-        <div style="flex:1;text-align:right;">Prix (DZD)</div>
-      </div>
-      <div style="display:flex;font-size:12px;color:#111827;padding:10px 12px;border-top:1px solid #e5e7eb;">
-        <div style="flex:2;font-weight:800;">${tx.offerName || '-'}</div>
-        <div style="flex:1;text-align:right;font-family:monospace;font-weight:800;">${usd} $</div>
-        <div style="flex:1;text-align:right;font-weight:800;">${dzd}</div>
-      </div>
-    </div>
+    <!-- Items Table -->
+    <table style="width:100%; border-collapse:collapse; margin-bottom:40px;">
+      <thead>
+        <tr style="background-color:#f9fafb; border-top:1px solid #e5e7eb; border-bottom:2px solid #e5e7eb;">
+          <th style="padding:12px 16px; text-align:left; font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:1px;">Description de l'Offre</th>
+          <th style="padding:12px 16px; text-align:center; font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:1px;">Durée</th>
+          <th style="padding:12px 16px; text-align:right; font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:1px;">Budget (USD)</th>
+          <th style="padding:12px 16px; text-align:right; font-size:12px; color:#6b7280; text-transform:uppercase; letter-spacing:1px;">Montant (DZD)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f3f4f6;">
+          <td style="padding:16px; font-size:14px; font-weight:700; color:#111827;">
+            ${tx.offerName || 'Service Standard'}
+          </td>
+          <td style="padding:16px; text-align:center; font-size:14px; color:#4b5563;">
+            ${durationLabel}
+          </td>
+          <td style="padding:16px; text-align:right; font-size:14px; color:#4b5563; font-family:monospace;">
+            ${usd} $
+          </td>
+          <td style="padding:16px; text-align:right; font-size:15px; font-weight:800; color:#111827;">
+            ${dzd}
+          </td>
+        </tr>
+      </tbody>
+    </table>
 
-    <div style="margin-top:18px;display:flex;justify-content:flex-end;">
-      <div style="width:260px;border:1px solid #e5e7eb;border-radius:12px;padding:12px;">
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;font-weight:700;">
-          <div>Total</div>
-          <div>${dzd}</div>
-        </div>
+    <!-- Totals -->
+    <div style="display:flex; justify-content:flex-end;">
+      <table style="width:300px; border-collapse:collapse;">
+        <tr>
+          <td style="padding:12px 16px; font-size:14px; color:#6b7280; text-align:right;">Sous-total:</td>
+          <td style="padding:12px 16px; font-size:15px; font-weight:600; color:#111827; text-align:right; border-bottom:1px solid #e5e7eb;">${dzd}</td>
+        </tr>
+        <tr>
+          <td style="padding:16px; font-size:18px; font-weight:800; color:#111827; text-align:right;">TOTAL:</td>
+          <td style="padding:16px; font-size:20px; font-weight:900; color:#3b82f6; text-align:right;">${dzd}</td>
+        </tr>
         ${profit !== null ? `
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:#6b7280;font-weight:700;margin-top:8px;">
-          <div>Profit estimé</div>
-          <div>${formatCurrency(profit)}</div>
-        </div>
+        <!-- Internal Profit Tracking (Optional/Hidden for actual clients) -->
+        <tr style="opacity:0.3;">
+          <td style="padding:4px 16px; font-size:10px; color:#9ca3af; text-align:right;">Marge (Interne):</td>
+          <td style="padding:4px 16px; font-size:10px; color:#9ca3af; text-align:right;">${formatCurrency(profit)}</td>
+        </tr>
         ` : ''}
-      </div>
+      </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:60px; padding-top:20px; border-top:1px solid #e5e7eb; text-align:center;">
+      <p style="font-size:14px; font-weight:700; color:#374151; margin:0 0 4px 0;">Merci pour votre confiance !</p>
+      <p style="font-size:12px; color:#9ca3af; margin:0;">Si vous avez des questions concernant cette facture, veuillez nous contacter.</p>
     </div>
   `;
 
@@ -295,14 +350,16 @@ window.addClient = function() {
 
   if (!name) return showToast('Nom du client requis', 'error');
 
+  const igHandle = instagram ? instagram.replace(/^@+/, '').trim() : '';
+
   if (window.editingClientId) {
     const client = (appState.clients || []).find(c => c.id === window.editingClientId);
     if (!client) return;
     client.name = name;
     client.phone = phone || '';
+    client.instagram = igHandle || '';
     client.contact = phone || instagram || facebook || '';
     client.notes = notes || '';
-    const igHandle = instagram ? instagram.replace(/^@+/, '').trim() : '';
     client.username = igHandle || '';
     client.social = { instagram: igHandle ? [igHandle] : [], facebook: facebook ? [facebook.trim()] : [] };
     client.updatedAt = Date.now();
@@ -317,13 +374,14 @@ window.addClient = function() {
       id: generateId('client'),
       name,
       phone: phone || '',
+      instagram: igHandle || '',
       contact: phone || instagram || facebook || '',
       notes: notes || '',
       totalSpent: 0,
       unpaid: 0,
       updatedAt: Date.now(),
       social: {
-        instagram: instagram ? [instagram.replace(/^@+/, '').trim()] : [],
+        instagram: igHandle ? [igHandle] : [],
         facebook: facebook ? [facebook.trim()] : []
       }
     };
@@ -341,7 +399,7 @@ window.editClient = function(id) {
   const client = (appState.clients || []).find(c => c.id === id);
   if (!client) return;
   window.editingClientId = id;
-  const ig = (client.social && Array.isArray(client.social.instagram) && client.social.instagram[0]) || client.username || '';
+  const ig = client.instagram || (client.social && Array.isArray(client.social.instagram) && client.social.instagram[0]) || client.username || '';
   const fb = (client.social && Array.isArray(client.social.facebook) && client.social.facebook[0]) || '';
   if (document.getElementById('newClientName')) document.getElementById('newClientName').value = client.name || '';
   if (document.getElementById('newClientPhone')) document.getElementById('newClientPhone').value = client.phone || '';
@@ -545,13 +603,19 @@ window.validateTodoTransaction = function(id, status) {
       if (!todo.paid) client.unpaid = (client.unpaid || 0) + (todo.priceDzd || 0);
       client.updatedAt = Date.now();
     }
+    appState.todoTransactions.splice(idx, 1);
+    if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
     showToast('Transaction validée', 'success');
   } else if (status === 'problem') {
     appState.transactions.push({ ...todo, employeeId, employeeName, id: generateId('tx'), status: 'problem', updatedAt: Date.now() });
+    appState.todoTransactions.splice(idx, 1);
+    if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
     showToast('Transaction marquée comme PROBLÈME', 'warning');
+  } else if (status === 'in_progress') {
+    todo.status = 'in_progress';
+    showToast('Transaction marquée EN COURS', 'info');
   }
 
-  appState.todoTransactions.splice(idx, 1);
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -576,12 +640,14 @@ window.resolveProblem = function(id) {
   if (!tx) return;
   tx.status = 'active';
   tx.updatedAt = Date.now();
+  tx.completedAt = Date.now();
   const client = (appState.clients || []).find(c => c.id === tx.clientId);
   if (client) {
     client.totalSpent = (client.totalSpent || 0) + (tx.priceDzd || 0);
     if (!tx.paid) client.unpaid = (client.unpaid || 0) + (tx.priceDzd || 0);
     client.updatedAt = Date.now();
   }
+  if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
   if (typeof autoSave === 'function') autoSave();
   showToast('Problème résolu', 'success');
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
@@ -714,6 +780,33 @@ window.sendWhatsAppReminder = function(clientId) {
     `Merci de votre confiance !`
   );
   window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+};
+
+window.sendInstagramReminder = function(clientId) {
+  const client = (appState.clients || []).find(c => c.id === clientId);
+  if (!client || !client.unpaid) return;
+  
+  const igHandle = client.instagram ? client.instagram.replace('@', '').trim() : '';
+  if (!igHandle) return showToast('Compte Instagram invalide ou absent', 'error');
+
+  // Instagram does not support pre-filling messages via URL schemes on web reliably,
+  // but we can copy the message to the clipboard and open the chat.
+  const message = `Bonjour ${client.name},\n\n` +
+    `C'est Hichem Sponsor. Sauf erreur de notre part, il reste un montant impayé de ${formatCurrency(client.unpaid)} concernant vos dernières transactions.\n\n` +
+    `Pourriez-vous nous confirmer le règlement dès que possible ?\n\n` +
+    `Merci de votre confiance !`;
+    
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(message).then(() => {
+      showToast('Message copié dans le presse-papier !', 'success');
+      window.open(`https://ig.me/m/${igHandle}`, '_blank');
+    }).catch(err => {
+      console.error('Erreur copie presse-papier:', err);
+      window.open(`https://ig.me/m/${igHandle}`, '_blank');
+    });
+  } else {
+    window.open(`https://ig.me/m/${igHandle}`, '_blank');
+  }
 };
 
 window.addAdAccount = function() {
@@ -908,3 +1001,115 @@ window.handleOrderSubmit = async function(e) {
     }
   }
 };
+
+// Local Backup Logic
+window.exportLocalBackup = function() {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState));
+  const downloadAnchorNode = document.createElement('a');
+  downloadAnchorNode.setAttribute("href",     dataStr);
+  downloadAnchorNode.setAttribute("download", "sponsor_hichem_backup_" + getLocalDateString() + ".json");
+  document.body.appendChild(downloadAnchorNode); // required for firefox
+  downloadAnchorNode.click();
+  downloadAnchorNode.remove();
+  showToast('Sauvegarde locale téléchargée !', 'success');
+};
+
+window.importLocalBackup = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const result = JSON.parse(e.target.result);
+      if (typeof result === 'object' && result !== null) {
+        // Merge with current state or replace? Replace makes more sense for a backup restore
+        Object.keys(result).forEach(key => {
+          appState[key] = result[key];
+        });
+        if (typeof autoSave === 'function') autoSave();
+        if (typeof renderTables === 'function') renderTables();
+        showToast('Sauvegarde restaurée avec succès !', 'success');
+      } else {
+        throw new Error("Format JSON invalide");
+      }
+    } catch (err) {
+      console.error("Erreur d'importation:", err);
+      showToast('Erreur lors de la lecture du fichier', 'error');
+    }
+    // reset input
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+};
+
+window.deleteTransaction = function(id) {
+  if(!confirm('Êtes-vous sûr de vouloir supprimer cette transaction ?')) return;
+  const t = appState.transactions.find(x => x.id === id);
+  if (t && t.clientId) {
+      const client = appState.clients.find(c => c.id === t.clientId);
+      if (client) client.updatedAt = Date.now();
+  }
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'transactions', id: id });
+  
+  appState.transactions = appState.transactions.filter(tx => tx.id !== id);
+  if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+  if (typeof renderTables === 'function') renderTables();
+  if (typeof autoSave === 'function') autoSave();
+  showToast('Transaction supprimée', 'info');
+};
+
+window.editTransaction = function(id) {
+  const t = appState.transactions.find(x => x.id === id);
+  if (!t) { showToast('Transaction introuvable', 'error'); return; }
+  
+  document.getElementById('editTxId').value = id;
+  document.getElementById('editTxAmount').value = t.amount || 0;
+  document.getElementById('editTxPrice').value = t.priceDzd || 0;
+  document.getElementById('editTxDuration').value = t.duration || '';
+  document.getElementById('editTxPaid').checked = !!t.paid;
+  
+  openModal('editTransactionModal');
+};
+
+window.saveEditTransaction = function() {
+  const id = document.getElementById('editTxId').value;
+  const amount = Number(document.getElementById('editTxAmount').value || 0);
+  const priceDzd = Number(document.getElementById('editTxPrice').value || 0);
+  const durationStr = document.getElementById('editTxDuration').value || '';
+  const paid = document.getElementById('editTxPaid').checked;
+
+  const t = appState.transactions.find(x => x.id === id);
+  if (!t) return;
+
+  if (!amount || !priceDzd) { showToast('Valeurs invalides', 'error'); return; }
+  
+  const buyRateGuess = t.buyRate || (t.amount ? (Number(t.totalDzd || 0) / Number(t.amount || 1)) : Number(document.getElementById('buyRate')?.value || 0));
+  const totalDzd = amount * Number(buyRateGuess || 0);
+  const profit = priceDzd - totalDzd;
+  
+  Object.assign(t, { 
+      amount, 
+      priceDzd, 
+      totalDzd, 
+      profit, 
+      duration: durationStr, 
+      paid,
+      updatedAt: Date.now() 
+  });
+
+  if (t.clientId) {
+      const client = appState.clients.find(c => c.id === t.clientId);
+      if (client) client.updatedAt = Date.now();
+  }
+  
+  if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+  if (typeof renderTables === 'function') renderTables();
+  if (typeof autoSave === 'function') autoSave();
+  closeModal('editTransactionModal');
+  showToast('Transaction mise à jour', 'success');
+};
+
+
