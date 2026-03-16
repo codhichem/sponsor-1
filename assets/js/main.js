@@ -1883,11 +1883,17 @@
         duration: todo.duration,
         paid: todo.paid,
         reminderAt,
-        status: status // 'done' or 'problem'
+        status: status === 'done' ? 'active' : status // Fix: 'done' doit devenir 'active' pour les stats
       };
 
       appState.transactions.push(transaction);
       appState.todoTransactions.splice(idx, 1);
+      
+      const client = (appState.clients || []).find(c => c.id === todo.clientId);
+      if (client) {
+          client.updatedAt = Date.now();
+      }
+
       logAudit('todo:validate', { todoId: todo.id, client: todo.clientName, status, revenueDzd: todo.priceDzd, profitDzd: profit, actor: actor.name });
       
       if (status === 'done') {
@@ -3721,7 +3727,7 @@
         const paidAmounts = payMap[cid] || 0;
         c.totalSpent = totalSpent;
         c.transactionsCount = txnCount;
-        c.unpaid = Math.max(0, unpaidFromTxns - paidAmounts);
+        c.unpaid = unpaidFromTxns - paidAmounts;
       });
     }
 

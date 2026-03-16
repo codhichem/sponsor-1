@@ -314,22 +314,22 @@ window.renderDashboard = function(container) {
         <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
           <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Aujourd'hui</div>
           <div class="text-2xl font-black ${pToday && pToday.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pToday ? formatCurrency(pToday.netProfit) : '—'}</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400">${pToday ? `${pToday.txCount} tx • CA ${formatCurrency(pToday.revenue)}` : ''}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pToday ? `${pToday.txCount} tx • CA ${formatCurrency(pToday.revenue)} • Frais ${formatCurrency(pToday.expenses)}` : ''}</div>
         </div>
         <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
           <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Hier</div>
           <div class="text-2xl font-black ${pYesterday && pYesterday.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pYesterday ? formatCurrency(pYesterday.netProfit) : '—'}</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400">${pYesterday ? `${pYesterday.txCount} tx • CA ${formatCurrency(pYesterday.revenue)}` : ''}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pYesterday ? `${pYesterday.txCount} tx • CA ${formatCurrency(pYesterday.revenue)} • Frais ${formatCurrency(pYesterday.expenses)}` : ''}</div>
         </div>
         <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
           <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Semaine</div>
           <div class="text-2xl font-black ${pWeek && pWeek.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pWeek ? formatCurrency(pWeek.netProfit) : '—'}</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400">${pWeek ? `${pWeek.txCount} tx • CA ${formatCurrency(pWeek.revenue)}` : ''}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pWeek ? `${pWeek.txCount} tx • CA ${formatCurrency(pWeek.revenue)} • Frais ${formatCurrency(pWeek.expenses)}` : ''}</div>
         </div>
         <div class="p-5 rounded-2xl bg-gray-50 dark:bg-gray-900/40 border dark:border-gray-700">
           <div class="text-xs font-black text-gray-500 dark:text-gray-400 uppercase">Mois</div>
           <div class="text-2xl font-black ${pMonth && pMonth.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${pMonth ? formatCurrency(pMonth.netProfit) : '—'}</div>
-          <div class="text-xs text-gray-500 dark:text-gray-400">${pMonth ? `${pMonth.txCount} tx • CA ${formatCurrency(pMonth.revenue)}` : ''}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">${pMonth ? `${pMonth.txCount} tx • CA ${formatCurrency(pMonth.revenue)} • Frais ${formatCurrency(pMonth.expenses)}` : ''}</div>
         </div>
       </div>
 
@@ -489,7 +489,7 @@ window.renderClientsTable = function(container) {
                 <td class="p-4 font-bold text-gray-700 dark:text-gray-300">${formatCurrency(c.totalSpent || 0)}</td>
                 <td class="p-4">
                   <span class="font-black ${Number(c.unpaid || 0) > 0 ? 'text-red-600' : 'text-green-600'}">
-                    ${formatCurrency(c.unpaid || 0)}
+                    ${Number(c.unpaid || 0) < 0 ? 'Crédit: ' + formatCurrency(Math.abs(c.unpaid)) : formatCurrency(c.unpaid || 0)}
                   </span>
                 </td>
                 <td class="p-4">
@@ -1164,7 +1164,9 @@ window.renderTopClients = function() {
         </div>
         <div>
           <div class="font-bold text-gray-800 text-xs">${c.name}</div>
-          <div class="text-[10px] text-red-500 font-bold">${c.unpaid > 0 ? 'Dette: ' + formatCurrency(c.unpaid) : 'À jour'}</div>
+          <div class="text-[10px] font-bold ${c.unpaid > 0 ? 'text-red-500' : (c.unpaid < 0 ? 'text-green-500' : 'text-gray-400')}">
+            ${c.unpaid > 0 ? 'Dette: ' + formatCurrency(c.unpaid) : (c.unpaid < 0 ? 'Crédit: ' + formatCurrency(Math.abs(c.unpaid)) : 'À jour')}
+          </div>
         </div>
       </div>
       <div class="text-right font-black text-gray-700 text-xs">
