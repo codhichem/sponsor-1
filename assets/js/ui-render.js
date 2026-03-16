@@ -405,7 +405,7 @@ window.renderClientsTable = function(container) {
   const query = (ui.filters[key] || '').trim().toLowerCase();
   const all = [...(appState.clients || [])].sort((a, b) => toTs(b) - toTs(a));
   const filtered = query
-    ? all.filter(c => `${c.name || ''} ${c.phone || ''} ${c.contact || ''}`.toLowerCase().includes(query))
+    ? all.filter(c => `${c.name || ''} ${c.phone || ''} ${c.contact || ''} ${c.instagram || ''}`.toLowerCase().includes(query))
     : all;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const page = clampPage(ui.pages[key] || 1, totalPages);
@@ -414,6 +414,35 @@ window.renderClientsTable = function(container) {
   const pageItems = filtered.slice(start, start + pageSize);
   const lastUpdated = getLastUpdatedLabel(all);
   
+  const getClientLastDeadline = (clientId) => {
+    const txs = (appState.transactions || []).filter(t => t.clientId === clientId && t.status === 'active');
+    if (txs.length === 0) return '-';
+    // Find the latest transaction date
+    const latestTx = txs.sort((a, b) => toTs(b) - toTs(a))[0];
+    if (!latestTx || !latestTx.date) return '-';
+    
+    // Add duration if possible. Let's assume duration is often "X mois" or "X jours"
+    let addDays = 30; // Default 1 month
+    if (latestTx.duration) {
+      const dur = latestTx.duration.toString().toLowerCase();
+      if (dur.includes('jour')) addDays = parseInt(dur) || 0;
+      else if (dur.includes('mois')) addDays = (parseInt(dur) || 1) * 30;
+      else if (dur.includes('an')) addDays = (parseInt(dur) || 1) * 365;
+      else addDays = parseInt(dur) || 30;
+    }
+    
+    const [year, month, day] = latestTx.date.split('-').map(Number);
+    if (!year || !month || !day) return latestTx.date;
+    const dateObj = new Date(year, month - 1, day);
+    dateObj.setDate(dateObj.getDate() + addDays);
+    
+    // Format YYYY-MM-DD
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   container.innerHTML = `
     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border dark:border-gray-700 fade-in">
       <div class="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
@@ -422,7 +451,7 @@ window.renderClientsTable = function(container) {
           <p class="text-gray-500 dark:text-gray-400 text-sm">${filtered.length} clients • Dernière mise à jour: ${lastUpdated}</p>
         </div>
         <div class="flex gap-2 w-full md:w-auto">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher un client..." class="flex-grow md:w-64 p-3 border dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher un client..." class="flex-grow md:w-64 p-3 border dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
           <button onclick="openModal('clientModal')" class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
             <i class="fas fa-plus"></i> Nouveau
           </button>
@@ -433,14 +462,18 @@ window.renderClientsTable = function(container) {
           <thead>
             <tr class="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-black uppercase tracking-widest border-b dark:border-gray-700">
               <th class="p-4">Client</th>
-              <th class="p-4">Contact / WhatsApp</th>
+              <th class="p-4">Contact</th>
               <th class="p-4">Dépensé</th>
               <th class="p-4">Dette (Impayé)</th>
+              <th class="p-4">Dernier Délai</th>
               <th class="p-4 text-center">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y dark:divide-gray-700 text-sm">
-            ${pageItems.map(c => `
+            ${pageItems.map(c => {
+              const deadline = getClientLastDeadline(c.id);
+              const isOverdue = deadline !== '-' && new Date(deadline) < new Date();
+              return `
               <tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
                 <td class="p-4">
                   <div class="font-bold text-gray-800 dark:text-gray-200">${c.name}</div>
@@ -449,13 +482,19 @@ window.renderClientsTable = function(container) {
                 <td class="p-4">
                   <div class="flex items-center gap-2">
                     <span class="text-gray-600 dark:text-gray-400">${c.phone || c.contact || '-'}</span>
-                    ${c.phone ? `<a href="${buildClientWhatsAppLink(c)}" target="_blank" class="text-green-500 hover:text-green-600"><i class="fab fa-whatsapp"></i></a>` : ''}
+                    ${c.phone ? `<a href="${buildClientWhatsAppLink(c)}" target="_blank" class="text-green-500 hover:text-green-600 text-lg"><i class="fab fa-whatsapp"></i></a>` : ''}
+                    ${c.instagram ? `<a href="https://instagram.com/${c.instagram.replace('@', '')}" target="_blank" class="text-pink-600 hover:text-pink-700 text-lg"><i class="fab fa-instagram"></i></a>` : ''}
                   </div>
                 </td>
                 <td class="p-4 font-bold text-gray-700 dark:text-gray-300">${formatCurrency(c.totalSpent || 0)}</td>
                 <td class="p-4">
                   <span class="font-black ${Number(c.unpaid || 0) > 0 ? 'text-red-600' : 'text-green-600'}">
                     ${formatCurrency(c.unpaid || 0)}
+                  </span>
+                </td>
+                <td class="p-4">
+                  <span class="font-bold ${isOverdue ? 'text-red-600 bg-red-100 px-2 py-1 rounded' : 'text-gray-600 dark:text-gray-400'}">
+                    ${deadline}
                   </span>
                 </td>
                 <td class="p-4 text-center">
@@ -469,7 +508,7 @@ window.renderClientsTable = function(container) {
                   </div>
                 </td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
       </div>
@@ -505,7 +544,7 @@ window.renderTransactionsTable = function(container) {
           <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
         </div>
         <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/offre/statut..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/offre/statut..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
           <button onclick="exportTransactions()" class="text-blue-600 font-bold flex items-center gap-2 justify-center px-4 py-3 rounded-xl border">
             <i class="fas fa-file-csv"></i> Export CSV
           </button>
@@ -581,7 +620,7 @@ window.renderPaymentsTable = function(container) {
           <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
         </div>
         <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/méthode/note..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/méthode/note..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
           <button onclick="openModal('paymentModal')" class="bg-orange-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
             <i class="fas fa-plus mr-2"></i> Nouveau Paiement
           </button>
@@ -647,7 +686,7 @@ window.renderUsdPurchasesTable = function(container) {
           <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
         </div>
         <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher source/taux/montant..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher source/taux/montant..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
           <button onclick="openModal('usdPurchaseModal')" class="bg-teal-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
             <i class="fas fa-plus mr-2"></i> Nouvel Achat
           </button>
@@ -712,7 +751,7 @@ window.renderRequests = function(container) {
           <h2 class="text-2xl font-bold text-gray-800">Demandes Clients (${filtered.length})</h2>
           <div class="text-xs text-gray-500">Dernière mise à jour: ${lastUpdated}</div>
         </div>
-        <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom/offre/plateforme..." class="w-full md:w-80 p-3 border rounded-xl outline-none bg-gray-50">
+        <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom/offre/plateforme..." class="w-full md:w-80 p-3 border rounded-xl outline-none bg-gray-50">
       </div>
       <div class="grid grid-cols-1 gap-4">
         ${pageItems.map(r => `
@@ -852,7 +891,7 @@ window.renderOffersGrid = function(container) {
           <div class="text-xs text-gray-500">${filtered.length} offres • Dernière mise à jour: ${lastUpdated}</div>
         </div>
         <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher une offre..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher une offre..." class="w-full md:w-72 p-3 border rounded-xl outline-none bg-gray-50">
           <button onclick="openModal('offerModal')" class="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
             <i class="fas fa-plus mr-2"></i> Nouvelle Offre
           </button>
@@ -921,7 +960,7 @@ window.renderExpensesTab = function(container) {
           <div class="text-xs text-gray-500 dark:text-gray-400">Dernière mise à jour: ${lastUpdated}</div>
         </div>
         <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher catégorie/note/compte..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher catégorie/note/compte..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
           <button onclick="openModal('expenseModal')" class="bg-rose-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
             <i class="fas fa-plus mr-2"></i> Nouveau Frais
           </button>
@@ -969,8 +1008,8 @@ window.renderTodoTable = function(container) {
   const query = (ui.filters[key] || '').trim().toLowerCase();
 
   const todos = (appState.todoTransactions || [])
-    .filter(t => t && t.status === 'pending')
-    .map(t => ({ ...t, _type: 'todo' }));
+    .filter(t => t && (t.status === 'pending' || t.status === 'in_progress'))
+    .map(t => ({ ...t, _type: t.status === 'in_progress' ? 'in_progress' : 'todo' }));
 
   const problems = (appState.transactions || [])
     .filter(t => t && t.status === 'problem')
@@ -1000,7 +1039,7 @@ window.renderTodoTable = function(container) {
           <div class="text-xs text-gray-500 dark:text-gray-400">${filtered.length} éléments • Dernière mise à jour: ${lastUpdated}</div>
         </div>
         <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/offre..." class="w-full md:w-72 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher client/offre..." class="w-full md:w-72 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
           <button onclick="showTab('todo')" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black">Nouvelle</button>
         </div>
       </div>
@@ -1024,8 +1063,8 @@ window.renderTodoTable = function(container) {
             ${pageItems.map(t => `
               <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30">
                 <td class="p-4">
-                  <span class="px-2 py-1 rounded-full text-[10px] font-black ${t._type === 'problem' ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700'}">
-                    ${t._type === 'problem' ? 'PROBLÈME' : 'TODO'}
+                  <span class="px-2 py-1 rounded-full text-[10px] font-black ${t._type === 'problem' ? 'bg-red-100 text-red-700' : (t._type === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700')}">
+                    ${t._type === 'problem' ? 'PROBLÈME' : (t._type === 'in_progress' ? 'EN COURS' : 'TODO')}
                   </span>
                 </td>
                 <td class="p-4 text-gray-500 dark:text-gray-400">${formatDate(t.date)}</td>
@@ -1044,10 +1083,11 @@ window.renderTodoTable = function(container) {
                     <button onclick="resolveProblem('${t.id}')" class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-black">Résoudre</button>
                   ` : `
                     <div class="flex flex-wrap gap-2 justify-center">
-                      <button onclick="validateTodoTransaction('${t.id}', 'done')" class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-black">Valider</button>
+                      <button onclick="validateTodoTransaction('${t.id}', 'done')" class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-black">Gain</button>
+                      <button onclick="validateTodoTransaction('${t.id}', 'in_progress')" class="px-3 py-2 rounded-xl bg-yellow-500 text-white text-xs font-black">En cours</button>
                       <button onclick="validateTodoTransaction('${t.id}', 'problem')" class="px-3 py-2 rounded-xl bg-red-600 text-white text-xs font-black">Problème</button>
                       <button onclick="toggleTodoPayment('${t.id}')" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-black">Payé</button>
-                      <button onclick="deleteTodoTransaction('${t.id}')" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-black">Suppr</button>
+                      <button onclick="deleteTodoTransaction('${t.id}')" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-red-500 text-xs font-black"><i class="fas fa-trash-alt"></i></button>
                     </div>
                   `}
                 </td>
@@ -1069,7 +1109,7 @@ window.renderTodoPreview = function() {
   const preview = document.getElementById('todoPreviewList');
   if (!preview) return;
   
-  const normalTodos = (appState.todoTransactions || []).filter(t => t.status === 'pending');
+  const normalTodos = (appState.todoTransactions || []).filter(t => t.status === 'pending' || t.status === 'in_progress');
   const problems = (appState.transactions || []).filter(t => t.status === 'problem');
   
   const allPreview = [
@@ -1245,7 +1285,7 @@ window.renderRemindersTable = function(container) {
           <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Gestion des Dettes & Relances</h2>
           <p class="text-gray-500 dark:text-gray-400 text-sm">${filtered.length} clients ont des impayés • Dernière mise à jour: ${lastUpdated}</p>
         </div>
-        <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+        <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
       </div>
       
       <div class="grid grid-cols-1 gap-4">
@@ -1260,11 +1300,21 @@ window.renderRemindersTable = function(container) {
                 <div class="text-sm text-red-600 dark:text-red-400 font-black">Dette: ${formatCurrency(c.unpaid)}</div>
               </div>
             </div>
-            <div class="flex gap-2 w-full md:w-auto">
-               <button onclick="sendWhatsAppReminder('${c.id}')" class="flex-grow md:flex-none px-6 py-3 bg-green-600 text-white rounded-xl font-bold shadow-lg hover:bg-green-700 transition-all flex items-center justify-center gap-2">
-                 <i class="fab fa-whatsapp"></i> Relancer
+            <div class="flex flex-wrap md:flex-nowrap gap-2 w-full md:w-auto mt-4 md:mt-0">
+               ${c.phone ? `
+               <button onclick="sendWhatsAppReminder('${c.id}')" class="flex-grow md:flex-none px-4 py-2 bg-green-600 text-white rounded-xl font-bold shadow-sm hover:bg-green-700 transition-all flex items-center justify-center gap-2">
+                 <i class="fab fa-whatsapp"></i> WhatsApp
                </button>
-               <button onclick="showTab('paiements')" class="px-6 py-3 bg-white dark:bg-gray-700 border dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-600">
+               ` : ''}
+               ${c.instagram ? `
+               <button onclick="sendInstagramReminder('${c.id}')" class="flex-grow md:flex-none px-4 py-2 bg-pink-600 text-white rounded-xl font-bold shadow-sm hover:bg-pink-700 transition-all flex items-center justify-center gap-2">
+                 <i class="fab fa-instagram"></i> Instagram
+               </button>
+               ` : ''}
+               ${(!c.phone && !c.instagram) ? `
+               <span class="text-xs text-gray-500 italic mt-2 self-center">Aucun contact dispo</span>
+               ` : ''}
+               <button onclick="showTab('paiements')" class="flex-grow md:flex-none px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-600">
                  Régler
                </button>
             </div>
@@ -1296,6 +1346,17 @@ window.renderAdAccountsTable = function(container) {
   const pageItems = filtered.slice(start, start + pageSize);
   const lastUpdated = getLastUpdatedLabel(all);
   
+  // Always ensure 'spent' is calculated directly before rendering if not fully synced
+  (appState.adAccounts || []).forEach(acc => acc.spent = 0);
+  (appState.transactions || []).forEach(t => {
+     if ((t.status === 'active' || !t.status) && t.adAccountId) {
+         const adAcc = (appState.adAccounts || []).find(a => a.id === t.adAccountId);
+         if (adAcc) {
+             adAcc.spent += Number(t.amount || 0);
+         }
+     }
+  });
+  
   container.innerHTML = `
     <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 border dark:border-gray-700 fade-in">
       <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
@@ -1304,7 +1365,7 @@ window.renderAdAccountsTable = function(container) {
           <p class="text-gray-500 dark:text-gray-400 text-sm">Suivi des soldes et plateformes • Dernière mise à jour: ${lastUpdated}</p>
         </div>
         <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom/plateforme..." class="w-full md:w-72 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom/plateforme..." class="w-full md:w-72 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
           <button onclick="openModal('adAccountModal')" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
             <i class="fas fa-plus"></i> Nouveau Compte
           </button>
@@ -1312,7 +1373,11 @@ window.renderAdAccountsTable = function(container) {
       </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        ${pageItems.map(acc => `
+        ${pageItems.map(acc => {
+          const spent = Number(acc.spent) || 0;
+          const initial = Number(acc.balance) || 0;
+          const remaining = initial - spent;
+          return `
           <div class="p-6 border dark:border-gray-700 rounded-3xl bg-gray-50 dark:bg-gray-900/50 hover:shadow-lg transition-all relative group">
             <div class="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                <button onclick="editAdAccount('${acc.id}')" class="text-blue-600"><i class="fas fa-edit"></i></button>
@@ -1326,8 +1391,9 @@ window.renderAdAccountsTable = function(container) {
             </div>
             <div class="flex justify-between items-center">
               <div>
-                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Solde Actuel</div>
-                <div class="text-xl font-black ${acc.balance < 10 ? 'text-red-500' : 'text-green-600'}">${safeToFixed(acc.balance, 2)} $</div>
+                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Solde Restant</div>
+                <div class="text-xl font-black ${remaining < 10 ? 'text-red-500' : 'text-green-600'}">${safeToFixed(remaining, 2)} $</div>
+                <div class="text-[10px] text-gray-500 mt-1">Dépensé: ${safeToFixed(spent, 2)} / ${safeToFixed(initial, 2)} $</div>
               </div>
               <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${acc.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
                 ${acc.status}
@@ -1337,7 +1403,7 @@ window.renderAdAccountsTable = function(container) {
               Recharger
             </button>
           </div>
-        `).join('')}
+        `}).join('')}
         ${filtered.length === 0 ? '<p class="col-span-full text-center text-gray-400 py-12 italic">Aucun compte configuré.</p>' : ''}
       </div>
       ${renderPagination(key, page, filtered.length, pageSize)}
