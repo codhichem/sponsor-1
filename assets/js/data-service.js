@@ -13,6 +13,19 @@ window.normalizeAppState = function() {
     changed = true;
   }
   
+  if (!appState.settings) {
+    appState.settings = { storageMode: 'cloud', autoSaveEnabled: true };
+    changed = true;
+  }
+  if (!appState.settings.storageMode) {
+    appState.settings.storageMode = 'cloud';
+    changed = true;
+  }
+  if (appState.settings.autoSaveEnabled === undefined) {
+    appState.settings.autoSaveEnabled = true;
+    changed = true;
+  }
+  
   if (!appState.sync) {
     appState.sync = { pendingCloudSave: false, retryDelayMs: 5000, itemSnapshots: {}, pendingDeletions: [] };
     changed = true;

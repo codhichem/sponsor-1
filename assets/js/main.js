@@ -257,7 +257,7 @@
       auth = firebase.auth();
       window.auth = auth;
       try {
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('Persistence Error:', e));
       } catch (e) {
       }
     } else {
@@ -2446,6 +2446,19 @@
 
       if (!appState.balances) {
         appState.balances = { liquide: 0, baridimob: 0, usdt: 0 };
+        changed = true;
+      }
+      
+      if (!appState.settings) {
+        appState.settings = { storageMode: 'cloud', autoSaveEnabled: true };
+        changed = true;
+      }
+      if (!appState.settings.storageMode) {
+        appState.settings.storageMode = 'cloud';
+        changed = true;
+      }
+      if (appState.settings.autoSaveEnabled === undefined) {
+        appState.settings.autoSaveEnabled = true;
         changed = true;
       }
       
