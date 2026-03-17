@@ -1189,12 +1189,18 @@ window.renderNewTodoForm = function(container) {
         <i class="fas fa-plus-circle text-indigo-600"></i> Nouvelle Tâche (To-Do)
       </h2>
       <form id="newTodoForm" onsubmit="handleNewTodoSubmit(event)" class="space-y-6">
-        <div>
-          <label class="block text-sm font-bold text-gray-700 mb-2">Client</label>
-          <select id="todoClientId" required class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
-            <option value="">-- Sélectionner un client --</option>
-            ${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-          </select>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">Date</label>
+            <input type="date" id="todoDate" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-2">Client</label>
+            <select id="todoClientId" required class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
+              <option value="">-- Sélectionner un client --</option>
+              ${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+            </select>
+          </div>
         </div>
         <div>
           <label class="block text-sm font-bold text-gray-700 mb-2">Offre</label>

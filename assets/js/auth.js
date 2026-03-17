@@ -4,41 +4,41 @@
  * Retourne le rôle de l'utilisateur connecté
  * @returns {string} 'admin' | 'employee' | 'client' | 'none'
  */
-window.getUserRole = function() {
+window.getUserRole = function () {
   const user = auth ? auth.currentUser : null;
   const sess = (window.appState && window.appState.session) ? window.appState.session : null;
-  
+
   if (user && user.email === 'hichem@sponsor.com') return 'admin'; // Hardcoded admin for now or check custom claims
   if (user) return 'admin'; // Default for Firebase Auth users in this app
   if (sess && sess.type === 'employee') return 'employee';
   if (sess && sess.type === 'client') return 'client';
-  
+
   return 'none';
 };
 
-window.updateAuthUI = function(user) {
-  const appContainer   = document.getElementById('appContainer');
+window.updateAuthUI = function (user) {
+  const appContainer = document.getElementById('appContainer');
   const loginContainer = document.getElementById('loginContainer');
-  const clientSpace    = document.getElementById('clientSpaceContainer');
+  const clientSpace = document.getElementById('clientSpaceContainer');
 
   const sess = (window.appState && window.appState.session) ? window.appState.session : null;
-  
+
   if (user || (sess && sess.type === 'employee') || window.authTransitionFlag) {
-    if (appContainer)   appContainer.style.display = 'block';
+    if (appContainer) appContainer.style.display = 'block';
     if (loginContainer) loginContainer.style.display = 'none';
-    if (clientSpace)    clientSpace.style.display = 'none';
+    if (clientSpace) clientSpace.style.display = 'none';
   } else if (sess && sess.type === 'client') {
-    if (appContainer)   appContainer.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'none';
     if (loginContainer) loginContainer.style.display = 'none';
-    if (clientSpace)    clientSpace.style.display = 'block';
+    if (clientSpace) clientSpace.style.display = 'block';
   } else {
-    if (appContainer)   appContainer.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'none';
     if (loginContainer) loginContainer.style.display = 'flex';
-    if (clientSpace)    clientSpace.style.display = 'none';
+    if (clientSpace) clientSpace.style.display = 'none';
   }
 };
 
-window.loginWithEmailPassword = async function(email, password) {
+window.loginWithEmailPassword = async function (email, password) {
   try {
     window.authTransitionFlag = true;
     await auth.signInWithEmailAndPassword(email, password);
@@ -54,7 +54,7 @@ window.loginWithEmailPassword = async function(email, password) {
   }
 };
 
-window.logout = async function() {
+window.logout = async function () {
   try {
     if (auth) await auth.signOut();
     if (appState) appState.session = null;

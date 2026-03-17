@@ -136,13 +136,15 @@ async function syncGranularToCloud() {
   
   collections.forEach(colName => {
     const items = appState[colName];
-    items.forEach(item => {
-      if (!item.id) item.id = generateId();
-      item.uid = uid;
-      item.updatedAt = item.updatedAt || Date.now();
-      
-      promises.push(db.collection(colName).doc(item.id).set(item, { merge: true }));
-    });
+    if (Array.isArray(items)) {
+        items.forEach(item => {
+        if (!item.id) item.id = generateId();
+        item.uid = uid;
+        item.updatedAt = item.updatedAt || Date.now();
+        
+        promises.push(db.collection(colName).doc(item.id).set(item, { merge: true }));
+        });
+    }
   });
 
   await Promise.all(promises);

@@ -494,7 +494,9 @@ window.handleNewTodoSubmit = function(event) {
     durationDays = customDuration;
   }
 
-  const todo = {
+    const todoDateStr = document.getElementById('todoDate')?.value || getLocalDateString();
+    
+    const todo = {
     id: generateId('todo'),
     clientId: client.id,
     clientName: client.name,
@@ -504,7 +506,7 @@ window.handleNewTodoSubmit = function(event) {
     amount: amountUsd,
     paid,
     status: 'pending',
-    date: getLocalDateString(),
+    date: todoDateStr,
     createdAt: Date.now(),
     customDurationDays: durationDays,
     employeeId: (appState.session && appState.session.type === 'employee') ? appState.session.employeeId : null,
@@ -1066,6 +1068,7 @@ window.editTransaction = function(id) {
   if (!t) { showToast('Transaction introuvable', 'error'); return; }
   
   document.getElementById('editTxId').value = id;
+  document.getElementById('editTxDate').value = t.date || '';
   document.getElementById('editTxAmount').value = t.amount || 0;
   document.getElementById('editTxPrice').value = t.priceDzd || 0;
   document.getElementById('editTxDuration').value = t.duration || '';
@@ -1076,35 +1079,47 @@ window.editTransaction = function(id) {
 
 window.saveEditTransaction = function() {
   const id = document.getElementById('editTxId').value;
+  const t = appState.transactions.find(x => x.id === id);
+  if (!t) return;
+  
   const amount = Number(document.getElementById('editTxAmount').value || 0);
   const priceDzd = Number(document.getElementById('editTxPrice').value || 0);
+  const dateStr = document.getElementById('editTxDate').value || t.date;
   const durationStr = document.getElementById('editTxDuration').value || '';
   const paid = document.getElementById('editTxPaid').checked;
 
-  const t = appState.transactions.find(x => x.id === id);
-  if (!t) return;
-
   if (!amount || !priceDzd) { showToast('Valeurs invalides', 'error'); return; }
+  
+  const oldPrice = t.priceDzd || 0;
+  const oldPaid = !!t.paid;
   
   const buyRateGuess = t.buyRate || (t.amount ? (Number(t.totalDzd || 0) / Number(t.amount || 1)) : Number(document.getElementById('buyRate')?.value || 0));
   const totalDzd = amount * Number(buyRateGuess || 0);
   const profit = priceDzd - totalDzd;
   
+  if (t.clientId) {
+      const client = appState.clients.find(c => c.id === t.clientId);
+      if (client) {
+          client.totalSpent = (client.totalSpent || 0) - oldPrice + priceDzd;
+          
+          if (!oldPaid) client.unpaid = (client.unpaid || 0) - oldPrice;
+          if (!paid) client.unpaid = (client.unpaid || 0) + priceDzd;
+          
+          client.updatedAt = Date.now();
+      }
+  }
+
   Object.assign(t, { 
       amount, 
       priceDzd, 
       totalDzd, 
       profit, 
+      date: dateStr,
       duration: durationStr, 
       paid,
       updatedAt: Date.now() 
   });
 
-  if (t.clientId) {
-      const client = appState.clients.find(c => c.id === t.clientId);
-      if (client) client.updatedAt = Date.now();
-  }
-  
   if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
   if (typeof renderTables === 'function') renderTables();
   if (typeof autoSave === 'function') autoSave();
