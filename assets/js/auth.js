@@ -24,11 +24,18 @@ window.updateAuthUI = function (user) {
   const sess = (window.appState && window.appState.session) ? window.appState.session : null;
   const isEmployee = (sess && sess.type === 'employee');
 
-  // Appliquer les restrictions d'accès pour les employés
-  const adminTabs = ['tabBtn-expenses', 'tabBtn-paiements', 'tabBtn-achats', 'tabBtn-settings'];
-  adminTabs.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = isEmployee ? 'none' : 'block';
+  // Appliquer les restrictions d'accès dynamiques pour les employés
+  const adminTabs = ['expenses', 'paiements', 'achats', 'settings'];
+  adminTabs.forEach(tab => {
+    const el = document.getElementById('tabBtn-' + tab);
+    if (el) {
+       if (isEmployee) {
+           const hasAccess = sess.permissions && sess.permissions[tab] === true;
+           el.style.display = hasAccess ? 'block' : 'none';
+       } else {
+           el.style.display = 'block';
+       }
+    }
   });
 
   if (user || isEmployee || window.authTransitionFlag) {
