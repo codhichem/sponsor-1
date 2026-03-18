@@ -1258,23 +1258,3 @@ window.saveEditTransaction = function() {
   closeModal('editTransactionModal');
   showToast('Transaction mise à jour', 'success');
 };
-
-window.calculateSimulation = function() {
-    const budgetEl = document.getElementById('simBudget');
-    const marginEl = document.getElementById('simMargin');
-    const resultEl = document.getElementById('simResult');
-    if (!budgetEl || !marginEl || !resultEl) return;
-    
-    const budget = parseFloat(budgetEl.value || 0);
-    const margin = parseFloat(marginEl.value || 0);
-    const cma = appState.globalConfig?.cmaUsd || 0;
-    
-    if (budget > 0 && cma > 0) {
-        const costDzd = budget * cma;
-        const multiplier = 1 + (margin / 100);
-        const finalPrice = Math.floor(costDzd * multiplier);
-        resultEl.textContent = typeof formatCurrency === 'function' ? formatCurrency(finalPrice, 'DZD') : (finalPrice + ' DZD');
-    } else {
-        resultEl.textContent = '0 DZD';
-    }
-};

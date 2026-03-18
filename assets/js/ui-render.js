@@ -303,45 +303,9 @@ window.renderDashboard = function(container) {
         `).join('')}
     </div>
   ` : '';
-
-  const simulatorHtml = `
-    <div class="bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 rounded-3xl p-6 md:p-8 shadow-2xl text-white mb-8 relative overflow-hidden fade-in border border-indigo-700/50">
-      <div class="absolute -right-10 -top-10 text-indigo-500/20 transform rotate-12">
-        <i class="fas fa-calculator text-9xl"></i>
-      </div>
-      <div class="relative z-10">
-        <h3 class="text-xl md:text-2xl font-black mb-2 flex items-center gap-3"><i class="fas fa-magic text-purple-400"></i> Simulateur de Devis</h3>
-        <p class="text-indigo-200 text-sm md:text-base mb-6 max-w-2xl">Calculez instantanément le prix à facturer au client en DZD pour garantir votre marge. Basé sur le Coût Moyen d'Achat actuel (CMA) de <strong class="bg-indigo-800/50 px-2 py-1 rounded text-white">${typeof formatCurrency === 'function' ? formatCurrency(appState.globalConfig?.cmaUsd || 0, 'DZD') : (appState.globalConfig?.cmaUsd || 0)}/$</strong>.</p>
-        
-        <div class="flex flex-col md:flex-row gap-5 items-end bg-black/20 p-5 rounded-2xl border border-white/5 backdrop-blur-sm">
-          <div class="w-full md:w-1/3">
-            <label class="block text-xs font-bold text-indigo-300 uppercase tracking-widest mb-2">Budget Pub USD ($)</label>
-            <div class="relative">
-              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-400 font-bold">$</div>
-              <input type="number" id="simBudget" placeholder="100" oninput="if(typeof window.calculateSimulation==='function') window.calculateSimulation()" class="w-full bg-white/10 border border-indigo-400/30 rounded-xl py-3 pl-8 pr-4 text-white text-lg font-bold placeholder-indigo-300/30 outline-none focus:ring-2 focus:ring-purple-400 transition-all">
-            </div>
-          </div>
-          <div class="w-full md:w-1/4">
-            <label class="block text-xs font-bold text-indigo-300 uppercase tracking-widest mb-2">Marge Voulue (%)</label>
-            <div class="relative">
-              <input type="number" id="simMargin" value="30" oninput="if(typeof window.calculateSimulation==='function') window.calculateSimulation()" class="w-full bg-white/10 border border-indigo-400/30 rounded-xl py-3 px-4 text-white text-lg font-bold outline-none focus:ring-2 focus:ring-purple-400 transition-all">
-              <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-indigo-400 font-bold">%</div>
-            </div>
-          </div>
-          <div class="w-full md:w-5/12 ml-auto">
-             <div class="bg-gradient-to-r from-green-500 to-emerald-400 p-4 rounded-xl shadow-lg shadow-green-900/50 flex flex-col justify-center items-center transform transition-transform hover:scale-[1.02]">
-                <div class="text-green-900 text-xs font-black uppercase tracking-widest mb-1 opacity-80">Prix à Facturer</div>
-                <div id="simResult" class="text-3xl font-black text-white drop-shadow-md">0 DZD</div>
-             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
   
   container.innerHTML = `
     ${alertsHtml}
-    ${simulatorHtml}
     ${isAdmin ? `
     <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-4">
       <div class="text-sm text-gray-500 dark:text-gray-400 font-bold">Soldes</div>
