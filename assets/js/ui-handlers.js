@@ -138,14 +138,9 @@ window.handleLoginClick = async function() {
     let employees = appState.employees || [];
     if (employees.length === 0 && window.firebase) {
       const db = firebase.firestore();
-      // Try by login or email generically
-      const snap = await db.collection('employees').where('login', '==', email).limit(1).get().catch(() => ({ empty: true }));
-      if (!snap.empty) employees = [snap.docs[0].data()];
-      else {
-        // Fallback to check if they entered their email instead of login
-        const snap2 = await db.collection('employees').where('email', '==', email).limit(1).get().catch(() => ({ empty: true }));
-        if (!snap2.empty) employees = [snap2.docs[0].data()];
-      }
+      // Fetch all employees to allow Javascript case-insensitive search
+      const snap = await db.collection('employees').get().catch(() => ({ empty: true }));
+      if (!snap.empty) employees = snap.docs.map(d => d.data());
     }
 
     const emp = employees.find(e => (e.active !== false) && ((e.login || '').toLowerCase() === email.toLowerCase() || (e.email || '').toLowerCase() === email.toLowerCase()));
@@ -949,16 +944,19 @@ window.rechargeAdAccount = function(id) {
 };
 
 window.addEmployee = function() {
-  const name = (document.getElementById('employeeName')?.value || '').trim();
+  let name = (document.getElementById('employeeName')?.value || '').trim();
   const login = (document.getElementById('employeeLogin')?.value || '').trim();
   const password = (document.getElementById('employeePassword')?.value || '').trim();
-  const active = !!document.getElementById('employeeActive')?.checked;
+  
+  // Default values
+  const active = document.getElementById('employeeActive') ? !!document.getElementById('employeeActive').checked : true;
+  if (!name) name = login;
 
-  if (!name || !login || !password) return showToast('Nom, login et mot de passe requis', 'error');
+  if (!login || !password) return showToast('Nom d\'utilisateur et mot de passe requis', 'error');
 
   if (!appState.employees) appState.employees = [];
   const exists = appState.employees.some(e => (e.login || '').toLowerCase() === login.toLowerCase());
-  if (exists) return showToast('Ce login employé existe déjà', 'warning');
+  if (exists) return showToast('Ce nom d\'utilisateur existe déjà', 'warning');
 
   appState.employees.push({
     id: generateId('emp'),

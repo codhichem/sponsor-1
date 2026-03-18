@@ -871,14 +871,18 @@ window.renderSettingsAdmin = function(container) {
           <div class="p-5 bg-gray-50 rounded-2xl border">
             <div class="font-black text-gray-800 mb-4">Ajouter un employé</div>
             <div class="space-y-3">
-              <input id="employeeName" type="text" placeholder="Nom" class="w-full p-3 border rounded-xl bg-white">
-              <input id="employeeLogin" type="text" placeholder="Login (ex: email)" class="w-full p-3 border rounded-xl bg-white">
-              <input id="employeePassword" type="password" placeholder="Mot de passe" class="w-full p-3 border rounded-xl bg-white">
-              <label class="flex items-center gap-2 text-sm text-gray-700 font-bold">
-                <input id="employeeActive" type="checkbox" checked>
-                Compte actif
-              </label>
-              <button onclick="addEmployee()" class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl">Ajouter</button>
+              <div class="hidden">
+                <input id="employeeName" type="text" placeholder="Nom complet" class="w-full p-3 border rounded-xl bg-white">
+              </div>
+              <input id="employeeLogin" type="text" placeholder="Nom d'utilisateur" class="w-full p-3 border rounded-xl bg-white focus:ring-2 focus:ring-gray-800 outline-none">
+              <input id="employeePassword" type="password" placeholder="Mot de passe" class="w-full p-3 border rounded-xl bg-white focus:ring-2 focus:ring-gray-800 outline-none">
+              <div class="hidden">
+                <label class="flex items-center gap-2 text-sm text-gray-700 font-bold">
+                  <input id="employeeActive" type="checkbox" checked>
+                  Compte actif
+                </label>
+              </div>
+              <button onclick="addEmployee()" class="w-full py-3 bg-gray-900 text-white font-bold rounded-xl mt-2 shadow hover:shadow-lg transition-all">Ajouter l'employé</button>
               <div class="text-xs text-gray-500">Utilise “Connexion Employé” sur l’écran de login avec ce login/mot de passe.</div>
             </div>
           </div>
