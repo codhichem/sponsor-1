@@ -58,28 +58,18 @@ window.normalizeAppState = function() {
 };
 
 /**
- * Sauvegarde locale
+ * Sauvegarde locale (Désactivée)
  */
 window.saveToLocalStorage = function() {
-  localStorage.setItem('hichemSponsor', JSON.stringify(appState));
+  // Aucune sauvegarde locale pour forcer le temps réel
 };
 
 /**
- * Chargement local
+ * Chargement local (Désactivé & Nettoyage)
  */
 window.loadFromLocalStorage = function() {
-  const data = localStorage.getItem('hichemSponsor');
-  if (data) {
-    try {
-      const parsed = JSON.parse(data);
-      if (parsed && typeof parsed === 'object') {
-        Object.assign(window.appState, parsed);
-        normalizeAppState();
-      }
-    } catch (e) {
-      console.error('Erreur parse localStorage', e);
-    }
-  }
+  // On efface l'ancienne sauvegarde locale pour éviter les conflits fantômes
+  localStorage.removeItem('hichemSponsor');
 };
 
 /**
@@ -95,12 +85,12 @@ window.saveToCloud = async function() {
     appState.lastUpdated = Date.now();
     
     // On sauvegarde un snapshot des réglages
-    const settings = {
-      globalConfig: appState.globalConfig,
-      settings: appState.settings,
-      manualBalances: appState.manualBalances,
-      lastUpdated: appState.lastUpdated
-    };
+    const settings = JSON.parse(JSON.stringify({
+      globalConfig: appState.globalConfig || null,
+      settings: appState.settings || null,
+      manualBalances: appState.manualBalances || null,
+      lastUpdated: appState.lastUpdated || Date.now()
+    }));
     
     await db.collection('users').doc(uid).set({ data: settings }, { merge: true });
     
@@ -155,7 +145,8 @@ async function syncGranularToCloud() {
         item.uid = uid;
         item.updatedAt = item.updatedAt || Date.now();
         
-        promises.push(db.collection(colName).doc(item.id).set(item, { merge: true }));
+        const sanitizedItem = JSON.parse(JSON.stringify(item));
+        promises.push(db.collection(colName).doc(item.id).set(sanitizedItem, { merge: true }));
         });
     }
   });
