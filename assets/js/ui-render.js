@@ -494,16 +494,15 @@ window.renderClientsTable = function(container) {
             <tr class="bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 text-xs font-black uppercase tracking-widest border-b dark:border-gray-700">
               <th class="p-4">Client</th>
               <th class="p-4">Contact</th>
-              <th class="p-4">Dépensé</th>
-              <th class="p-4">Dette (Impayé)</th>
-              <th class="p-4">Dernier Délai</th>
+              <th class="p-4">Commandes & Dépenses</th>
+              <th class="p-4">Finances (Solde / Dette)</th>
               <th class="p-4 text-center">Actions</th>
             </tr>
           </thead>
           <tbody class="divide-y dark:divide-gray-700 text-sm">
             ${pageItems.map(c => {
               const deadline = getClientLastDeadline(c.id);
-              const isOverdue = deadline !== '-' && new Date(deadline) < new Date();
+              const txCount = (appState.transactions || []).filter(tx => tx.clientId === c.id).length;
               return `
               <tr class="hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
                 <td class="p-4">
@@ -511,29 +510,44 @@ window.renderClientsTable = function(container) {
                   <div class="text-[10px] text-gray-400 font-mono">${c.id}</div>
                 </td>
                 <td class="p-4">
-                  <div class="flex items-center gap-2">
-                    <span class="text-gray-600 dark:text-gray-400">${c.phone || c.contact || '-'}</span>
-                    ${c.phone ? `<a href="${buildClientWhatsAppLink(c)}" target="_blank" class="text-green-500 hover:text-green-600 text-lg"><i class="fab fa-whatsapp"></i></a>` : ''}
-                    ${c.instagram ? `<a href="https://instagram.com/${c.instagram.replace('@', '')}" target="_blank" class="text-pink-600 hover:text-pink-700 text-lg"><i class="fab fa-instagram"></i></a>` : ''}
+                  <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 font-medium">
+                      <i class="fab fa-whatsapp text-green-500"></i>
+                      ${c.phone ? `<a href="${buildClientWhatsAppLink(c)}" target="_blank" class="hover:text-green-600 transition-colors">${c.phone}</a>` : '-'}
+                    </div>
+                    ${c.instagram ? `
+                    <div class="flex items-center gap-2 text-sm text-gray-500 font-medium">
+                      <i class="fab fa-instagram text-pink-600"></i>
+                      <a href="https://instagram.com/${c.instagram.replace('@', '')}" target="_blank" class="hover:text-pink-700 transition-colors">${c.instagram}</a>
+                    </div>` : ''}
                   </div>
                 </td>
-                <td class="p-4 font-bold text-gray-700 dark:text-gray-300">${formatCurrency(c.totalSpent || 0)}</td>
                 <td class="p-4">
-                  <span class="font-black ${Number(c.unpaid || 0) > 0 ? 'text-red-600' : 'text-green-600'}">
-                    ${Number(c.unpaid || 0) < 0 ? 'Crédit: ' + formatCurrency(Math.abs(c.unpaid)) : formatCurrency(c.unpaid || 0)}
-                  </span>
+                  <div class="font-black text-indigo-600 text-lg">${formatCurrency(c.totalSpent || 0)}</div>
+                  <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    ${txCount} transaction${txCount > 1 ? 's' : ''}
+                  </div>
                 </td>
-                <td class="p-4">
-                  <span class="font-bold ${isOverdue ? 'text-red-600 bg-red-100 px-2 py-1 rounded' : 'text-gray-600 dark:text-gray-400'}">
-                    ${deadline}
-                  </span>
+                <td class="p-4 flex flex-col items-start gap-2">
+                  ${Number(c.unpaid || 0) > 0 ? `
+                    <span class="font-black text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-1 rounded-lg border border-red-100 dark:border-red-800">
+                      Dette: ${formatCurrency(c.unpaid)}
+                    </span>
+                    <span class="text-[11px] font-bold ${deadline !== '-' && new Date(deadline) < new Date() ? 'text-red-500' : 'text-gray-500'}">
+                      <i class="fas fa-clock mr-1"></i> Délai : ${deadline}
+                    </span>
+                  ` : `
+                    <span class="font-black text-green-600 bg-green-50 dark:bg-green-900/30 px-3 py-1 rounded-lg border border-green-100 dark:border-green-800">
+                      ${Number(c.unpaid || 0) < 0 ? 'Crédit: ' + formatCurrency(Math.abs(c.unpaid)) : 'Solde OK'}
+                    </span>
+                  `}
                 </td>
-                <td class="p-4 text-center">
+                <td class="p-4 text-center align-middle">
                   <div class="flex justify-center gap-2">
-                    <button onclick="editClient('${c.id}')" class="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg" title="Modifier">
+                    <button onclick="editClient('${c.id}')" class="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Modifier">
                       <i class="fas fa-edit"></i>
                     </button>
-                    <button onclick="deleteClient('${c.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg" title="Supprimer">
+                    <button onclick="deleteClient('${c.id}')" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors" title="Supprimer">
                       <i class="fas fa-trash-alt"></i>
                     </button>
                   </div>
@@ -1094,33 +1108,32 @@ window.renderTodoTable = function(container) {
             ${pageItems.map(t => `
               <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30">
                 <td class="p-4">
-                  <span class="px-2 py-1 rounded-full text-[10px] font-black ${t._type === 'problem' ? 'bg-red-100 text-red-700' : (t._type === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-indigo-100 text-indigo-700')}">
-                    ${t._type === 'problem' ? 'PROBLÈME' : (t._type === 'in_progress' ? 'EN COURS' : 'TODO')}
-                  </span>
+                  <select onchange="changeTodoStatus('${t.id}', this.value, '${t._type}')" class="text-xs font-black p-2 rounded-lg border outline-none cursor-pointer shadow-sm focus:ring-2 focus:ring-blue-500 ${
+                    t._type === 'problem' ? 'bg-red-50 text-red-700 border-red-200' :
+                    t._type === 'in_progress' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                    'bg-gray-50 text-gray-700 border-gray-200'
+                  }">
+                    <option value="pending" ${t._type === 'todo' ? 'selected' : ''}>TODO</option>
+                    <option value="in_progress" ${t._type === 'in_progress' ? 'selected' : ''}>${t._type === 'in_progress' && t.employeeName ? 'EN COURS - ' + t.employeeName : 'EN COURS'}</option>
+                    <option value="done">FAIT / GAIN</option>
+                    <option value="problem" ${t._type === 'problem' ? 'selected' : ''}>${t._type === 'problem' && t.employeeName ? 'PROBLÈME - ' + t.employeeName : 'PROBLÈME'}</option>
+                  </select>
                 </td>
                 <td class="p-4 text-gray-500 dark:text-gray-400">${formatDate(t.date)}</td>
                 <td class="p-4 font-bold text-gray-800 dark:text-gray-200">${t.clientName || '-'}</td>
                 <td class="p-4 text-gray-600 dark:text-gray-400">${t.offerName || '-'}</td>
                 <td class="p-4 font-mono">${safeToFixed(t.amount, 2)} $</td>
                 <td class="p-4 font-black text-indigo-600">${formatCurrency(t.priceDzd)}</td>
-                <td class="p-4">
-                  <span class="px-2 py-1 rounded-full text-[10px] font-black ${t.paid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
-                    ${t.paid ? 'PAYÉ' : 'IMPAYÉ'}
-                  </span>
+                <td class="p-4 text-center">
+                  <label class="flex items-center justify-center cursor-pointer">
+                    <input type="checkbox" onclick="toggleTodoPayment('${t.id}', '${t._type}')" class="w-5 h-5 text-indigo-600 rounded shadow-sm focus:ring-indigo-500 cursor-pointer" ${t.paid ? 'checked' : ''}>
+                  </label>
                 </td>
                 <td class="p-4 text-gray-600 dark:text-gray-400 text-xs">${t.employeeName || '-'}</td>
                 <td class="p-4 text-center">
-                  ${t._type === 'problem' ? `
-                    <button onclick="resolveProblem('${t.id}')" class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-black">Résoudre</button>
-                  ` : `
-                    <div class="flex flex-wrap gap-2 justify-center">
-                      <button onclick="validateTodoTransaction('${t.id}', 'done')" class="px-3 py-2 rounded-xl bg-green-600 text-white text-xs font-black">Gain</button>
-                      <button onclick="validateTodoTransaction('${t.id}', 'in_progress')" class="px-3 py-2 rounded-xl bg-yellow-500 text-white text-xs font-black">En cours</button>
-                      <button onclick="validateTodoTransaction('${t.id}', 'problem')" class="px-3 py-2 rounded-xl bg-red-600 text-white text-xs font-black">Problème</button>
-                      <button onclick="toggleTodoPayment('${t.id}')" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-black">Payé</button>
-                      <button onclick="deleteTodoTransaction('${t.id}')" class="px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-red-500 text-xs font-black"><i class="fas fa-trash-alt"></i></button>
-                    </div>
-                  `}
+                   <button onclick="deleteTodoTransaction('${t.id}', '${t._type}')" class="p-2 text-gray-400 hover:bg-gray-100 hover:text-red-500 rounded-lg text-xs font-black transition-colors" title="Supprimer">
+                     <i class="fas fa-trash-alt"></i>
+                   </button>
                 </td>
               </tr>
             `).join('')}
@@ -1220,11 +1233,11 @@ window.renderNewTodoForm = function(container) {
       <h2 class="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-3">
         <i class="fas fa-plus-circle text-indigo-600"></i> Nouvelle Tâche (To-Do)
       </h2>
-      <form id="newTodoForm" onsubmit="handleNewTodoSubmit(event)" class="space-y-6">
+      <form id="newTodoForm" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">Date</label>
-            <input type="date" id="todoDate" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
+            <input type="date" id="todoDate" value="${new Date().toISOString().split('T')[0]}" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
           </div>
           <div>
             <label class="block text-sm font-bold text-gray-700 mb-2">Client</label>
@@ -1270,13 +1283,6 @@ window.renderNewTodoForm = function(container) {
             </div>
           </div>
         </div>
-        <div>
-          <label class="block text-sm font-bold text-gray-700 mb-2">Action</label>
-          <select id="todoActionMode" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
-            <option value="todo" selected>Ajouter à la To-Do List</option>
-            <option value="direct">Sponsor direct (valider maintenant)</option>
-          </select>
-        </div>
         <div id="todoCustomOfferFields" class="hidden p-5 border rounded-2xl bg-gray-50 space-y-4">
           <div class="text-sm font-black text-gray-800">Offre personnalisée</div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1294,9 +1300,14 @@ window.renderNewTodoForm = function(container) {
             </div>
           </div>
         </div>
-        <button type="submit" class="w-full py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-black rounded-2xl shadow-lg hover:shadow-indigo-200 transition-all flex items-center justify-center gap-3">
-          <i class="fas fa-save"></i> ENREGISTRER
-        </button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button type="button" onclick="handleNewTodoSubmit('todo', event)" class="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-black rounded-2xl shadow-lg hover:shadow-blue-200 transition-all flex items-center justify-center gap-3">
+            <i class="fas fa-list-ul"></i> Ajouter à la To-Do Liste
+          </button>
+          <button type="button" onclick="handleNewTodoSubmit('direct', event)" class="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-500 text-white font-black rounded-2xl shadow-lg hover:shadow-green-200 transition-all flex items-center justify-center gap-3">
+            <i class="fas fa-rocket"></i> Sponsor Direct
+          </button>
+        </div>
       </form>
     </div>
   `;
@@ -1337,31 +1348,32 @@ window.renderRemindersTable = function(container) {
       
       <div class="grid grid-cols-1 gap-4">
         ${pageItems.map(c => `
-          <div class="p-5 border dark:border-gray-700 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 bg-red-50/30 dark:bg-red-900/10">
-            <div class="flex items-center gap-4 w-full">
-              <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
+          <div class="p-5 border dark:border-gray-700 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-red-50/30 dark:bg-red-900/10 hover:bg-red-50/50 transition-colors">
+            <div class="flex items-start gap-4 w-full">
+              <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex-shrink-0 flex items-center justify-center text-red-600 dark:text-red-400 mt-1">
                 <i class="fas fa-exclamation-circle text-xl"></i>
               </div>
-              <div>
+              <div class="flex-grow">
                 <div class="font-bold text-gray-800 dark:text-white text-lg">${c.name}</div>
-                <div class="text-sm text-red-600 dark:text-red-400 font-black">Dette: ${formatCurrency(c.unpaid)}</div>
+                <div class="text-sm text-red-600 dark:text-red-400 font-black mb-2">Dette: ${formatCurrency(c.unpaid)}</div>
+                <input type="text" value="${c.debtNote || ''}" onchange="updateClientDebtNote('${c.id}', this.value)" placeholder="Ajouter une note de relance..." class="w-full text-xs p-2 border border-red-200 dark:border-red-900/50 rounded-lg outline-none bg-white/60 dark:bg-gray-800 focus:ring-1 focus:ring-red-400 text-gray-700 dark:text-gray-300">
               </div>
             </div>
-            <div class="flex flex-wrap md:flex-nowrap gap-2 w-full md:w-auto mt-4 md:mt-0">
+            <div class="flex flex-wrap md:flex-nowrap gap-2 w-full md:w-auto mt-2 md:mt-0 items-center justify-end">
                ${c.phone ? `
-               <button onclick="sendWhatsAppReminder('${c.id}')" class="flex-grow md:flex-none px-4 py-2 bg-green-600 text-white rounded-xl font-bold shadow-sm hover:bg-green-700 transition-all flex items-center justify-center gap-2">
+               <button onclick="sendWhatsAppReminder('${c.id}')" class="px-4 py-2 bg-green-600 text-white rounded-xl font-bold shadow-sm hover:bg-green-700 transition-all flex items-center justify-center gap-2">
                  <i class="fab fa-whatsapp"></i> WhatsApp
                </button>
                ` : ''}
                ${c.instagram ? `
-               <button onclick="sendInstagramReminder('${c.id}')" class="flex-grow md:flex-none px-4 py-2 bg-pink-600 text-white rounded-xl font-bold shadow-sm hover:bg-pink-700 transition-all flex items-center justify-center gap-2">
+               <button onclick="sendInstagramReminder('${c.id}')" class="px-4 py-2 bg-pink-600 text-white rounded-xl font-bold shadow-sm hover:bg-pink-700 transition-all flex items-center justify-center gap-2">
                  <i class="fab fa-instagram"></i> Instagram
                </button>
                ` : ''}
                ${(!c.phone && !c.instagram) ? `
-               <span class="text-xs text-gray-500 italic mt-2 self-center">Aucun contact dispo</span>
+               <span class="text-xs text-gray-500 italic mr-2">Aucun contact dispo</span>
                ` : ''}
-               <button onclick="showTab('paiements')" class="flex-grow md:flex-none px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-600">
+               <button onclick="openPaymentModalPrefilled('${c.id}')" class="px-4 py-2 bg-white dark:bg-gray-700 border dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-50 dark:hover:bg-gray-600 shadow-sm transition-colors whitespace-nowrap">
                  Régler
                </button>
             </div>

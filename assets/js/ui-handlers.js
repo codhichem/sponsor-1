@@ -409,6 +409,21 @@ window.editClient = function(id) {
   openModal('clientModal');
 };
 
+window.updateClientDebtNote = function(id, note) {
+  const client = (appState.clients || []).find(c => c.id === id);
+  if (!client) return;
+  client.debtNote = note;
+  client.updatedAt = Date.now();
+  if (typeof autoSave === 'function') autoSave();
+};
+
+window.openPaymentModalPrefilled = function(clientId) {
+  openModal('paymentModal');
+  setTimeout(() => {
+    const sel = document.getElementById('paymentClientId');
+    if (sel) sel.value = clientId;
+  }, 10);
+};
 window.deleteClient = function(id) {
   if (!confirm('Supprimer ce client ?')) return;
   appState.clients = (appState.clients || []).filter(c => c.id !== id);
@@ -466,13 +481,18 @@ window.deleteOffer = function(id) {
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
 
-window.handleNewTodoSubmit = function(event) {
-  event.preventDefault();
+window.handleNewTodoSubmit = function(actionMode, event) {
+  if (event) event.preventDefault();
+  const form = document.getElementById('newTodoForm');
+  if (form && !form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+  
   const clientId = document.getElementById('todoClientId')?.value;
   const offerId = document.getElementById('todoOfferId')?.value;
   const priceDzd = Number(document.getElementById('todoPrice')?.value || 0);
   const paid = !!document.getElementById('todoPaid')?.checked;
-  const actionMode = document.getElementById('todoActionMode')?.value || 'todo';
 
   const client = (appState.clients || []).find(c => c.id === clientId);
   if (!client) return showToast('Client invalide', 'error');
@@ -607,73 +627,99 @@ window.clearTodoOfferSearch = function() {
   if (searchEl) searchEl.focus();
 };
 
-window.validateTodoTransaction = function(id, status) {
-  const idx = (appState.todoTransactions || []).findIndex(t => t.id === id);
-  if (idx === -1) return;
-  const todo = appState.todoTransactions[idx];
+window.changeTodoStatus = function(id, newStatus, currentType) {
+  let sourceArray = currentType === 'problem' ? appState.transactions : appState.todoTransactions;
+  if (!sourceArray) return;
+  
+  let itemIndex = sourceArray.findIndex(t => t.id === id);
+  if (itemIndex === -1) return;
+  let item = sourceArray[itemIndex];
 
-  if (!appState.transactions) appState.transactions = [];
-  const employeeId = (appState.session && appState.session.type === 'employee') ? appState.session.employeeId : (todo.employeeId || null);
-  const employeeName = (appState.session && appState.session.type === 'employee') ? (appState.session.name || '') : (todo.employeeName || null);
+  if (
+    (currentType === 'todo' && newStatus === 'pending') ||
+    (currentType === 'in_progress' && newStatus === 'in_progress') ||
+    (currentType === 'problem' && newStatus === 'problem')
+  ) return;
 
-  if (status === 'done') {
-    appState.transactions.push({ ...todo, employeeId, employeeName, id: generateId('tx'), status: 'active', completedAt: Date.now() });
-    const client = (appState.clients || []).find(c => c.id === todo.clientId);
-    if (client) {
-      client.totalSpent = (client.totalSpent || 0) + (todo.priceDzd || 0);
-      if (!todo.paid) client.unpaid = (client.unpaid || 0) + (todo.priceDzd || 0);
-      client.updatedAt = Date.now();
+  const employeeId = (appState.session && appState.session.type === 'employee') ? appState.session.employeeId : (item.employeeId || null);
+  const employeeName = (appState.session && appState.session.type === 'employee') ? (appState.session.name || '') : (item.employeeName || null);
+
+  item.employeeId = employeeId;
+  item.employeeName = employeeName;
+  item.updatedAt = Date.now();
+
+  if (newStatus === 'done' || newStatus === 'problem') {
+    const destStatus = newStatus === 'done' ? 'active' : 'problem';
+    if (currentType === 'problem') {
+       if (destStatus === 'active') {
+         item.status = 'active';
+         item.completedAt = Date.now();
+         const client = (appState.clients || []).find(c => c.id === item.clientId);
+         if (client) {
+           client.totalSpent = (client.totalSpent || 0) + (item.priceDzd || 0);
+           if (!item.paid) client.unpaid = (client.unpaid || 0) + (item.priceDzd || 0);
+           client.updatedAt = Date.now();
+         }
+         showToast('Problème résolu, transaction validée', 'success');
+       }
+    } else {
+       if (!appState.transactions) appState.transactions = [];
+       const newTx = { ...item, id: generateId('tx'), status: destStatus };
+       if (destStatus === 'active') {
+         newTx.completedAt = Date.now();
+         const client = (appState.clients || []).find(c => c.id === item.clientId);
+         if (client) {
+           client.totalSpent = (client.totalSpent || 0) + (item.priceDzd || 0);
+           if (!item.paid) client.unpaid = (client.unpaid || 0) + (item.priceDzd || 0);
+           client.updatedAt = Date.now();
+         }
+       }
+       appState.transactions.push(newTx);
+       if (!appState.sync) appState.sync = {};
+       if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+       appState.sync.pendingDeletions.push({ col: 'todoTransactions', id: item.id });
+       sourceArray.splice(itemIndex, 1);
+       showToast(destStatus === 'active' ? 'Transaction validée' : 'Signalé comme PROBLÈME', destStatus === 'active' ? 'success' : 'warning');
     }
-    appState.todoTransactions.splice(idx, 1);
-    if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
-    showToast('Transaction validée', 'success');
-  } else if (status === 'problem') {
-    appState.transactions.push({ ...todo, employeeId, employeeName, id: generateId('tx'), status: 'problem', updatedAt: Date.now() });
-    appState.todoTransactions.splice(idx, 1);
-    if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
-    showToast('Transaction marquée comme PROBLÈME', 'warning');
-  } else if (status === 'in_progress') {
-    todo.status = 'in_progress';
-    showToast('Transaction marquée EN COURS', 'info');
+  } else if (newStatus === 'pending' || newStatus === 'in_progress') {
+    if (currentType === 'problem') {
+      if (!appState.todoTransactions) appState.todoTransactions = [];
+      const newTodo = { ...item, id: generateId('todo'), status: newStatus };
+      appState.todoTransactions.push(newTodo);
+      if (!appState.sync) appState.sync = {};
+      if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+      appState.sync.pendingDeletions.push({ col: 'transactions', id: item.id });
+      sourceArray.splice(itemIndex, 1);
+      showToast(newStatus === 'pending' ? 'Remis en attente' : 'Marqué EN COURS', 'info');
+    } else {
+      item.status = newStatus;
+      showToast(newStatus === 'pending' ? 'Remis en attente' : 'Marqué EN COURS', 'info');
+    }
   }
 
-  if (typeof autoSave === 'function') autoSave();
-  if (typeof renderCurrentTab === 'function') renderCurrentTab();
-};
-
-window.deleteTodoTransaction = function(id) {
-  if (!confirm('Supprimer cette tâche ?')) return;
-  appState.todoTransactions = (appState.todoTransactions || []).filter(t => t.id !== id);
-  if (!appState.sync) appState.sync = {};
-  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
-  appState.sync.pendingDeletions.push({ col: 'todoTransactions', id: id });
-  if (typeof autoSave === 'function') autoSave();
-  if (typeof renderCurrentTab === 'function') renderCurrentTab();
-};
-
-window.toggleTodoPayment = function(id) {
-  const todo = (appState.todoTransactions || []).find(t => t.id === id);
-  if (!todo) return;
-  todo.paid = !todo.paid;
-  if (typeof autoSave === 'function') autoSave();
-  if (typeof renderCurrentTab === 'function') renderCurrentTab();
-};
-
-window.resolveProblem = function(id) {
-  const tx = (appState.transactions || []).find(t => t.id === id);
-  if (!tx) return;
-  tx.status = 'active';
-  tx.updatedAt = Date.now();
-  tx.completedAt = Date.now();
-  const client = (appState.clients || []).find(c => c.id === tx.clientId);
-  if (client) {
-    client.totalSpent = (client.totalSpent || 0) + (tx.priceDzd || 0);
-    if (!tx.paid) client.unpaid = (client.unpaid || 0) + (tx.priceDzd || 0);
-    client.updatedAt = Date.now();
-  }
   if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
   if (typeof autoSave === 'function') autoSave();
-  showToast('Problème résolu', 'success');
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
+window.toggleTodoPayment = function(id, currentType) {
+  let sourceArray = currentType === 'problem' ? appState.transactions : appState.todoTransactions;
+  if (!sourceArray) return;
+  const item = sourceArray.find(t => t.id === id);
+  if (!item) return;
+  item.paid = !item.paid;
+  if (typeof autoSave === 'function') autoSave();
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
+window.deleteTodoTransaction = function(id, currentType) {
+  if (!confirm('Supprimer cette tâche ?')) return;
+  let col = currentType === 'problem' ? 'transactions' : 'todoTransactions';
+  appState[col] = (appState[col] || []).filter(t => t.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: col, id: id });
+  if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
 
