@@ -137,8 +137,16 @@ async function syncGranularToCloud() {
   
   const promises = [];
   
+  if (!window.lastCloudState) window.lastCloudState = {};
+  
   collections.forEach(colName => {
     const items = appState[colName];
+    const oldItems = window.lastCloudState[colName] || [];
+    
+    // Build quick lookup map for deep comparison
+    const oldMap = {};
+    oldItems.forEach(o => { if (o && o.id) oldMap[o.id] = JSON.stringify(o); });
+    
     if (Array.isArray(items)) {
         items.forEach(item => {
         if (!item.id) item.id = generateId();
@@ -146,7 +154,21 @@ async function syncGranularToCloud() {
         item.updatedAt = item.updatedAt || Date.now();
         
         const sanitizedItem = JSON.parse(JSON.stringify(item));
-        promises.push(db.collection(colName).doc(item.id).set(sanitizedItem, { merge: true }));
+        const newStr = JSON.stringify(sanitizedItem);
+        
+        // Only write to Firebase if the document is new or mathematically different
+        if (oldMap[item.id] !== newStr) {
+            promises.push(db.collection(colName).doc(item.id).set(sanitizedItem, { merge: true }).then(() => {
+                // Update local cloud clone to reflect the strict reality of the server
+                if (!window.lastCloudState[colName]) window.lastCloudState[colName] = [];
+                const existIdx = window.lastCloudState[colName].findIndex(x => x.id === item.id);
+                if (existIdx > -1) {
+                    window.lastCloudState[colName][existIdx] = JSON.parse(newStr);
+                } else {
+                    window.lastCloudState[colName].push(JSON.parse(newStr));
+                }
+            }));
+        }
         });
     }
   });
@@ -211,7 +233,12 @@ function loadGranularFromCloud() {
 
   collections.forEach(colName => {
     const unsub = db.collection(colName).where('uid', '==', uid).onSnapshot(snapshot => {
-      appState[colName] = snapshot.docs.map(d => d.data());
+      const data = snapshot.docs.map(d => d.data());
+      appState[colName] = data;
+      
+      // Update baseline cloud state to avoid redundant writes back to the server
+      if (!window.lastCloudState) window.lastCloudState = {};
+      window.lastCloudState[colName] = JSON.parse(JSON.stringify(data));
       
       initialLoadCount++;
       if (initialLoadCount >= totalCollections) {
