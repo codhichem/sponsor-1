@@ -31,7 +31,7 @@ window.normalizeAppState = function() {
     changed = true;
   }
 
-  const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'usdtExpenses', 'recurringExpenses', 'clientRequests'];
+  const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'usdtExpenses', 'recurringExpenses', 'clientRequests', 'employees', 'adAccounts'];
   
   collections.forEach(col => {
     if (!Array.isArray(appState[col])) {
@@ -143,7 +143,7 @@ async function syncGranularToCloud() {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
 
-  const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses'];
+  const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses', 'employees', 'adAccounts'];
   
   const promises = [];
   
@@ -208,14 +208,14 @@ window.loadFromCloud = async function() {
  * Variables to prevent infinite loops during initial sync
  */
 let initialLoadCount = 0;
-const totalCollections = 10;
 
 function loadGranularFromCloud() {
   const db = firebase.firestore();
   const uid = auth.currentUser?.uid;
   if (!uid) return;
 
-  const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses'];
+  const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses', 'employees', 'adAccounts'];
+  const totalCollections = collections.length;
   initialLoadCount = 0;
 
   collections.forEach(colName => {
