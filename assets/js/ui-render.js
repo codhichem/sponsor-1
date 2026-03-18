@@ -1360,7 +1360,17 @@ window.renderRemindersTable = function(container) {
       <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Gestion des Dettes & Relances</h2>
-          <p class="text-gray-500 dark:text-gray-400 text-sm">${filtered.length} clients ont des impayés • Dernière mise à jour: ${lastUpdated}</p>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+             <div class="bg-red-50 text-red-700 border border-red-200 px-3 py-1 rounded-xl text-sm font-bold flex items-center gap-2">
+               <i class="fas fa-users"></i> ${all.length} Clients
+             </div>
+             <div class="bg-red-600 text-white shadow-md shadow-red-200 px-3 py-1 rounded-xl text-sm font-black flex items-center gap-2">
+               <i class="fas fa-chart-line"></i> Total : ${(typeof formatCur === 'function' ? formatCur(all.reduce((acc, c) => acc + Number(c.unpaid || 0), 0)) : all.reduce((acc, c) => acc + Number(c.unpaid || 0), 0) + ' DZD')}
+             </div>
+             <div class="text-gray-500 dark:text-gray-400 text-xs flex items-center gap-1 font-medium bg-gray-100 px-3 py-1 rounded-xl">
+               <i class="fas fa-history"></i> ${lastUpdated}
+             </div>
+          </div>
         </div>
         <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher par nom..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
       </div>
