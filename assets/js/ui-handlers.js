@@ -1087,6 +1087,13 @@ window.editTransaction = function(id) {
   document.getElementById('editTxDuration').value = t.duration || '';
   document.getElementById('editTxPaid').checked = !!t.paid;
   
+  const adAccountSelect = document.getElementById('editTxAdAccountId');
+  if (adAccountSelect) {
+      adAccountSelect.innerHTML = '<option value="">-- Aucun compte (Organique) --</option>' + 
+          (appState.adAccounts || []).map(a => `<option value="${a.id}">${a.name} (${a.platform})</option>`).join('');
+      adAccountSelect.value = t.adAccountId || '';
+  }
+  
   openModal('editTransactionModal');
 };
 
@@ -1100,6 +1107,7 @@ window.saveEditTransaction = function() {
   const dateStr = document.getElementById('editTxDate').value || t.date;
   const durationStr = document.getElementById('editTxDuration').value || '';
   const paid = document.getElementById('editTxPaid').checked;
+  const adAccountId = document.getElementById('editTxAdAccountId')?.value || null;
 
   if (!amount || !priceDzd) { showToast('Valeurs invalides', 'error'); return; }
   
@@ -1130,6 +1138,7 @@ window.saveEditTransaction = function() {
       date: dateStr,
       duration: durationStr, 
       paid,
+      adAccountId,
       updatedAt: Date.now() 
   });
 
