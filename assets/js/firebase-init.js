@@ -60,3 +60,4 @@ function getDb() {
 
 initFirebase();
 window.getDb = getDb;
+window.db = getDb();
