@@ -121,7 +121,6 @@ window.handleLoginClick = async function() {
   const emailEl = document.getElementById('loginEmail');
   const passwordEl = document.getElementById('loginPassword');
   const errorEl = document.getElementById('loginError');
-  const employeeMode = !!document.getElementById('employeeModeToggle')?.checked;
   const email = (emailEl?.value || '').trim();
   const password = passwordEl?.value || '';
 
@@ -135,24 +134,44 @@ window.handleLoginClick = async function() {
   }
 
   try {
-    if (employeeMode) {
-      const employees = appState.employees || [];
-      const emp = employees.find(e => (e.active !== false) && ((e.login || e.email || '').toLowerCase() === email.toLowerCase()));
-      if (!emp || emp.password !== password) {
-        throw new Error('Identifiants employé incorrects');
+    // 1. Check if it's an Employee first (Seamless routing)
+    let employees = appState.employees || [];
+    if (employees.length === 0 && window.firebase) {
+      const db = firebase.firestore();
+      // Try by login or email generically
+      const snap = await db.collection('employees').where('login', '==', email).limit(1).get().catch(() => ({ empty: true }));
+      if (!snap.empty) employees = [snap.docs[0].data()];
+      else {
+        // Fallback to check if they entered their email instead of login
+        const snap2 = await db.collection('employees').where('email', '==', email).limit(1).get().catch(() => ({ empty: true }));
+        if (!snap2.empty) employees = [snap2.docs[0].data()];
       }
+    }
+
+    const emp = employees.find(e => (e.active !== false) && ((e.login || '').toLowerCase() === email.toLowerCase() || (e.email || '').toLowerCase() === email.toLowerCase()));
+    
+    if (emp) {
+      if (emp.password !== password) {
+        throw new Error('Mot de passe employé incorrect');
+      }
+      
+      appState.adminUid = emp.uid; 
       appState.session = { type: 'employee', employeeId: emp.id, name: emp.name, login: emp.login, loginAt: Date.now() };
+      
       if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
       showToast('Connexion employé réussie', 'success');
       if (typeof updateAuthUI === 'function') updateAuthUI(null);
+      if (typeof loadFromCloud === 'function') await loadFromCloud();
       if (typeof renderTables === 'function') renderTables();
       return;
     }
+
+    // 2. If not an employee, route to Firebase Admin Auth
     if (typeof loginWithEmailPassword === 'function') {
       await loginWithEmailPassword(email, password);
     } else if (window.auth && typeof auth.signInWithEmailAndPassword === 'function') {
       await auth.signInWithEmailAndPassword(email, password);
-      showToast('Connexion réussie', 'success');
+      showToast('Connexion Admin réussie', 'success');
       if (typeof updateAuthUI === 'function') updateAuthUI(auth.currentUser);
       if (typeof loadFromCloud === 'function') await loadFromCloud();
       if (typeof renderTables === 'function') renderTables();

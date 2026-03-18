@@ -58,17 +58,30 @@ window.normalizeAppState = function() {
 };
 
 /**
- * Sauvegarde locale (Désactivée)
+ * Sauvegarde locale (Session uniquement)
  */
 window.saveToLocalStorage = function() {
-  // Aucune sauvegarde locale pour forcer le temps réel
+  const sessionData = {
+    session: appState.session || null,
+    adminUid: appState.adminUid || null
+  };
+  localStorage.setItem('hichemSponsorSession', JSON.stringify(sessionData));
 };
 
 /**
- * Chargement local (Désactivé & Nettoyage)
+ * Chargement local (Session uniquement)
  */
 window.loadFromLocalStorage = function() {
-  // On efface l'ancienne sauvegarde locale pour éviter les conflits fantômes
+  try {
+    const raw = localStorage.getItem('hichemSponsorSession');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.session) appState.session = parsed.session;
+      if (parsed.adminUid) appState.adminUid = parsed.adminUid;
+    }
+  } catch(e) { console.error('Erreur lecture session locale', e); }
+  
+  // Suppression de l'ancienne version complète pour éviter les conflits ghost
   localStorage.removeItem('hichemSponsor');
 };
 
@@ -77,9 +90,8 @@ window.loadFromLocalStorage = function() {
  */
 window.saveToCloud = async function() {
   try {
-    const user = auth.currentUser;
-    if (!user) return;
-    const uid = user.uid;
+    const uid = auth?.currentUser?.uid || appState?.adminUid;
+    if (!uid) return;
     const db = firebase.firestore();
     
     appState.lastUpdated = Date.now();
@@ -130,7 +142,7 @@ window.saveToCloud = async function() {
  */
 async function syncGranularToCloud() {
   const db = firebase.firestore();
-  const uid = auth.currentUser?.uid;
+  const uid = auth?.currentUser?.uid || appState?.adminUid;
   if (!uid) return;
 
   const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses', 'employees', 'adAccounts'];
@@ -184,9 +196,8 @@ window.cloudListeners = [];
 
 window.loadFromCloud = async function() {
   try {
-    const user = auth.currentUser;
-    if (!user) return;
-    const uid = user.uid;
+    const uid = auth?.currentUser?.uid || appState?.adminUid;
+    if (!uid) return;
     const db = firebase.firestore();
     
     // Cleanup previous listeners if any
@@ -224,7 +235,7 @@ let initialLoadCount = 0;
 
 function loadGranularFromCloud() {
   const db = firebase.firestore();
-  const uid = auth.currentUser?.uid;
+  const uid = auth?.currentUser?.uid || appState?.adminUid;
   if (!uid) return;
 
   const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses', 'employees', 'adAccounts'];
