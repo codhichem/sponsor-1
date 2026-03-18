@@ -412,6 +412,9 @@ window.editClient = function(id) {
 window.deleteClient = function(id) {
   if (!confirm('Supprimer ce client ?')) return;
   appState.clients = (appState.clients || []).filter(c => c.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'clients', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -456,6 +459,9 @@ window.editOffer = function(id) {
 window.deleteOffer = function(id) {
   if (!confirm('Supprimer cette offre ?')) return;
   appState.offers = (appState.offers || []).filter(o => o.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'offers', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -638,6 +644,9 @@ window.validateTodoTransaction = function(id, status) {
 window.deleteTodoTransaction = function(id) {
   if (!confirm('Supprimer cette tâche ?')) return;
   appState.todoTransactions = (appState.todoTransactions || []).filter(t => t.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'todoTransactions', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -700,6 +709,9 @@ window.deletePayment = function(id) {
     }
   }
   appState.payments = (appState.payments || []).filter(p => p.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'payments', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -739,6 +751,9 @@ window.addExpense = function() {
 window.deleteExpense = function(id) {
   if (!confirm('Supprimer ce frais ?')) return;
   appState.expenses = (appState.expenses || []).filter(e => e.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'expenses', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
@@ -762,6 +777,9 @@ window.addUsdPurchase = function() {
 window.deleteUsdPurchase = function(id) {
   if (!confirm('Supprimer cet achat USD ?')) return;
   appState.usdPurchases = (appState.usdPurchases || []).filter(p => p.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'usdPurchases', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -778,6 +796,9 @@ window.openRequestModal = function(id) {
 window.deleteRequest = function(id) {
   if (!confirm('Supprimer cette demande ?')) return;
   appState.clientRequests = (appState.clientRequests || []).filter(r => r.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'clientRequests', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -841,6 +862,9 @@ window.addAdAccount = function() {
 window.deleteAdAccount = function(id) {
   if (!confirm('Supprimer ce compte publicitaire ?')) return;
   appState.adAccounts = (appState.adAccounts || []).filter(a => a.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'adAccounts', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
@@ -903,6 +927,9 @@ window.toggleEmployeeActive = function(id) {
 window.deleteEmployee = function(id) {
   if (!confirm('Supprimer cet employé ?')) return;
   appState.employees = (appState.employees || []).filter(e => e.id !== id);
+  if (!appState.sync) appState.sync = {};
+  if (!appState.sync.pendingDeletions) appState.sync.pendingDeletions = [];
+  appState.sync.pendingDeletions.push({ col: 'employees', id: id });
   if (typeof autoSave === 'function') autoSave();
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
   showToast('Employé supprimé', 'info');

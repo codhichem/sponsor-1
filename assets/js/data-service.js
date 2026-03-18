@@ -107,6 +107,19 @@ window.saveToCloud = async function() {
     // Synchro granulaire des collections
     await syncGranularToCloud();
     
+    // Process pending deletions
+    if (appState.sync && appState.sync.pendingDeletions && appState.sync.pendingDeletions.length > 0) {
+        console.log(`Processing ${appState.sync.pendingDeletions.length} pending cloud deletions...`);
+        const deletePromises = appState.sync.pendingDeletions.map(del => {
+            // Wait, for users/settings and employees, they usually don't have their own granular collection
+            // But if they do, we delete. For safety, let's catch errors individually.
+            return db.collection(del.col).doc(del.id).delete().catch(e => console.error("Del Err", e));
+        });
+        await Promise.all(deletePromises);
+        appState.sync.pendingDeletions = [];
+        saveToLocalStorage();
+    }
+    
     console.log('☁️ Sauvegarde Cloud réussie');
     appState.sync.pendingCloudSave = false;
     
