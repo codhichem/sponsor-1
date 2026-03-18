@@ -247,6 +247,22 @@ function loadGranularFromCloud() {
       const data = snapshot.docs.map(d => d.data());
       appState[colName] = data;
       
+      // Real-time Employee Session Validation
+      if (colName === 'employees' && window.appState?.session?.type === 'employee') {
+          const me = data.find(e => e.id === window.appState.session.employeeId);
+          if (me) {
+              if (me.active === false) {
+                  showToast("Votre compte a été désactivé par l'administrateur.", 'error');
+                  if (typeof logout === 'function') setTimeout(logout, 2000);
+                  return;
+              }
+              if (me.permissions) {
+                  window.appState.session.permissions = me.permissions;
+                  if (typeof updateAuthUI === 'function') updateAuthUI(null);
+              }
+          }
+      }
+      
       // Update baseline cloud state to avoid redundant writes back to the server
       if (!window.lastCloudState) window.lastCloudState = {};
       window.lastCloudState[colName] = JSON.parse(JSON.stringify(data));

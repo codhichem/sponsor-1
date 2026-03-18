@@ -163,7 +163,7 @@ window.handleLoginClick = async function() {
       }
       
       appState.adminUid = emp.uid; 
-      appState.session = { type: 'employee', employeeId: emp.id, name: emp.name, login: emp.login, loginAt: Date.now() };
+      appState.session = { type: 'employee', employeeId: emp.id, name: emp.name, login: emp.login, permissions: emp.permissions || {}, loginAt: Date.now() };
       
       if (typeof saveToLocalStorage === 'function') saveToLocalStorage();
       showToast('Connexion employé réussie', 'success');
