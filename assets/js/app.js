@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('appContainer').style.display = 'none';
       } else {
         showAdminSpace();
+        if (typeof loadFromCloud === 'function') loadFromCloud();
       }
     }
     renderTables();
