@@ -1414,15 +1414,7 @@ window.renderRemindersTable = function(container) {
   const pageSize = 15;
   const query = (ui.filters[key] || '').trim().toLowerCase();
   const all = (appState.clients || [])
-    .filter(c => {
-      const txs = (appState.transactions || []).filter(t => t.clientId === c.id && t.status === 'active' && !t.paid);
-      return txs.length > 0;
-    })
-    .map(c => {
-       const txs = (appState.transactions || []).filter(t => t.clientId === c.id && t.status === 'active' && !t.paid);
-       const actualUnpaidAmount = txs.reduce((sum, t) => sum + Number(t.priceDzd || 0), 0);
-       return { ...c, unpaid: actualUnpaidAmount };
-    })
+    .filter(c => (Number(c.unpaid || 0) > 0))
     .sort((a, b) => toTs(b) - toTs(a));
   const filtered = query ? all.filter(c => (c.name || '').toLowerCase().includes(query)) : all;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
