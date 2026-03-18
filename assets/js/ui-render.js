@@ -271,26 +271,16 @@ window.renderDashboard = function(container) {
   }
 
   const allClients = appState.clients || [];
-  let oldDebts = 0;
-  let hugeDebts = 0;
-  const nowTime = Date.now();
+  let totalDettes = 0;
   
   allClients.forEach(c => {
-      const up = Number(c.unpaid || 0);
-      if (up > 0) {
-          if (up >= 12000) hugeDebts++;
-          else {
-              const daysOld = (nowTime - (c.updatedAt || nowTime)) / (1000 * 60 * 60 * 24);
-              if (daysOld >= 7) oldDebts++;
-          }
+      if (Number(c.unpaid || 0) > 0) {
+          totalDettes++;
       }
   });
 
-  if (hugeDebts > 0) {
-      alerts.push({ type: 'danger', icon: 'fa-skull-crossbones', text: `Action Requise : ${hugeDebts} client(s) ont une dette lourde (≥ 12,000 DZD).` });
-  }
-  if (oldDebts > 0) {
-      alerts.push({ type: 'danger', icon: 'fa-clock', text: `Action Requise : ${oldDebts} client(s) ont une dette ancienne (≥ 7 jours).` });
+  if (totalDettes > 0) {
+      alerts.push({ type: 'danger', icon: 'fa-exclamation-circle', text: `Action Requise : ${totalDettes} client(s) ont une dette en cours.` });
   }
 
   const alertsHtml = alerts.length > 0 ? `
@@ -429,17 +419,7 @@ window.renderDashboard = function(container) {
          </div>
        </div>
        ` : ''}
-       <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700">
-          <h3 class="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
-            <i class="fas fa-tasks text-indigo-500"></i> To-Do List Aperçu
-          </h3>
-          <div id="todoPreviewList" class="space-y-3">
-             <!-- Rempli par renderTodoPreview -->
-          </div>
-          <button onclick="showTab('transactions')" class="w-full mt-4 py-2 text-indigo-600 dark:text-indigo-400 font-bold hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition">
-            Voir tout
-          </button>
-       </div>
+       <div id="dashboardTodoContainer" class="lg:col-span-1 border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-700"></div>
        <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700">
           <h3 class="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
             <i class="fas fa-users text-blue-500"></i> Clients Récents
@@ -465,10 +445,13 @@ window.renderDashboard = function(container) {
     </div>
     ` : ''}
   `;
-  
-  renderTodoPreview();
   renderTopClients();
   if (isAdmin) renderMonthlyStatsChart();
+  
+  const todoContainer = document.getElementById('dashboardTodoContainer');
+  if (todoContainer && typeof window.renderTodoTable === 'function') {
+      window.renderTodoTable(todoContainer);
+  }
 };
 
 /**
@@ -588,7 +571,20 @@ window.renderClientsTable = function(container) {
                   `}
                 </td>
                 <td class="p-4 text-center align-middle">
-                  <div class="flex justify-center gap-2">
+                  <div class="flex flex-wrap justify-center gap-2">
+                    ${c.phone ? `
+                    <button onclick="sendWhatsAppReminder('${c.id}')" class="p-2 text-green-600 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 rounded-lg transition-colors" title="WhatsApp">
+                      <i class="fab fa-whatsapp"></i>
+                    </button>
+                    ` : ''}
+                    ${c.instagram ? `
+                    <button onclick="sendInstagramReminder('${c.id}')" class="p-2 text-pink-600 bg-pink-50 dark:bg-pink-900/30 hover:bg-pink-100 rounded-lg transition-colors" title="Instagram">
+                      <i class="fab fa-instagram"></i>
+                    </button>
+                    ` : ''}
+                    <button onclick="openPaymentModalPrefilled('${c.id}')" class="p-2 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 rounded-lg transition-colors" title="Nouveau Paiement">
+                      <i class="fas fa-money-bill-wave"></i>
+                    </button>
                     <button onclick="editClient('${c.id}')" class="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors" title="Modifier">
                       <i class="fas fa-edit"></i>
                     </button>
@@ -1038,11 +1034,29 @@ window.renderExpensesTab = function(container) {
   const ui = getUiState();
   const key = 'expenses';
   const pageSize = 15;
+  const filterUsdOnly = ui.filters[key + '_usdOnly'] === true;
+
+  const baseExpenses = (appState.expenses || []).map(e => ({ ...e, _type: 'expense' }));
+  const basePurchases = (appState.usdPurchases || []).map(p => ({
+    ...p,
+    _type: 'usd_purchase',
+    category: 'Achat USD',
+    account: 'usdt',
+    amount: p.totalDzd,
+    note: `Taux: ${p.rate} / ${p.amount} $ / ${p.source || '-'}`
+  }));
+
+  let all = [...baseExpenses, ...basePurchases].sort((a, b) => toTs(b) - toTs(a));
+  
+  if (filterUsdOnly) {
+    all = all.filter(e => e._type === 'usd_purchase');
+  }
+
   const query = (ui.filters[key] || '').trim().toLowerCase();
-  const all = [...(appState.expenses || [])].sort((a, b) => toTs(b) - toTs(a));
   const filtered = query
     ? all.filter(e => `${e.category || ''} ${e.note || ''} ${e.account || ''}`.toLowerCase().includes(query))
     : all;
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const page = clampPage(ui.pages[key] || 1, totalPages);
   ui.pages[key] = page;
@@ -1053,7 +1067,7 @@ window.renderExpensesTab = function(container) {
   const now = new Date();
   const month = now.getMonth();
   const year = now.getFullYear();
-  const monthTotal = (appState.expenses || []).reduce((sum, e) => {
+  const monthTotal = all.reduce((sum, e) => {
     const d = e?.date ? new Date(e.date) : null;
     if (!d || Number.isNaN(d.getTime())) return sum;
     if (d.getMonth() !== month || d.getFullYear() !== year) return sum;
@@ -1068,10 +1082,17 @@ window.renderExpensesTab = function(container) {
           <div class="text-sm text-rose-600 font-black">Total du mois: ${formatCurrency(monthTotal)}</div>
           <div class="text-xs text-gray-500 dark:text-gray-400">Dernière mise à jour: ${lastUpdated}</div>
         </div>
-        <div class="flex flex-col md:flex-row gap-2 md:items-center">
-          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher catégorie/note/compte..." class="w-full md:w-80 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
-          <button onclick="openModal('expenseModal')" class="bg-rose-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg">
-            <i class="fas fa-plus mr-2"></i> Nouveau Frais
+        <div class="flex flex-col lg:flex-row gap-2 lg:items-center">
+          <label class="flex items-center gap-2 text-sm font-bold text-gray-700 bg-gray-100 dark:bg-gray-700 dark:text-gray-200 px-3 py-2 rounded-xl cursor-pointer">
+             <input type="checkbox" ${filterUsdOnly ? 'checked' : ''} onchange="toggleUsdFilter(this.checked)" class="w-4 h-4 rounded text-teal-600">
+             Achats USD (Seulement)
+          </label>
+          <input id="searchInput_${key}" type="text" value="${ui.filters[key] || ''}" oninput="setListFilter('${key}', this.value)" placeholder="Rechercher..." class="w-full lg:w-48 p-3 border dark:border-gray-700 rounded-xl outline-none bg-gray-50 dark:bg-gray-900 dark:text-white">
+          <button onclick="openModal('usdPurchaseModal')" class="bg-teal-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg text-sm">
+            <i class="fas fa-dollar-sign mr-1"></i> + USD
+          </button>
+          <button onclick="openModal('expenseModal')" class="bg-rose-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg text-sm">
+            <i class="fas fa-plus mr-1"></i> + Frais
           </button>
         </div>
       </div>
@@ -1092,16 +1113,19 @@ window.renderExpensesTab = function(container) {
             ${pageItems.map(e => `
               <tr class="hover:bg-gray-50 dark:hover:bg-gray-900/30">
                 <td class="p-4 text-gray-500 dark:text-gray-400">${formatDate(e.date)}</td>
-                <td class="p-4 font-bold text-gray-800 dark:text-gray-200">${e.category || '-'}</td>
+                <td class="p-4 font-bold ${e._type === 'usd_purchase' ? 'text-teal-600' : 'text-gray-800 dark:text-gray-200'}">${e.category || '-'}</td>
                 <td class="p-4 text-gray-600 dark:text-gray-400">${(e.account || 'liquide').toUpperCase()}</td>
-                <td class="p-4 font-black text-rose-600">${formatCurrency(e.amount)}</td>
+                <td class="p-4 font-black ${e._type === 'usd_purchase' ? 'text-teal-600' : 'text-rose-600'}">${formatCurrency(e.amount)}</td>
                 <td class="p-4 text-gray-500 dark:text-gray-400 text-xs max-w-xs truncate">${e.note || '-'}</td>
                 <td class="p-4 text-center">
-                  <button onclick="deleteExpense('${e.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash-alt"></i></button>
+                  ${e._type === 'expense' 
+                    ? `<button onclick="deleteExpense('${e.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash-alt"></i></button>`
+                    : `<button onclick="deleteUsdPurchase('${e.id}')" class="text-red-400 hover:text-red-600"><i class="fas fa-trash-alt"></i></button>`
+                  }
                 </td>
               </tr>
             `).join('')}
-            ${filtered.length === 0 ? '<tr><td colspan="6" class="p-8 text-center text-gray-400 italic">Aucun frais enregistré.</td></tr>' : ''}
+            ${filtered.length === 0 ? '<tr><td colspan="6" class="p-8 text-center text-gray-400 italic">Aucun enregistrement trouvé.</td></tr>' : ''}
           </tbody>
         </table>
       </div>
@@ -1390,7 +1414,15 @@ window.renderRemindersTable = function(container) {
   const pageSize = 15;
   const query = (ui.filters[key] || '').trim().toLowerCase();
   const all = (appState.clients || [])
-    .filter(c => (Number(c.unpaid || 0) > 0))
+    .filter(c => {
+      const txs = (appState.transactions || []).filter(t => t.clientId === c.id && t.status === 'active' && !t.paid);
+      return txs.length > 0;
+    })
+    .map(c => {
+       const txs = (appState.transactions || []).filter(t => t.clientId === c.id && t.status === 'active' && !t.paid);
+       const actualUnpaidAmount = txs.reduce((sum, t) => sum + Number(t.priceDzd || 0), 0);
+       return { ...c, unpaid: actualUnpaidAmount };
+    })
     .sort((a, b) => toTs(b) - toTs(a));
   const filtered = query ? all.filter(c => (c.name || '').toLowerCase().includes(query)) : all;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));

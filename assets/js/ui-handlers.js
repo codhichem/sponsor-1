@@ -1258,3 +1258,11 @@ window.saveEditTransaction = function() {
   closeModal('editTransactionModal');
   showToast('Transaction mise à jour', 'success');
 };
+
+window.toggleUsdFilter = function(checked) {
+  const ui = getUiState();
+  ui.filters['expenses_usdOnly'] = checked;
+  ui.pages['expenses'] = 1;
+  if (typeof renderCurrentTab === 'function') renderCurrentTab();
+};
+
