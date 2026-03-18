@@ -259,8 +259,89 @@ window.renderDashboard = function(container) {
       </div>
     `;
   })();
+
+  // --- SMART ALERTS ---
+  const alerts = [];
+  const usdtStock = b.usdt || 0;
+  if (usdtStock < 150) {
+      alerts.push({
+          type: 'warning', icon: 'fa-exclamation-triangle',
+          text: `Stock USDT critique : Il ne reste que ${formatCurrency(usdtStock, 'USD', 2)}. Prévoyez un rechargement.`
+      });
+  }
+
+  const allClients = appState.clients || [];
+  let oldDebts = 0;
+  let hugeDebts = 0;
+  const nowTime = Date.now();
+  
+  allClients.forEach(c => {
+      const up = Number(c.unpaid || 0);
+      if (up > 0) {
+          if (up >= 12000) hugeDebts++;
+          else {
+              const daysOld = (nowTime - (c.updatedAt || nowTime)) / (1000 * 60 * 60 * 24);
+              if (daysOld >= 7) oldDebts++;
+          }
+      }
+  });
+
+  if (hugeDebts > 0) {
+      alerts.push({ type: 'danger', icon: 'fa-skull-crossbones', text: `Action Requise : ${hugeDebts} client(s) ont une dette lourde (≥ 12,000 DZD).` });
+  }
+  if (oldDebts > 0) {
+      alerts.push({ type: 'danger', icon: 'fa-clock', text: `Action Requise : ${oldDebts} client(s) ont une dette ancienne (≥ 7 jours).` });
+  }
+
+  const alertsHtml = alerts.length > 0 ? `
+    <div class="mb-6 flex flex-col gap-3 fade-in">
+        ${alerts.map(a => `
+            <div class="p-4 rounded-xl border flex items-center gap-4 shadow-sm ${a.type === 'danger' ? 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300' : 'bg-orange-50 border-orange-200 text-orange-800 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-300'}">
+                <i class="fas ${a.icon} text-2xl"></i>
+                <div class="font-bold text-sm md:text-base">${a.text}</div>
+            </div>
+        `).join('')}
+    </div>
+  ` : '';
+
+  const simulatorHtml = `
+    <div class="bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 rounded-3xl p-6 md:p-8 shadow-2xl text-white mb-8 relative overflow-hidden fade-in border border-indigo-700/50">
+      <div class="absolute -right-10 -top-10 text-indigo-500/20 transform rotate-12">
+        <i class="fas fa-calculator text-9xl"></i>
+      </div>
+      <div class="relative z-10">
+        <h3 class="text-xl md:text-2xl font-black mb-2 flex items-center gap-3"><i class="fas fa-magic text-purple-400"></i> Simulateur de Devis</h3>
+        <p class="text-indigo-200 text-sm md:text-base mb-6 max-w-2xl">Calculez instantanément le prix à facturer au client en DZD pour garantir votre marge. Basé sur le Coût Moyen d'Achat actuel (CMA) de <strong class="bg-indigo-800/50 px-2 py-1 rounded text-white">${typeof formatCurrency === 'function' ? formatCurrency(appState.globalConfig?.cmaUsd || 0, 'DZD') : (appState.globalConfig?.cmaUsd || 0)}/$</strong>.</p>
+        
+        <div class="flex flex-col md:flex-row gap-5 items-end bg-black/20 p-5 rounded-2xl border border-white/5 backdrop-blur-sm">
+          <div class="w-full md:w-1/3">
+            <label class="block text-xs font-bold text-indigo-300 uppercase tracking-widest mb-2">Budget Pub USD ($)</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-400 font-bold">$</div>
+              <input type="number" id="simBudget" placeholder="100" oninput="if(typeof window.calculateSimulation==='function') window.calculateSimulation()" class="w-full bg-white/10 border border-indigo-400/30 rounded-xl py-3 pl-8 pr-4 text-white text-lg font-bold placeholder-indigo-300/30 outline-none focus:ring-2 focus:ring-purple-400 transition-all">
+            </div>
+          </div>
+          <div class="w-full md:w-1/4">
+            <label class="block text-xs font-bold text-indigo-300 uppercase tracking-widest mb-2">Marge Voulue (%)</label>
+            <div class="relative">
+              <input type="number" id="simMargin" value="30" oninput="if(typeof window.calculateSimulation==='function') window.calculateSimulation()" class="w-full bg-white/10 border border-indigo-400/30 rounded-xl py-3 px-4 text-white text-lg font-bold outline-none focus:ring-2 focus:ring-purple-400 transition-all">
+              <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-indigo-400 font-bold">%</div>
+            </div>
+          </div>
+          <div class="w-full md:w-5/12 ml-auto">
+             <div class="bg-gradient-to-r from-green-500 to-emerald-400 p-4 rounded-xl shadow-lg shadow-green-900/50 flex flex-col justify-center items-center transform transition-transform hover:scale-[1.02]">
+                <div class="text-green-900 text-xs font-black uppercase tracking-widest mb-1 opacity-80">Prix à Facturer</div>
+                <div id="simResult" class="text-3xl font-black text-white drop-shadow-md">0 DZD</div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
   
   container.innerHTML = `
+    ${alertsHtml}
+    ${simulatorHtml}
     ${isAdmin ? `
     <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 mb-4">
       <div class="text-sm text-gray-500 dark:text-gray-400 font-bold">Soldes</div>
