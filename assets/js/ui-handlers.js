@@ -1,3 +1,15 @@
+// === EMPLOYEE PERMISSIONS CONTROLLER ===
+window.updateEmployeePermission = function(empId, tabId, hasAccess) {
+  if (!appState.employees) return;
+  const emp = appState.employees.find(e => e.id === empId);
+  if (!emp) return;
+  if (!emp.permissions) emp.permissions = {};
+  emp.permissions[tabId] = !!hasAccess;
+  emp.updatedAt = Date.now();
+  if (typeof autoSave === 'function') autoSave();
+  showToast('Permissions mises à jour', 'success');
+};
+
 window.openModal = function(modalId) {
   const modal = document.getElementById(modalId);
   if (!modal) return;

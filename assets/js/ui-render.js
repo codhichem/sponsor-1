@@ -891,16 +891,31 @@ window.renderSettingsAdmin = function(container) {
             <div class="font-black text-gray-800 mb-4">Liste des employés (${employees.length})</div>
             <div class="space-y-3">
               ${employees.map(e => `
-                <div class="p-4 border rounded-2xl flex items-center justify-between gap-3">
-                  <div>
-                    <div class="font-bold text-gray-800">${e.name}</div>
-                    <div class="text-xs text-gray-500">${e.login}</div>
+                <div class="p-4 border rounded-2xl flex flex-col gap-3">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="font-bold text-gray-800">${e.login}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button onclick="toggleEmployeeActive('${e.id}')" class="px-3 py-2 rounded-xl text-xs font-black ${e.active === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">
+                        ${e.active === false ? 'INACTIF' : 'ACTIF'}
+                      </button>
+                      <button onclick="deleteEmployee('${e.id}')" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-black hover:bg-gray-200">Supprimer</button>
+                    </div>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <button onclick="toggleEmployeeActive('${e.id}')" class="px-3 py-2 rounded-xl text-xs font-black ${e.active === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">
-                      ${e.active === false ? 'INACTIF' : 'ACTIF'}
-                    </button>
-                    <button onclick="deleteEmployee('${e.id}')" class="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-xs font-black hover:bg-gray-200">Supprimer</button>
+                  <!-- Permissions -->
+                  <div class="border-t pt-3 mt-1">
+                    <div class="text-xs font-bold text-gray-500 mb-2 uppercase">Permissions d'Accès :</div>
+                    <div class="flex flex-wrap gap-3">
+                      ${['expenses', 'paiements', 'achats'].map(tab => {
+                        const labels = { expenses: 'Frais', paiements: 'Paiements', achats: 'Achats USD' };
+                        const isChecked = e.permissions && e.permissions[tab] === true;
+                        return "<label class='flex items-center gap-1 text-sm font-semibold text-gray-700 cursor-pointer'>" +
+                               "<input type='checkbox' " + (isChecked ? "checked" : "") + " onchange='updateEmployeePermission(\"" + e.id + "\", \"" + tab + "\", this.checked)' class='rounded text-gray-900 focus:ring-gray-900'> " +
+                               labels[tab] +
+                               "</label>";
+                      }).join('')}
+                    </div>
                   </div>
                 </div>
               `).join('')}
