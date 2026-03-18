@@ -228,7 +228,7 @@ window.renderDashboard = function(container) {
         month: mMonth[id] || 0,
         range: mRange[id] || 0
       };
-    }).sort((a, b) => (b.range - a.range) || (b.week - a.week) || a.name.localeCompare(b.name));
+    }).sort((a, b) => (b.range - a.range) || (b.week - a.week) || String(a.name || '').localeCompare(String(b.name || '')));
 
     return `
       <div class="overflow-x-auto">
