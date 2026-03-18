@@ -1567,4 +1567,21 @@ window.renderMonthlyStatsChart = function() {
 
 window.renderTables = function() {
   renderCurrentTab();
+  if (typeof updateTodoBadge === 'function') updateTodoBadge();
+};
+
+window.updateTodoBadge = function() {
+  const badge = document.getElementById('todoBadge');
+  if (!badge) return;
+  const todos = appState.todoTransactions || [];
+  
+  // Compter les to-dos qui ne sont pas "done"
+  const pendingTodos = todos.filter(t => t && t._type !== 'done').length;
+  
+  if (pendingTodos > 0) {
+    badge.textContent = pendingTodos;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
 };

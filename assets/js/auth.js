@@ -22,8 +22,16 @@ window.updateAuthUI = function (user) {
   const clientSpace = document.getElementById('clientSpaceContainer');
 
   const sess = (window.appState && window.appState.session) ? window.appState.session : null;
+  const isEmployee = (sess && sess.type === 'employee');
 
-  if (user || (sess && sess.type === 'employee') || window.authTransitionFlag) {
+  // Appliquer les restrictions d'accès pour les employés
+  const adminTabs = ['tabBtn-expenses', 'tabBtn-paiements', 'tabBtn-achats', 'tabBtn-settings'];
+  adminTabs.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = isEmployee ? 'none' : 'block';
+  });
+
+  if (user || isEmployee || window.authTransitionFlag) {
     if (appContainer) appContainer.style.display = 'block';
     if (loginContainer) loginContainer.style.display = 'none';
     if (clientSpace) clientSpace.style.display = 'none';

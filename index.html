@@ -598,9 +598,9 @@
           class="tab-btn px-4 py-2 rounded-xl bg-blue-600 text-white font-bold">Dashboard</button>
         <button onclick="showTab('clients')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Clients</button>
-        <button onclick="showTab('transactions')"
+        <button id="tabBtn-transactions" onclick="showTab('transactions')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">To-Do
-          List</button>
+          List <span id="todoBadge" class="hidden bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">0</span></button>
         <button onclick="showTab('history')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Historique</button>
         <button onclick="showTab('todo')"
@@ -608,11 +608,11 @@
           To-Do</button>
         <button onclick="showTab('offers')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Offres</button>
-        <button onclick="showTab('expenses')"
+        <button id="tabBtn-expenses" onclick="showTab('expenses')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Frais</button>
-        <button onclick="showTab('paiements')"
+        <button id="tabBtn-paiements" onclick="showTab('paiements')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Paiements</button>
-        <button onclick="showTab('achats')"
+        <button id="tabBtn-achats" onclick="showTab('achats')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Achats
           USD</button>
         <button onclick="showTab('reminders')"
@@ -624,7 +624,7 @@
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Demandes
           <span id="requestsBadge"
             class="hidden bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">0</span></button>
-        <button onclick="showTab('settings')"
+        <button id="tabBtn-settings" onclick="showTab('settings')"
           class="tab-btn px-4 py-2 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold">Paramètres</button>
       </div>
     </nav>
@@ -945,16 +945,16 @@
   <!-- External Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-  <script src="assets/js/theme.js?v=12"></script>
-  <script src="assets/js/state.js?v=12"></script>
-  <script src="assets/js/firebase-init.js?v=12"></script>
-  <script src="assets/js/utils.js?v=12"></script>
-  <script src="assets/js/calculations.js?v=12"></script>
-  <script src="assets/js/auth.js?v=12"></script>
-  <script src="assets/js/data-service.js?v=12"></script>
-  <script src="assets/js/ui-render.js?v=12"></script>
-  <script src="assets/js/ui-handlers.js?v=12"></script>
-  <script src="assets/js/app.js?v=12"></script>
+  <script src="assets/js/theme.js?v=13"></script>
+  <script src="assets/js/state.js?v=13"></script>
+  <script src="assets/js/firebase-init.js?v=13"></script>
+  <script src="assets/js/utils.js?v=13"></script>
+  <script src="assets/js/calculations.js?v=13"></script>
+  <script src="assets/js/auth.js?v=13"></script>
+  <script src="assets/js/data-service.js?v=13"></script>
+  <script src="assets/js/ui-render.js?v=13"></script>
+  <script src="assets/js/ui-handlers.js?v=13"></script>
+  <script src="assets/js/app.js?v=13"></script>
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
