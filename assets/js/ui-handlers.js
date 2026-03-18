@@ -480,7 +480,7 @@ window.handleNewTodoSubmit = function(event) {
   let finalOfferId = offerId;
   let finalOfferName = offer ? offer.name : 'Offre personnalisée';
   let amountUsd = offer ? Number(offer.costPerUnit || 0) : 0;
-  let durationDays = null;
+  let durationDays = offer ? Number(offer.duration || 0) : null;
 
   if (isCustom) {
     finalOfferId = generateId('custom_offer');
@@ -495,6 +495,17 @@ window.handleNewTodoSubmit = function(event) {
   }
 
     const todoDateStr = document.getElementById('todoDate')?.value || getLocalDateString();
+    const adAccountId = document.getElementById('todoAdAccountId')?.value || null;
+    
+    // Calculate endDate if a duration is specified
+    let endDate = null;
+    if (durationDays > 0) {
+        const start = new Date(todoDateStr);
+        if (!isNaN(start.getTime())) {
+            start.setDate(start.getDate() + durationDays);
+            endDate = start.getTime();
+        }
+    }
     
     const todo = {
     id: generateId('todo'),
@@ -507,6 +518,8 @@ window.handleNewTodoSubmit = function(event) {
     paid,
     status: 'pending',
     date: todoDateStr,
+    adAccountId: adAccountId,
+    endDate: endDate,
     createdAt: Date.now(),
     customDurationDays: durationDays,
     employeeId: (appState.session && appState.session.type === 'employee') ? appState.session.employeeId : null,

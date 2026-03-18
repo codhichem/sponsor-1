@@ -141,6 +141,15 @@ window.renderDashboard = function(container) {
 
   const employees = appState.employees || [];
   const txs = appState.transactions || [];
+  
+  const nowMs = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const expiringCampaigns = txs.filter(t => {
+      if (t.status !== 'active' && t.status) return false;
+      if (!t.endDate) return false;
+      const timeLeft = t.endDate - nowMs;
+      return timeLeft > 0 && timeLeft <= oneDayMs;
+  });
 
   const parseYmdLocal = (ymd) => {
     if (!ymd || typeof ymd !== 'string') return null;
@@ -351,8 +360,30 @@ window.renderDashboard = function(container) {
        <p class="text-blue-600 dark:text-blue-400 font-bold">Consultez la To-Do List pour commencer votre travail.</p>
     </div>
     `}
-
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+       ${expiringCampaigns.length > 0 ? `
+       <div class="lg:col-span-2 bg-red-50 p-6 rounded-3xl shadow-xl border border-red-200 fade-in mb-2 mt-2">
+         <h3 class="text-xl font-black mb-4 flex items-center gap-2 text-red-600">
+           <i class="fas fa-exclamation-triangle"></i> Alertes: ${expiringCampaigns.length} Compagne(s) se termine(nt) dans moins de 24H
+         </h3>
+         <div class="space-y-3">
+            ${expiringCampaigns.map(c => {
+                const hoursLeft = Math.floor((c.endDate - nowMs) / (1000 * 60 * 60));
+                return `
+                <div class="p-3 bg-white rounded-xl shadow-sm border border-red-100 flex justify-between items-center">
+                    <div>
+                        <div class="font-bold text-gray-800">${c.clientName} - ${c.offerName}</div>
+                        <div class="text-xs text-gray-500">Ad Account: ${c.adAccountId ? ((appState.adAccounts || []).find(a => a.id === c.adAccountId)?.name || 'Inconnu') : 'Organique'}</div>
+                    </div>
+                    <div class="text-sm font-black text-red-500 bg-red-100 px-3 py-1 rounded-full">
+                        Dans ${hoursLeft} heure(s)
+                    </div>
+                </div>
+                `;
+            }).join('')}
+         </div>
+       </div>
+       ` : ''}
        <div class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700">
           <h3 class="text-xl font-bold mb-4 flex items-center gap-2 dark:text-white">
             <i class="fas fa-tasks text-indigo-500"></i> To-Do List Aperçu
@@ -1182,6 +1213,7 @@ window.renderTopClients = function() {
 window.renderNewTodoForm = function(container) {
   const clients = appState.clients || [];
   const offers = appState.offers || [];
+  const adAccounts = appState.adAccounts || [];
 
   container.innerHTML = `
     <div class="bg-white rounded-3xl shadow-xl p-8 border fade-in max-w-2xl mx-auto">
@@ -1201,6 +1233,13 @@ window.renderNewTodoForm = function(container) {
               ${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
             </select>
           </div>
+        </div>
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-2">Compte Publicitaire</label>
+          <select id="todoAdAccountId" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
+            <option value="">-- Aucun compte (Organique) --</option>
+            ${adAccounts.map(a => `<option value="${a.id}">${a.name} (${a.platform})</option>`).join('')}
+          </select>
         </div>
         <div>
           <label class="block text-sm font-bold text-gray-700 mb-2">Offre</label>
@@ -1355,12 +1394,17 @@ window.renderAdAccountsTable = function(container) {
   const lastUpdated = getLastUpdatedLabel(all);
   
   // Always ensure 'spent' is calculated directly before rendering if not fully synced
-  (appState.adAccounts || []).forEach(acc => acc.spent = 0);
+  (appState.adAccounts || []).forEach(acc => {
+      acc.spent = 0;
+      acc.activeCampaigns = 0;
+  });
+  
   (appState.transactions || []).forEach(t => {
      if ((t.status === 'active' || !t.status) && t.adAccountId) {
          const adAcc = (appState.adAccounts || []).find(a => a.id === t.adAccountId);
          if (adAcc) {
              adAcc.spent += Number(t.amount || 0);
+             adAcc.activeCampaigns += 1;
          }
      }
   });
@@ -1402,6 +1446,7 @@ window.renderAdAccountsTable = function(container) {
                 <div class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Solde Restant</div>
                 <div class="text-xl font-black ${remaining < 10 ? 'text-red-500' : 'text-green-600'}">${safeToFixed(remaining, 2)} $</div>
                 <div class="text-[10px] text-gray-500 mt-1">Dépensé: ${safeToFixed(spent, 2)} / ${safeToFixed(initial, 2)} $</div>
+                <div class="text-xs font-bold text-indigo-600 mt-2"><i class="fas fa-bullhorn"></i> ${acc.activeCampaigns || 0} Campagne(s) active(s)</div>
               </div>
               <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${acc.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
                 ${acc.status}

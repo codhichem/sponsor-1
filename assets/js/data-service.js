@@ -153,6 +153,9 @@ async function syncGranularToCloud() {
 /**
  * Chargement Cloud
  */
+// Track unsubscribe functions
+window.cloudListeners = [];
+
 window.loadFromCloud = async function() {
   try {
     const user = auth.currentUser;
@@ -160,43 +163,62 @@ window.loadFromCloud = async function() {
     const uid = user.uid;
     const db = firebase.firestore();
     
-    const doc = await db.collection('users').doc(uid).get();
-    if (doc.exists) {
-      const cloudData = doc.data().data || {};
-      Object.assign(appState, cloudData);
-      
-      // Charger les collections granulaires
-      await loadGranularFromCloud();
-      
-      normalizeAppState();
-      renderTables(); // Si disponible
-      showToast('Données chargées depuis le Cloud', 'success');
+    // Cleanup previous listeners if any
+    if (window.cloudListeners.length > 0) {
+        window.cloudListeners.forEach(unsub => unsub());
+        window.cloudListeners = [];
     }
+    
+    // Listen to user settings document
+    const unsubSettings = db.collection('users').doc(uid).onSnapshot(doc => {
+        if (doc.exists) {
+            const cloudData = doc.data().data || {};
+            Object.assign(appState, cloudData);
+            normalizeAppState();
+            if (typeof renderTables === 'function') renderTables();
+        }
+    });
+    
+    window.cloudListeners.push(unsubSettings);
+    
+    // Initiate granular listeners
+    loadGranularFromCloud();
+    
+    showToast('Synchronisation Cloud en temps réel activée', 'success');
   } catch (err) {
-    console.error('Erreur chargement cloud:', err);
-    showToast('Erreur lors du chargement des données Cloud', 'error');
+    console.error('Erreur init cloud listeners:', err);
+    showToast('Erreur de synchronisation Cloud', 'error');
   }
 };
 
 /**
- * Chargement granulaire
+ * Variables to prevent infinite loops during initial sync
  */
-async function loadGranularFromCloud() {
+let initialLoadCount = 0;
+const totalCollections = 10;
+
+function loadGranularFromCloud() {
   const db = firebase.firestore();
   const uid = auth.currentUser?.uid;
   if (!uid) return;
 
   const collections = ['clients', 'offers', 'transactions', 'todoTransactions', 'payments', 'usdPurchases', 'expenses', 'clientRequests', 'recurringExpenses', 'usdtExpenses'];
-  
-  const promises = collections.map(col => 
-    db.collection(col).where('uid', '==', uid).get()
-  );
+  initialLoadCount = 0;
 
-  const snapshots = await Promise.all(promises);
-  
-  snapshots.forEach((snap, index) => {
-    const colName = collections[index];
-    appState[colName] = snap.docs.map(d => d.data());
+  collections.forEach(colName => {
+    const unsub = db.collection(colName).where('uid', '==', uid).onSnapshot(snapshot => {
+      appState[colName] = snapshot.docs.map(d => d.data());
+      
+      initialLoadCount++;
+      if (initialLoadCount >= totalCollections) {
+          // Only render after everything is loaded initially, or on subsequent single-collection updates
+          normalizeAppState();
+          if (typeof renderTables === 'function') renderTables();
+          if (typeof recalculateFinanceBalances === 'function') recalculateFinanceBalances();
+      }
+    });
+    
+    window.cloudListeners.push(unsub);
   });
 }
 
