@@ -269,7 +269,8 @@ function loadGranularFromCloud() {
  */
 window.autoSave = function() {
   saveToLocalStorage();
-  if (appState.settings.autoSaveEnabled && auth.currentUser) {
+  const uid = auth?.currentUser?.uid || appState?.adminUid;
+  if (appState.settings?.autoSaveEnabled && uid) {
     saveToCloud();
   }
 };
