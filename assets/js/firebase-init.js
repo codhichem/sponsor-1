@@ -1,11 +1,13 @@
 // === FIREBASE CONFIG & INIT ===
 const firebaseConfig = {
-  apiKey: "AIzaSyC-1uQnZRLzqUoTMQ_oaXNZh-QQROfOEqw",
-  authDomain: "sponsorhichem.firebaseapp.com",
-  projectId: "sponsorhichem",
-  storageBucket: "sponsorhichem.firebasestorage.app",
-  messagingSenderId: "499965988228",
-  appId: "1:499965988228:web:ecdbd5b005c23b6d5c61d1"
+  apiKey: "AIzaSyATuFiDT8YMov68euJCMB4Ax1eyBOCGqqc",
+  authDomain: "sponsor-test-20c6b.firebaseapp.com",
+  databaseURL: "https://sponsor-test-20c6b-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "sponsor-test-20c6b",
+  storageBucket: "sponsor-test-20c6b.firebasestorage.app",
+  messagingSenderId: "882035160210",
+  appId: "1:882035160210:web:7a7d005155c4ba91bee24b",
+  measurementId: "G-8KJ1NBDCCJ"
 };
 
 let auth = null;
