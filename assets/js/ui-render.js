@@ -1280,7 +1280,11 @@ window.renderTopClients = function() {
   if (!preview) return;
   
   const sortedClients = [...(appState.clients || [])]
-    .sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0))
+    .sort((a, b) => {
+        const tsA = toTs(a);
+        const tsB = toTs(b);
+        return tsB - tsA;
+    })
     .slice(0, 5);
 
   if (sortedClients.length === 0) {
