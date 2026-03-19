@@ -71,9 +71,19 @@ window.loginWithEmailPassword = async function (email, password) {
 
 window.logout = async function () {
   try {
+    const wasDemo = (appState && appState.session && appState.session.employeeId === 'admin_demo');
+    
     if (auth) await auth.signOut();
     if (appState) appState.session = null;
-    saveToLocalStorage();
+    
+    if (wasDemo) {
+        // Purge completely the mock data to prevent mixing with real database
+        localStorage.removeItem('sponsorAppState');
+        window.appState = null;
+    } else {
+        saveToLocalStorage();
+    }
+    
     showToast('Déconnexion réussie', 'success');
     window.location.reload();
   } catch (error) {
