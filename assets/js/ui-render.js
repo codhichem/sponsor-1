@@ -1600,12 +1600,10 @@ window.renderAdAccountsTable = function(container) {
             </div>
 
             <div class="mt-3 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Ad Accounts</div>
-              <div id="meta-live-adaccounts-list" class="p-4 text-sm font-bold text-gray-600 dark:text-gray-200">—</div>
-            </div>
-
-            <div class="mt-3 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
-              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Campagnes</div>
+              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest flex items-center justify-between gap-2">
+                <span>Campagnes</span>
+                <span id="meta-live-campaigns-count" class="text-[10px] font-black text-gray-400"></span>
+              </div>
               <div id="meta-live-campaigns-list" class="p-4 text-sm font-bold text-gray-600 dark:text-gray-200">—</div>
             </div>
 

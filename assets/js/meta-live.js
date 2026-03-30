@@ -118,24 +118,6 @@
       }).join('');
       sel.value = current;
     }
-
-    const list = document.getElementById('meta-live-adaccounts-list');
-    if (list) {
-      if (!_cachedAdAccounts.length) { list.textContent = 'Aucun ad account.'; return; }
-      list.innerHTML = `<div class="space-y-2">` + _cachedAdAccounts.slice(0, 30).map(a => {
-        const id = String(a.id || '');
-        const name = String(a.name || id);
-        const cur = String(a.currency || '');
-        const st = String(a.account_status || '');
-        return `<div class="flex items-center justify-between gap-3 border border-gray-200 dark:border-gray-700 rounded-2xl px-3 py-2">
-          <div class="min-w-0">
-            <div class="font-black text-gray-900 dark:text-white truncate">${name}</div>
-            <div class="text-[11px] font-black text-gray-400 truncate">${id}</div>
-          </div>
-          <div class="shrink-0 text-[11px] font-black text-gray-500">${cur}${st ? ` • ${st}` : ''}</div>
-        </div>`;
-      }).join('') + `</div>`;
-    }
   }
 
   async function _loadAdAccounts() {
@@ -180,7 +162,14 @@
 
   function _pickResultByObjective(actions, objective) {
     const a = Array.isArray(actions) ? actions : [];
-    const obj = String(objective || '').toUpperCase();
+    let obj = String(objective || '').toUpperCase();
+    if (obj.startsWith('OUTCOME_')) {
+      if (obj.includes('TRAFFIC')) obj = 'TRAFFIC';
+      else if (obj.includes('SALES')) obj = 'PURCHASE';
+      else if (obj.includes('LEADS')) obj = 'LEAD';
+      else if (obj.includes('ENGAGEMENT')) obj = 'MESSAGE';
+      else if (obj.includes('AWARENESS')) obj = 'AWARENESS';
+    }
 
     const findExact = (types) => {
       for (const t of types) {
@@ -189,17 +178,19 @@
       }
       return null;
     };
-    const findContains = (subs) => {
-      for (const s of subs) {
-        const row = a.find(x => x && String(x.action_type || '').includes(s) && x.value !== undefined);
-        if (row) return { type: String(row.action_type || 'result'), value: Number(row.value || 0) };
-      }
-      return null;
+    const pickMetric = (label, types) => {
+      const hit = findExact(types);
+      if (hit) return { type: hit.type, value: hit.value, label };
+      return { type: String(types[0] || 'result'), value: 0, label };
     };
 
     const msgTypes = [
+      'onsite_conversion.messaging_conversation_started',
       'onsite_conversion.messaging_conversation_started_7d',
+      'onsite_conversion.messaging_conversation_started_1d',
+      'messaging_conversation_started',
       'messaging_conversation_started_7d',
+      'messaging_conversation_started_1d',
       'onsite_conversion.messaging_first_reply',
       'messaging_first_reply'
     ];
@@ -220,31 +211,51 @@
     const leadTypes = ['lead', 'omni_lead'];
 
     if (obj.includes('MESSAGE') || obj.includes('MESSAG') || obj.includes('CONVERS')) {
-      return findExact(msgTypes) || findContains(['messaging', 'message']) || _pickResult(actions);
+      return pickMetric('Messages', msgTypes);
     }
     if (obj.includes('SALE') || obj.includes('PURCHASE') || obj.includes('CONVERSION')) {
-      return findExact(purchaseTypes) || findContains(['purchase']) || _pickResult(actions);
+      return pickMetric('Achats', purchaseTypes);
     }
     if (obj.includes('TRAFFIC') || obj.includes('VISIT')) {
-      return findExact(trafficTypes) || findContains(['landing_page_view', 'view_content', 'page_view', 'outbound_click', 'link_click']) || _pickResult(actions);
+      return pickMetric('Visites', trafficTypes);
     }
     if (obj.includes('LEAD')) {
-      return findExact(leadTypes) || findContains(['lead']) || _pickResult(actions);
+      return pickMetric('Leads', leadTypes);
     }
-    return findExact(purchaseTypes) || findExact(msgTypes) || findExact(leadTypes) || findExact(trafficTypes) || _pickResult(actions);
+    const fallback = _pickResult(actions);
+    return { type: fallback.type, value: fallback.value, label: _resultLabel(fallback.type) };
   }
 
-  async function _getCampaigns(adAccountId, onlyActive) {
+  async function _getCampaigns(adAccountId) {
     const out = [];
     let after = null;
     for (let i = 0; i < 3; i++) {
       const json = await _metaFetch(`/${adAccountId}/campaigns`, {
         fields: 'id,name,effective_status,status,stop_time,objective',
-        effective_status: onlyActive ? '["ACTIVE"]' : '',
         limit: 200,
         after: after || ''
       });
       (json.data || []).forEach(c => out.push(c));
+      after = json.paging && json.paging.cursors ? json.paging.cursors.after : null;
+      if (!after) break;
+    }
+    return out;
+  }
+
+  async function _getActiveCampaignIdsFromAds(adAccountId) {
+    const out = new Set();
+    let after = null;
+    for (let i = 0; i < 3; i++) {
+      const json = await _metaFetch(`/${adAccountId}/ads`, {
+        fields: 'id,campaign_id,effective_status',
+        effective_status: '["ACTIVE"]',
+        limit: 500,
+        after: after || ''
+      });
+      (json.data || []).forEach(a => {
+        const cid = String(a && a.campaign_id ? a.campaign_id : '').trim();
+        if (cid) out.add(cid);
+      });
       after = json.paging && json.paging.cursors ? json.paging.cursors.after : null;
       if (!after) break;
     }
@@ -325,12 +336,19 @@
       .filter(c => c && c.id)
       .filter(c => {
         if (!onlyActive) return true;
-        const st = String(c.effective_status || c.status || '').toUpperCase();
-        return st === 'ACTIVE';
+        return String(c.diffusionStatus || '') === 'Active';
       })
       .filter(c => qCamp ? String(c.name || '').toLowerCase().includes(qCamp) : true)
       .filter(c => qPage ? String(c.pageName || '').toLowerCase().includes(qPage) : true)
       .slice(0, 120);
+
+    try {
+      const countEl = document.getElementById('meta-live-campaigns-count');
+      if (countEl) {
+        const total = _cachedCampaigns.length;
+        countEl.textContent = total ? `${items.length}/${total}` : '';
+      }
+    } catch (e) {}
 
     if (!items.length) { box.textContent = 'Aucune campagne.'; return; }
     box.innerHTML = `<div class="space-y-2">` + items.map(c => {
@@ -340,6 +358,12 @@
       const stop = c.stop_time ? String(c.stop_time).slice(0, 10) : '—';
       const active = id === _selectedCampaignId;
       const check = active ? '<span class="px-2 py-1 rounded-xl bg-red-600 text-white text-[10px] font-black">Sélectionnée</span>' : '';
+      const ds = String(c.diffusionStatus || '');
+      const badge = ds === 'Active'
+        ? '<span class="px-2 py-1 rounded-xl bg-green-100 text-green-700 border border-green-200 text-[10px] font-black">Active</span>'
+        : (ds === 'Terminé'
+          ? '<span class="px-2 py-1 rounded-xl bg-gray-100 text-gray-700 border border-gray-200 text-[10px] font-black">Terminé</span>'
+          : '<span class="px-2 py-1 rounded-xl bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black">Désactivé</span>');
       return `<button type="button" onclick="window.selectMetaLiveCampaign && window.selectMetaLiveCampaign('${id}'); return false;" class="w-full text-left border rounded-2xl px-3 py-2 ${active ? 'bg-red-100 border-red-200 dark:bg-red-900/30 dark:border-red-900/40' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -348,6 +372,7 @@
           </div>
           <div class="shrink-0 flex items-center gap-2">
             ${check}
+            ${badge}
             <span class="text-[11px] font-black text-gray-500">Fin: ${stop}</span>
             <button type="button" onclick="window.quickMetaLiveCampaignResults && window.quickMetaLiveCampaignResults('${id}'); return false;" class="px-3 py-2 rounded-xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-black text-[10px] border border-gray-200 dark:border-gray-700 shadow-sm">
               Résultats
@@ -415,23 +440,18 @@
     const sel = document.getElementById('meta-live-adaccount');
     const adAccountId = sel ? String(sel.value || '').trim() : '';
     if (!adAccountId) { _status('Sélectionne un ad account.', 'bad'); return; }
-    const since = String((document.getElementById('meta-live-since') && document.getElementById('meta-live-since').value) || '').trim();
-    const until = String((document.getElementById('meta-live-until') && document.getElementById('meta-live-until').value) || '').trim();
-    if (since && until) {
-      const vr = _validateDateRange(since, until);
-      if (!vr.ok) { _status(vr.msg, 'bad'); return; }
-    }
 
-    const cb = document.getElementById('meta-live-only-active');
-    const onlyActive = cb ? !!cb.checked : true;
-    _status(onlyActive ? 'Chargement campagnes actives…' : 'Chargement campagnes…', 'neutral');
+    _status('Chargement campagnes…', 'neutral');
     _selectedCampaignId = '';
     _cachedCampaigns = [];
     _renderKpis(null);
     const box = document.getElementById('meta-live-campaigns-list');
     if (box) box.textContent = 'Chargement…';
 
-    const camps = await _getCampaigns(adAccountId, onlyActive);
+    const [camps, activeCampaignIds] = await Promise.all([
+      _getCampaigns(adAccountId),
+      _getActiveCampaignIdsFromAds(adAccountId)
+    ]);
     _cachedCampaigns = camps.map(c => ({
       id: String(c.id || ''),
       name: String(c.name || ''),
@@ -439,11 +459,26 @@
       status: String(c.status || ''),
       effective_status: String(c.effective_status || ''),
       objective: String(c.objective || ''),
-      pageName: ''
+      pageName: '',
+      hasActiveAds: false,
+      diffusionStatus: ''
     })).filter(c => c.id);
 
-    const activeCount = _cachedCampaigns.filter(c => String(c.effective_status || c.status || '').toUpperCase() === 'ACTIVE').length;
-    _status(_cachedCampaigns.length ? `Campagnes: ${_cachedCampaigns.length} • Actives: ${activeCount}` : 'Aucune campagne.', _cachedCampaigns.length ? 'ok' : 'bad');
+    const now = Date.now();
+    _cachedCampaigns.forEach(c => {
+      c.hasActiveAds = activeCampaignIds.has(String(c.id));
+      const st = String(c.effective_status || c.status || '').toUpperCase();
+      const stop = c.stop_time ? Date.parse(String(c.stop_time)) : NaN;
+      const ended = Number.isFinite(stop) && stop > 0 && stop < now;
+      if (c.hasActiveAds) c.diffusionStatus = 'Active';
+      else if (ended || st === 'ARCHIVED' || st === 'COMPLETED' || st === 'DELETED') c.diffusionStatus = 'Terminé';
+      else c.diffusionStatus = 'Publicité désactivé';
+    });
+
+    const activeCount = _cachedCampaigns.filter(c => c.diffusionStatus === 'Active').length;
+    const endedCount = _cachedCampaigns.filter(c => c.diffusionStatus === 'Terminé').length;
+    const offCount = _cachedCampaigns.filter(c => c.diffusionStatus === 'Publicité désactivé').length;
+    _status(_cachedCampaigns.length ? `Campagnes: ${_cachedCampaigns.length} • Active: ${activeCount} • Terminé: ${endedCount} • Désactivé: ${offCount}` : 'Aucune campagne.', _cachedCampaigns.length ? 'ok' : 'bad');
     _renderCampaignsList();
     _enrichCampaignPages(25);
   }
@@ -475,10 +510,10 @@
       campaignName: campaign ? String(campaign.name || '') : '',
       spend,
       results,
-      resultLabel: _resultLabel(res.type),
+      resultLabel: String(res.label || _resultLabel(res.type)),
       actionType: String(res.type || ''),
       costPerResult,
-      cprFinite: (results > 0) || (Number.isFinite(pickedCost) && pickedCost > 0),
+      cprFinite: (results > 0),
       impressions: Number(ins.impressions || 0),
       stopDate: campaign && campaign.stop_time ? String(campaign.stop_time).slice(0, 10) : '',
       currency
@@ -577,6 +612,7 @@
     return false;
   };
 
+
   window.initMetaAdsLive = function () {
     const tok = $('meta-live-token');
     if (tok) {
@@ -613,7 +649,7 @@
     if (resultsBtn) resultsBtn.onclick = async () => { try { await showResults(); } catch (e) { _status(String(e && e.message ? e.message : e), 'bad'); } return false; };
     if (fCamp) fCamp.oninput = () => { _renderCampaignsList(); };
     if (fPage) fPage.oninput = () => { _renderCampaignsList(); };
-    if (onlyActive) onlyActive.onchange = () => { _renderCampaignsList(); };
+    if (onlyActive) onlyActive.onchange = () => { try { _renderCampaignsList(); } catch (e) { _status(String(e && e.message ? e.message : e), 'bad'); } return false; };
     if (cSearch) cSearch.oninput = () => { _renderClientSuggest(cSearch.value); };
     if (btnCopy) btnCopy.onclick = async () => {
       const msg = _composeClientMessage();
