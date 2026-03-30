@@ -1537,6 +1537,113 @@ window.renderAdAccountsTable = function(container) {
           </button>
         </div>
       </div>
+
+      <div class="mb-6 p-5 rounded-3xl border bg-red-50 border-red-100 dark:bg-gray-900/40 dark:border-gray-700">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="text-[10px] font-black text-red-600 uppercase tracking-widest">Meta — Résultats</div>
+            <div class="text-sm font-black text-gray-900 dark:text-white mt-1">Token → Ad Account → Campagnes → Résultats</div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="meta-live-save" class="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-black text-xs">Enregistrer</button>
+            <button type="button" id="meta-live-clear" class="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-black text-xs">Effacer</button>
+            <button type="button" id="meta-live-load-accounts" class="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 font-black text-xs">Charger ad accounts</button>
+            <button type="button" id="meta-live-load-campaigns" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-black text-xs">Charger campagnes</button>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div class="lg:col-span-1">
+            <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Token Meta</div>
+            <input id="meta-live-token" type="password" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white" placeholder="Colle ton token ici">
+            <div id="meta-live-identity" class="text-xs font-bold mt-2 text-gray-600 dark:text-gray-300">—</div>
+          </div>
+          <div class="lg:col-span-2">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Ad Account</div>
+                <select id="meta-live-adaccount" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white">
+                  <option value="">— Charge d’abord —</option>
+                </select>
+              </div>
+              <div>
+                <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Du</div>
+                <input id="meta-live-since" type="date" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white">
+              </div>
+              <div>
+                <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Au</div>
+                <input id="meta-live-until" type="date" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white">
+              </div>
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Recherche campagne</div>
+                <input id="meta-live-filter-campaign" type="text" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white" placeholder="Nom de campagne...">
+              </div>
+              <div>
+                <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Recherche page</div>
+                <input id="meta-live-filter-page" type="text" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white" placeholder="Nom de la Page...">
+              </div>
+            </div>
+
+            <div class="mt-3 flex items-center justify-between gap-3">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="meta-live-only-active" class="w-5 h-5 text-red-600 rounded border-gray-300 focus:ring-red-500" checked>
+                <span class="text-xs font-black text-gray-700 dark:text-gray-200">Campagnes actives uniquement</span>
+              </label>
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+              <button type="button" id="meta-live-btn-results" class="py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black text-sm shadow-sm">Résultats</button>
+              <div id="meta-live-status" class="px-4 py-3 rounded-2xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-100 font-bold text-sm">—</div>
+            </div>
+
+            <div class="mt-3 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Ad Accounts</div>
+              <div id="meta-live-adaccounts-list" class="p-4 text-sm font-bold text-gray-600 dark:text-gray-200">—</div>
+            </div>
+
+            <div class="mt-3 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Campagnes</div>
+              <div id="meta-live-campaigns-list" class="p-4 text-sm font-bold text-gray-600 dark:text-gray-200">—</div>
+            </div>
+
+            <div class="mt-3 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">KPIs</div>
+              <div id="meta-live-kpis" class="p-4 text-sm font-bold text-gray-600 dark:text-gray-200">Aucun KPI.</div>
+            </div>
+
+            <div class="mt-3 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800">
+              <div class="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Envoyer au client</div>
+              <div class="p-4 space-y-3">
+                <div>
+                  <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Recherche client</div>
+                  <input id="meta-live-client-search" type="text" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white" placeholder="Nom ou téléphone...">
+                  <div id="meta-live-client-suggest" class="mt-2 space-y-2"></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">WhatsApp (tél)</div>
+                    <input id="meta-live-client-phone" type="text" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white" placeholder="Ex: 213xxxxxxxxx">
+                  </div>
+                  <div>
+                    <div class="text-[10px] font-black text-gray-500 dark:text-gray-300 uppercase tracking-widest">Instagram (username)</div>
+                    <input id="meta-live-client-ig" type="text" class="mt-2 w-full p-3 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-2xl font-black text-sm outline-none focus:ring-2 focus:ring-red-400 dark:text-white" placeholder="Ex: @client">
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <button type="button" id="meta-live-send-wa" class="py-3 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black text-xs shadow-sm flex items-center justify-center gap-2">
+                    <i class="fab fa-whatsapp text-sm"></i> WhatsApp
+                  </button>
+                  <button type="button" id="meta-live-send-ig" class="py-3 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white font-black text-xs shadow-sm">Instagram</button>
+                  <button type="button" id="meta-live-copy-msg" class="py-3 rounded-2xl bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-black text-xs border border-gray-200 dark:border-gray-700 shadow-sm">Copier message</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         ${pageItems.map(acc => {
@@ -1576,6 +1683,7 @@ window.renderAdAccountsTable = function(container) {
       ${renderPagination(key, page, filtered.length, pageSize)}
     </div>
   `;
+  try { setTimeout(() => { if (window.initMetaAdsLive) window.initMetaAdsLive(); }, 0); } catch (e) {}
 };
 
 window.renderMonthlyStatsChart = function() {
