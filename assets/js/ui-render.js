@@ -1331,12 +1331,21 @@ window.renderNewTodoForm = function(container) {
             <label class="block text-sm font-bold text-gray-700 mb-2">Date</label>
             <input type="date" id="todoDate" value="${new Date().toISOString().split('T')[0]}" class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
           </div>
-          <div>
+          <div class="relative">
             <label class="block text-sm font-bold text-gray-700 mb-2">Client</label>
-            <select id="todoClientId" required class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50">
-              <option value="">-- Sélectionner un client --</option>
-              ${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-            </select>
+            <div class="relative">
+              <input type="text" id="todoClientSearch" placeholder="Rechercher un client..." 
+                     oninput="filterClientOptions(this.value)" 
+                     class="w-full p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50"
+                     autocomplete="off">
+              <input type="hidden" id="todoClientId" required value="">
+              <div id="clientDropdown" class="absolute z-50 w-full mt-1 bg-white border rounded-2xl shadow-lg max-h-60 overflow-y-auto" style="display: none;">
+                ${clients.map(c => `<div class="p-3 hover:bg-indigo-50 cursor-pointer client-option" data-id="${c.id}" data-name="${c.name}" onclick="selectClient(this)">${c.name}</div>`).join('')}
+              </div>
+            </div>
+            <style>
+              .client-option.selected { background-color: #e0e7ff; }
+            </style>
           </div>
         </div>
         <div>

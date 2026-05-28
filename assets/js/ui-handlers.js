@@ -1266,3 +1266,48 @@ window.toggleUsdFilter = function(checked) {
   if (typeof renderCurrentTab === 'function') renderCurrentTab();
 };
 
+window.filterClientOptions = function(query) {
+  const dropdown = document.getElementById('clientDropdown');
+  if (!dropdown) return;
+  const options = dropdown.querySelectorAll('.client-option');
+  const q = query.toLowerCase();
+  let visibleCount = 0;
+  options.forEach(opt => {
+    const name = (opt.dataset.name || '').toLowerCase();
+    if (name.includes(q) || q === '') {
+      opt.style.display = 'block';
+      visibleCount++;
+    } else {
+      opt.style.display = 'none';
+    }
+  });
+  if (visibleCount > 0) {
+    dropdown.style.display = 'block';
+  } else {
+    dropdown.style.display = 'none';
+  }
+};
+
+window.selectClient = function(el) {
+  const id = el.dataset.id;
+  const name = el.dataset.name;
+  const hiddenInput = document.getElementById('todoClientId');
+  const searchInput = document.getElementById('todoClientSearch');
+  const dropdown = document.getElementById('clientDropdown');
+  if (hiddenInput) hiddenInput.value = id;
+  if (searchInput) searchInput.value = name;
+  if (dropdown) dropdown.style.display = 'none';
+  document.querySelectorAll('.client-option').forEach(o => o.classList.remove('selected'));
+  if (el) el.classList.add('selected');
+};
+
+document.addEventListener('click', function(e) {
+  const search = document.getElementById('todoClientSearch');
+  const dropdown = document.getElementById('clientDropdown');
+  if (search && dropdown) {
+    if (!search.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  }
+});
+
